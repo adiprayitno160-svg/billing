@@ -10,7 +10,7 @@ export class InvoiceDataService {
     static async getInvoice(invoiceId: number) {
         // Main invoice + customer
         const [invRows] = await databasePool.query(
-            `SELECT i.*, c.name AS customer_name, c.address AS customer_address, c.phone AS customer_phone
+            `SELECT i.*, c.name AS customer_name, c.address AS customer_address, c.phone AS customer_phone, c.pppoe_username
        FROM invoices i
        JOIN customers c ON i.customer_id = c.id
        WHERE i.id = ?`,

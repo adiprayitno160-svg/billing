@@ -604,23 +604,19 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         const customer = customers[0];
 
         // Get packages based on connection type
-        let packages: any[] = [];
+        // Get packages based on connection type
+        let pppoePackages: any[] = [];
+        let staticIpPackages: any[] = [];
         try {
-            if (customer.connection_type === 'pppoe') {
-                const allPppoePackages = await listPppoePackages();
-                // Filter out full packages, but ALWAYS keep the customer's CURRENT package
-                packages = allPppoePackages.filter((p: any) => !p.is_full || p.id === customer.package_id || p.id === customer.pppoe_package_id);
-                console.log(`[CustomerEdit] Loaded ${packages.length} PPPoE packages for customer ${customerId}`);
-            } else if (customer.connection_type === 'static_ip') {
-                const allStaticIpPackages = await listStaticIpPackages();
-                // Filter out full packages, but ALWAYS keep the customer's CURRENT package
-                packages = allStaticIpPackages.filter(p => !p.is_full || p.id === customer.static_ip_package_id || p.id === customer.package_id);
-                console.log(`[CustomerEdit] Loaded ${packages.length} Static IP packages for customer ${customerId}`);
-                console.log(`[CustomerEdit] Customer package_id: ${customer.package_id}, static_ip_package_id: ${customer.static_ip_package_id}`);
-            }
+            const allPppoePackages = await listPppoePackages();
+            pppoePackages = allPppoePackages.filter((p: any) => !p.is_full || p.id === customer.package_id || p.id === customer.pppoe_package_id);
+
+            const allStaticIpPackages = await listStaticIpPackages();
+            staticIpPackages = allStaticIpPackages.filter(p => !p.is_full || p.id === customer.static_ip_package_id || p.id === customer.package_id);
+
+            console.log(`[CustomerEdit] Loaded ${pppoePackages.length} PPPoE packages and ${staticIpPackages.length} Static IP packages`);
         } catch (packageError) {
             console.error('[CustomerEdit] Error fetching packages:', packageError);
-            packages = [];
         }
 
         // Get MikroTik interfaces with timeout
@@ -662,7 +658,9 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         res.render('customers/edit', {
             title: `Edit Pelanggan - ${customer.name}`,
             customer: customerForView,
-            packages: packages && Array.isArray(packages) ? packages : [],
+            pppoePackages: pppoePackages,
+            staticIpPackages: staticIpPackages,
+            packages: customer.connection_type === 'pppoe' ? pppoePackages : staticIpPackages, // Fallback for general usage
             interfaces: interfaces && Array.isArray(interfaces) ? interfaces : [],
             interfaceError: interfaceError || null,
             odpData: odpData && Array.isArray(odpData) ? odpData : [],
@@ -1181,6 +1179,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     const staticIpValues: any[] = [];
 
                     if (req.body.ip_address) { staticIpUpdates.push('ip_address = ?'); staticIpValues.push(req.body.ip_address); }
+                    if (req.body.gateway) { staticIpUpdates.push('gateway = ?'); staticIpValues.push(req.body.gateway); }
                     if (req.body.interface) { staticIpUpdates.push('interface = ?'); staticIpValues.push(req.body.interface); }
                     if (req.body.static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(req.body.static_ip_package); }
 
@@ -1217,8 +1216,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         const pkgId = req.body.static_ip_package ? parseInt(req.body.static_ip_package) : null;
                         if (req.body.ip_address && pkgId) {
                             await conn.query(
-                                'INSERT INTO static_ip_clients (customer_id, client_name, ip_address, interface, package_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, "active", NOW(), NOW())',
-                                [customerId, req.body.name || oldName, req.body.ip_address, req.body.interface, pkgId]
+                                'INSERT INTO static_ip_clients (customer_id, client_name, ip_address, gateway, interface, package_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, "active", NOW(), NOW())',
+                                [customerId, req.body.name || oldName, req.body.ip_address, req.body.gateway || null, req.body.interface, pkgId]
                             );
                             console.log(`[UpdateCustomer] Created new static_ip_clients for customer ${customerId}`);
 

@@ -11,24 +11,41 @@ export class InvoicePdfService {
      * Returns Buffer containing PDF data.
      */
     static async generatePdf(invoiceId: number): Promise<Buffer> {
+        console.log(`[InvoicePdf] Fetching data for invoice ${invoiceId}...`);
         const invoice = await InvoiceDataService.getInvoice(invoiceId);
 
         // Render EJS template to HTML (A4 layout)
+        console.log(`[InvoicePdf] Rendering template...`);
         const templatePath = join(process.cwd(), 'views', 'invoice', 'template-a4.ejs');
         const html = await ejs.renderFile(templatePath, { invoice }, { async: true });
 
+        console.log(`[InvoicePdf] Launching browser...`);
         const browser = await puppeteer.launch({
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         });
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
-        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-        await browser.close();
 
-        logger.info(`✅ PDF (A4) generated for invoice ${invoiceId}`);
-        return Buffer.from(pdfBuffer);
+        try {
+            console.log(`[InvoicePdf] Opening new page...`);
+            const page = await browser.newPage();
+
+            console.log(`[InvoicePdf] Setting content...`);
+            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+
+            console.log(`[InvoicePdf] Generating PDF...`);
+            const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+
+            console.log(`[InvoicePdf] PDF generated, closing browser...`);
+            await browser.close();
+
+            logger.info(`✅ PDF (A4) generated for invoice ${invoiceId}`);
+            return Buffer.from(pdfBuffer);
+        } catch (err) {
+            console.error(`[InvoicePdf] Error during page operations:`, err);
+            await browser.close();
+            throw err;
+        }
     }
     /**
      * Generate PDF and save to filesystem.

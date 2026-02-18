@@ -104,13 +104,14 @@ export class SmartPPPoEMonitoringService {
         console.log(`✅ Force reset connection for ${username}`);
 
         // Kirim pesan ke pelanggan bahwa koneksi sedang direset
-        const customer = await this.getCustomerByUsername(username);
-        if (customer && customer.phone) {
-          await this.whatsappService.sendMessage(
-            customer.phone,
-            `🔧 Halo ${customer.name}, kami sedang melakukan reset koneksi internet Anda untuk memperbaiki masalah koneksi. Mohon tunggu beberapa saat.`
-          );
-        }
+        // DISABLED FOR NOW
+        // const customer = await this.getCustomerByUsername(username);
+        // if (customer && customer.phone) {
+        //   await this.whatsappService.sendMessage(
+        //     customer.phone,
+        //     `🔧 Halo ${customer.name}, kami sedang melakukan reset koneksi internet Anda untuk memperbaiki masalah koneksi. Mohon tunggu beberapa saat.`
+        //   );
+        // }
         return true;
       }
 
@@ -154,10 +155,11 @@ export class SmartPPPoEMonitoringService {
 
       // Kirim notifikasi ke pelanggan
       if (customer.phone) {
-        await this.whatsappService.sendMessage(
-          customer.phone,
-          `🎫 Halo ${customer.name}, kami telah membuat tiket gangguan otomatis (#${ticketId}) untuk masalah koneksi Anda. Tim teknisi kami akan segera menindaklanjuti.`
-        );
+        // DISABLED FOR NOW
+        // await this.whatsappService.sendMessage(
+        //   customer.phone,
+        //   `🎫 Halo ${customer.name}, kami telah membuat tiket gangguan otomatis (#${ticketId}) untuk masalah koneksi Anda. Tim teknisi kami akan segera menindaklanjuti.`
+        // );
       }
 
       return ticketId;
@@ -260,10 +262,11 @@ export class SmartPPPoEMonitoringService {
 
         // Kirim notifikasi awal ke pelanggan
         if (customer.phone) {
-          await this.whatsappService.sendMessage(
-            customer.phone,
-            `⚠️ Halo ${customer.name}, kami mendeteksi koneksi internet Anda terputus. Sistem sedang memeriksa dan akan menindaklanjuti jika diperlukan.`
-          );
+          // DISABLED FOR NOW
+          // await this.whatsappService.sendMessage(
+          //   customer.phone,
+          //   `⚠️ Halo ${customer.name}, kami mendeteksi koneksi internet Anda terputus. Sistem sedang memeriksa dan akan menindaklanjuti jika diperlukan.`
+          // );
         }
       }
       return;
@@ -285,10 +288,11 @@ export class SmartPPPoEMonitoringService {
         await this.updateCustomerMonitoringState(customer.id, 'resolved');
 
         if (customer.phone) {
-          await this.whatsappService.sendMessage(
-            customer.phone,
-            `✅ Halo ${customer.name}, koneksi internet Anda telah pulih secara otomatis. Terima kasih atas kesabarannya.`
-          );
+          // DISABLED FOR NOW
+          // await this.whatsappService.sendMessage(
+          //   customer.phone,
+          //   `✅ Halo ${customer.name}, koneksi internet Anda telah pulih secara otomatis. Terima kasih atas kesabarannya.`
+          // );
         }
       } else {
         // Masih tidak aktif - lanjut ke menit 6
@@ -312,10 +316,11 @@ export class SmartPPPoEMonitoringService {
 
           // Kirim konfirmasi reset ke pelanggan
           if (customer.phone) {
-            await this.whatsappService.sendMessage(
-              customer.phone,
-              `🔧 Halo ${customer.name}, koneksi internet Anda telah direset secara paksa untuk memperbaiki masalah. Silakan coba koneksi kembali.`
-            );
+            // DISABLED FOR NOW
+            // await this.whatsappService.sendMessage(
+            //   customer.phone,
+            //   `🔧 Halo ${customer.name}, koneksi internet Anda telah direset secara paksa untuk memperbaiki masalah. Silakan coba koneksi kembali.`
+            // );
           }
         }
       } else {

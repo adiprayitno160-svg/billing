@@ -84,8 +84,9 @@ export class UnifiedNotificationService {
     const notificationIds: number[] = [];
 
     try {
-      // Determine channels
-      const channels = data.channels || ['whatsapp'];
+      // Determine channels (unique)
+      const inputChannels = data.channels || ['whatsapp'];
+      const channels = [...new Set(inputChannels)];
 
       // Get customer info with potential WhatsApp LID
       const [customerRows] = await connection.query<RowDataPacket[]>(
@@ -113,6 +114,29 @@ export class UnifiedNotificationService {
 
       // Process each channel
       for (const channel of channels) {
+        // Anti-spam check: Prevent duplicate notification for same customer + type + channel
+        // within a short window (1 minute), unless it's a different invoice/subscription
+        let duplicateCheckQuery = `
+          SELECT id FROM unified_notifications_queue 
+          WHERE customer_id = ? 
+            AND notification_type = ? 
+            AND channel = ?
+            AND (status = 'pending' OR (status = 'sent' AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)))
+        `;
+        const duplicateCheckParams: any[] = [data.customer_id, data.notification_type, channel];
+
+        if (data.invoice_id) {
+          duplicateCheckQuery += ` AND invoice_id = ?`;
+          duplicateCheckParams.push(data.invoice_id);
+        }
+
+        const [existing] = await connection.query<RowDataPacket[]>(duplicateCheckQuery, duplicateCheckParams);
+
+        if (existing.length > 0) {
+          console.warn(`[UnifiedNotification] ⚠️ Duplicate notification prevented for ${data.customer_id} (${data.notification_type} - ${channel})`);
+          continue;
+        }
+
         // Get template for this notification type and channel
         const template = await NotificationTemplateService.getTemplate(
           data.notification_type,
@@ -862,9 +886,13 @@ export class UnifiedNotificationService {
       const paymentDate = new Date(payment.payment_date);
       const remainingAmount = parseFloat(payment.remaining_amount || '0');
 
+      console.log(`[UnifiedNotification] Payment ${paymentId}: Amount=${payment.amount}, Remaining=${remainingAmount}`);
+
       // Determine notification type with tolerance (e.g. 100 rupiah)
       const isPaid = remainingAmount <= 100;
       const notificationType = isPaid ? 'payment_received' : 'payment_partial';
+
+      console.log(`[UnifiedNotification] Payment ${paymentId}: isPaid=${isPaid}, NotificationType=${notificationType}`);
 
       // Generate PDF if full payment
       let attachmentPath = undefined;

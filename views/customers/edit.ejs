@@ -194,7 +194,8 @@
                                     <select name="pppoe_package"
                                         class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 bg-white font-bold text-slate-800 focus:ring-4 focus:ring-blue-50 focus:border-blue-300 transition-all outline-none text-sm appearance-none cursor-pointer">
                                         <option value="">-- Pilih Paket (Opsional) --</option>
-                                        <% if (typeof packages !=='undefined' && packages) { packages.forEach(pkg=> { %>
+                                        <% if (typeof pppoePackages !=='undefined' && pppoePackages) {
+                                            pppoePackages.forEach(pkg=> { %>
                                             <option value="<%= pkg.id %>"
                                                 <%=(String(customer.package_id)===String(pkg.id) ||
                                                 String(customer.pppoe_package_id)===String(pkg.id)) ? 'selected' : '' %>
@@ -252,10 +253,16 @@
                                                 </option>
                                                 <% } %>
                                     </select>
-                                    <button type="button" id="import_mikrotik_ip_btn"
-                                        class="mt-2 text-xs text-green-600 hover:text-green-800 font-bold flex items-center gap-1">
-                                        📥 Import IP dari ARP/Leases Mikrotik
-                                    </button>
+                                    <div class="flex gap-4 mt-2">
+                                        <button type="button" id="import_mikrotik_ip_btn"
+                                            class="text-xs text-green-600 hover:text-green-800 font-bold flex items-center gap-1">
+                                            📥 Import IP dari ARP/Leases Mikrotik
+                                        </button>
+                                        <button type="button" id="import_mikrotik_queue_btn"
+                                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1">
+                                            🔄 Import dari Queue / Bandwidth Management
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label
@@ -264,7 +271,8 @@
                                     <select name="static_ip_package"
                                         class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 bg-white font-bold text-slate-800 focus:ring-4 focus:ring-green-50 focus:border-green-300 transition-all outline-none text-sm appearance-none cursor-pointer">
                                         <option value="">-- Pilih Paket --</option>
-                                        <% if (typeof packages !=='undefined' && packages) { packages.forEach(pkg=> {
+                                        <% if (typeof staticIpPackages !=='undefined' && staticIpPackages) {
+                                            staticIpPackages.forEach(pkg=> {
                                             const isSelected = (String(customer.package_id) === String(pkg.id) ||
                                             String(customer.static_ip_package_id) === String(pkg.id));
                                             const isFull = pkg.is_full && !isSelected;
@@ -1297,144 +1305,145 @@
         }
     });
 </script>
+<%- include('edit_additional_scripts') %>
 
-<!-- SMART LOCATION & MAP TOOLS -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
+    <!-- SMART LOCATION & MAP TOOLS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
 
-        // Helper: Update Inputs & Marker
-        window.updateLocationInputs = function (lat, lng) {
-            const latInput = document.getElementById('latitude');
-            const lngInput = document.getElementById('longitude');
-            const coordInput = document.getElementById('coordinates');
+            // Helper: Update Inputs & Marker
+            window.updateLocationInputs = function (lat, lng) {
+                const latInput = document.getElementById('latitude');
+                const lngInput = document.getElementById('longitude');
+                const coordInput = document.getElementById('coordinates');
 
-            if (latInput) latInput.value = lat;
-            if (lngInput) lngInput.value = lng;
-            if (coordInput) coordInput.value = `${lat}, ${lng}`;
+                if (latInput) latInput.value = lat;
+                if (lngInput) lngInput.value = lng;
+                if (coordInput) coordInput.value = `${lat}, ${lng}`;
 
-            // Try to update Leaflet Map if instance exists globally
-            // Check common variable names: map, mymap, leafletMap
-            const mapInstance = window.map || window.mymap || window.leafletMap;
-            const markerInstance = window.marker || window.customerMarker;
+                // Try to update Leaflet Map if instance exists globally
+                // Check common variable names: map, mymap, leafletMap
+                const mapInstance = window.map || window.mymap || window.leafletMap;
+                const markerInstance = window.marker || window.customerMarker;
 
-            if (mapInstance && typeof L !== 'undefined') {
-                const newLatLng = new L.LatLng(lat, lng);
-                mapInstance.setView(newLatLng, 16);
-                if (markerInstance) {
-                    markerInstance.setLatLng(newLatLng);
-                } else {
-                    // Create new marker if not exists
-                    if (window.L) {
-                        window.marker = L.marker(newLatLng, { draggable: true }).addTo(mapInstance);
-                        // Add drag listener to new marker
-                        window.marker.on('dragend', function (e) {
-                            const pos = e.target.getLatLng();
-                            updateLocationInputs(pos.lat, pos.lng);
-                        });
-                    }
-                }
-            }
-        };
-
-        // 1. Link Parser Logic
-        window.parseMapLink = function () {
-            const input = document.getElementById('paste_map_link');
-            if (!input || !input.value) {
-                alert('Silakan paste link terlebih dahulu!');
-                return;
-            }
-            const text = input.value;
-            let lat, lng;
-
-            // Regex patterns
-            const patterns = [
-                /(-?\d+\.\d+),\s*(-?\d+\.\d+)/, // Raw coords
-                /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // Google Maps q param
-                /@(-?\d+\.\d+),(-?\d+\.\d+)/,   // Google Maps @ param
-                /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/ // Google Maps embed param
-            ];
-
-            for (let p of patterns) {
-                const m = text.match(p);
-                if (m) { lat = m[1]; lng = m[2]; break; }
-            }
-
-            if (lat && lng) {
-                updateLocationInputs(lat, lng);
-                // alert(`Lokasi ditemukan: ${lat}, ${lng}`);
-            } else {
-                if (text.includes('goo.gl') || text.includes('maps.app') || text.includes('bit.ly')) {
-                    const confirmOpen = confirm('Link pendek terdeteksi. Sistem tidak bisa membaca koordinat langsung dari link pendek.\n\nKlik OK untuk membuka link ini di tab baru, lalu COPY link hasil redirect (yang panjang dan ada angkanya) dan PASTE kembali di sini.');
-                    if (confirmOpen) window.open(text, '_blank');
-                } else {
-                    alert('Maaf, koordinat tidak ditemukan dalam link tersebut. Pastikan link mengandung angka koordinat (contoh: -6.123, 106.123).');
-                }
-            }
-        };
-
-        // 2. Auto GPS Override (HTTP Friendly)
-        const btnLoc = document.getElementById('btnGetLocation');
-        if (btnLoc) {
-            // Cloning button to strip existing event listeners is safer
-            const newBtn = btnLoc.cloneNode(true);
-            btnLoc.parentNode.replaceChild(newBtn, btnLoc);
-
-            newBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const originalText = newBtn.innerHTML;
-                newBtn.innerHTML = '⏳ MENCARI...';
-                newBtn.disabled = true;
-
-                const onCpuSuccess = (pos) => {
-                    updateLocationInputs(pos.coords.latitude, pos.coords.longitude);
-                    newBtn.innerHTML = '✅ GPS OK';
-                    setTimeout(() => { newBtn.innerHTML = originalText; newBtn.disabled = false; }, 2000);
-                };
-
-                const onCpuError = async (err) => {
-                    console.warn('[AutoGPS] Browser GPS failed/blocked:', err);
-                    newBtn.innerHTML = '🌍 IP LOOKUP...';
-
-                    // Fallback to IP API
-                    try {
-                        const isHttps = window.location.protocol === 'https:';
-                        // ip-api.com is very accurate for HTTP, ipapi.co is backup for HTTPS
-                        const apiUrl = isHttps ? 'https://ipapi.co/json/' : 'http://ip-api.com/json';
-
-                        console.log('Fetching IP Location from:', apiUrl);
-                        const response = await fetch(apiUrl);
-                        const data = await response.json();
-
-                        // normalize keys
-                        const lat = data.lat || data.latitude;
-                        const lng = data.lon || data.longitude;
-
-                        if (lat && lng) {
-                            updateLocationInputs(lat, lng);
-                            alert('⚠️ GPS Hardware gagal (Blokir Browser). Lokasi estimasi ISP digunakan.\n\nTips: Untuk lokasi 100% akurat, gunakan fitur "Paste Link Google Maps" di atas peta.');
-                        } else {
-                            throw new Error('IP API no coords');
+                if (mapInstance && typeof L !== 'undefined') {
+                    const newLatLng = new L.LatLng(lat, lng);
+                    mapInstance.setView(newLatLng, 16);
+                    if (markerInstance) {
+                        markerInstance.setLatLng(newLatLng);
+                    } else {
+                        // Create new marker if not exists
+                        if (window.L) {
+                            window.marker = L.marker(newLatLng, { draggable: true }).addTo(mapInstance);
+                            // Add drag listener to new marker
+                            window.marker.on('dragend', function (e) {
+                                const pos = e.target.getLatLng();
+                                updateLocationInputs(pos.lat, pos.lng);
+                            });
                         }
-                    } catch (ipErr) {
-                        console.error(ipErr);
-                        alert('❌ Gagal mendapatkan lokasi otomatis.\n\nSilakan gunakan metode "Paste Link Google Maps" atau input manual.');
-                    } finally {
-                        newBtn.innerHTML = originalText;
-                        newBtn.disabled = false;
                     }
-                };
-
-                // Logic: Try Navigator first
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(onCpuSuccess, onCpuError, {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
-                    });
-                } else {
-                    onCpuError('Geolocation not supported');
                 }
-            });
-        }
-    });
-</script>
+            };
+
+            // 1. Link Parser Logic
+            window.parseMapLink = function () {
+                const input = document.getElementById('paste_map_link');
+                if (!input || !input.value) {
+                    alert('Silakan paste link terlebih dahulu!');
+                    return;
+                }
+                const text = input.value;
+                let lat, lng;
+
+                // Regex patterns
+                const patterns = [
+                    /(-?\d+\.\d+),\s*(-?\d+\.\d+)/, // Raw coords
+                    /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // Google Maps q param
+                    /@(-?\d+\.\d+),(-?\d+\.\d+)/,   // Google Maps @ param
+                    /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/ // Google Maps embed param
+                ];
+
+                for (let p of patterns) {
+                    const m = text.match(p);
+                    if (m) { lat = m[1]; lng = m[2]; break; }
+                }
+
+                if (lat && lng) {
+                    updateLocationInputs(lat, lng);
+                    // alert(`Lokasi ditemukan: ${lat}, ${lng}`);
+                } else {
+                    if (text.includes('goo.gl') || text.includes('maps.app') || text.includes('bit.ly')) {
+                        const confirmOpen = confirm('Link pendek terdeteksi. Sistem tidak bisa membaca koordinat langsung dari link pendek.\n\nKlik OK untuk membuka link ini di tab baru, lalu COPY link hasil redirect (yang panjang dan ada angkanya) dan PASTE kembali di sini.');
+                        if (confirmOpen) window.open(text, '_blank');
+                    } else {
+                        alert('Maaf, koordinat tidak ditemukan dalam link tersebut. Pastikan link mengandung angka koordinat (contoh: -6.123, 106.123).');
+                    }
+                }
+            };
+
+            // 2. Auto GPS Override (HTTP Friendly)
+            const btnLoc = document.getElementById('btnGetLocation');
+            if (btnLoc) {
+                // Cloning button to strip existing event listeners is safer
+                const newBtn = btnLoc.cloneNode(true);
+                btnLoc.parentNode.replaceChild(newBtn, btnLoc);
+
+                newBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const originalText = newBtn.innerHTML;
+                    newBtn.innerHTML = '⏳ MENCARI...';
+                    newBtn.disabled = true;
+
+                    const onCpuSuccess = (pos) => {
+                        updateLocationInputs(pos.coords.latitude, pos.coords.longitude);
+                        newBtn.innerHTML = '✅ GPS OK';
+                        setTimeout(() => { newBtn.innerHTML = originalText; newBtn.disabled = false; }, 2000);
+                    };
+
+                    const onCpuError = async (err) => {
+                        console.warn('[AutoGPS] Browser GPS failed/blocked:', err);
+                        newBtn.innerHTML = '🌍 IP LOOKUP...';
+
+                        // Fallback to IP API
+                        try {
+                            const isHttps = window.location.protocol === 'https:';
+                            // ip-api.com is very accurate for HTTP, ipapi.co is backup for HTTPS
+                            const apiUrl = isHttps ? 'https://ipapi.co/json/' : 'http://ip-api.com/json';
+
+                            console.log('Fetching IP Location from:', apiUrl);
+                            const response = await fetch(apiUrl);
+                            const data = await response.json();
+
+                            // normalize keys
+                            const lat = data.lat || data.latitude;
+                            const lng = data.lon || data.longitude;
+
+                            if (lat && lng) {
+                                updateLocationInputs(lat, lng);
+                                alert('⚠️ GPS Hardware gagal (Blokir Browser). Lokasi estimasi ISP digunakan.\n\nTips: Untuk lokasi 100% akurat, gunakan fitur "Paste Link Google Maps" di atas peta.');
+                            } else {
+                                throw new Error('IP API no coords');
+                            }
+                        } catch (ipErr) {
+                            console.error(ipErr);
+                            alert('❌ Gagal mendapatkan lokasi otomatis.\n\nSilakan gunakan metode "Paste Link Google Maps" atau input manual.');
+                        } finally {
+                            newBtn.innerHTML = originalText;
+                            newBtn.disabled = false;
+                        }
+                    };
+
+                    // Logic: Try Navigator first
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(onCpuSuccess, onCpuError, {
+                            enableHighAccuracy: true,
+                            timeout: 5000,
+                            maximumAge: 0
+                        });
+                    } else {
+                        onCpuError('Geolocation not supported');
+                    }
+                });
+            }
+        });
+    </script>

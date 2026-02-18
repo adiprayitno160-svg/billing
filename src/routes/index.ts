@@ -664,6 +664,9 @@ router.use('/genieacs', genieacsRoutes);
 // WiFi Admin routes
 router.use('/wifi-admin', wifiAdminRoutes);
 
+// Static IP Import routes
+router.use('/', staticIpImportRoutes);
+
 
 // ============ ADMIN SPECIFIC TECHNICIAN ROUTES ============
 console.log('[DEBUG ROUTE] Registering Admin Technician routes...');

@@ -473,7 +473,8 @@ export async function createPackage(data: {
 		let profileRx = data.rate_limit_rx || '10M';
 		let profileTx = data.rate_limit_tx || '10M';
 
-		// AUTOMATICALLY MANAGE PARENT QUEUE FOR SHARED PACKAGE
+		// AUTOMATICALLY MANAGE PARENT QUEUE FOR SHARED PACKAGE - DISABLED BY USER REQUEST (Revert to Dedicated)
+		/*
 		if (maxClients > 1) {
 			try {
 				const config = await getMikrotikConfig();
@@ -509,6 +510,7 @@ export async function createPackage(data: {
 				console.error(`[PPPOE] Shared Queue setup failed:`, e.message);
 			}
 		}
+		*/
 
 		// ALWAYS SYNC PROFILE SETTINGS (EVEN FOR NON-SHARED)
 		try {
@@ -523,7 +525,7 @@ export async function createPackage(data: {
 						// Profile individual limit should be the same as package limit 
 						// so they can use up to that bandwidth if shared group is idle.
 						const updateData: any = {
-							'parent-queue': maxClients > 1 ? data.name : 'none',
+							'parent-queue': 'none', // DISABLED SHARED PARENT QUEUE by User Request
 							'rate-limit-rx': profileRx,
 							'rate-limit-tx': profileTx,
 							'burst-limit-rx': data.burst_limit_rx || '',
@@ -712,7 +714,8 @@ export async function updatePackage(id: number, data: {
 				const rateLimitRx = data.rate_limit_rx !== undefined ? data.rate_limit_rx : currentPackage.rate_limit_rx;
 				const rateLimitTx = data.rate_limit_tx !== undefined ? data.rate_limit_tx : currentPackage.rate_limit_tx;
 
-				// 1. MANAGE SHARED PARENT QUEUE (Simple Queue)
+				// 1. MANAGE SHARED PARENT QUEUE (Simple Queue) - DISABLED BY USER REQUEST
+				/*
 				if (finalMaxClients > 1) {
 					const parentMaxLimit = `${rateLimitRx || '10M'}/${rateLimitTx || '10M'}`;
 
@@ -746,6 +749,7 @@ export async function updatePackage(id: number, data: {
 						console.log(`🗑️ Deleted Shared Parent Queue (max_clients=1): ${oldPackageName}`);
 					}
 				}
+				*/
 
 				// 2. SYNC PPP PROFILE SETTINGS
 				const targetProfileId = newProfileId || oldProfileId;
@@ -760,7 +764,7 @@ export async function updatePackage(id: number, data: {
 							let profileTxCap = rateLimitTx || '10M';
 
 							const updateData: any = {
-								'parent-queue': finalMaxClients > 1 ? newPackageName : 'none',
+								'parent-queue': 'none', // DISABLED SHARED PARENT QUEUE by User Request
 								'rate-limit-rx': profileRxCap,
 								'rate-limit-tx': profileTxCap,
 								'burst-limit-rx': data.burst_limit_rx !== undefined ? data.burst_limit_rx : currentPackage.burst_limit_rx || '',

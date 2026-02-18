@@ -602,6 +602,7 @@ export async function ensureInitialSchema(): Promise<void> {
 			channel VARCHAR(50) NOT NULL DEFAULT 'whatsapp',
 			title TEXT NOT NULL,
 			message TEXT NOT NULL,
+			attachment_path TEXT NULL,
 			status VARCHAR(50) NOT NULL DEFAULT 'pending',
 			priority VARCHAR(20) DEFAULT 'normal',
 			retry_count INT DEFAULT 0,

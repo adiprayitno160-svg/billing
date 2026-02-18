@@ -1,0 +1,134 @@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const importQueueBtn = document.getElementById('import_mikrotik_queue_btn');
+        if (importQueueBtn) {
+            importQueueBtn.addEventListener('click', async () => {
+                const originalText = importQueueBtn.innerHTML;
+                importQueueBtn.innerHTML = '⏳ Scanning Queues...';
+                importQueueBtn.disabled = true;
+
+                try {
+                    // Fetch Simple Queues from API
+                    const response = await fetch('/api/static-ip/import/scan');
+                    const data = await response.json();
+
+                    if (!data.success) throw new Error(data.message);
+
+                    if (!data.data || data.data.length === 0) {
+                        alert('Tidak ada Simple Queue yang ditemukan di Mikrotik.');
+                        return;
+                    }
+
+                    // Create Modal
+                    const modal = document.createElement('div');
+                    modal.className = 'flex items-center justify-center bg-black/50 backdrop-blur-sm p-4';
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999;';
+
+                    const content = document.createElement('div');
+                    content.className = 'bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]';
+
+                    content.innerHTML = `
+                        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <div>
+                                <h3 class="font-bold text-gray-800">Import dari Simple Queue</h3>
+                                <p class="text-xs text-gray-500">Pilih antrian untuk mengimpor IP dan Limit</p>
+                            </div>
+                            <button class="text-gray-400 hover:text-red-500 font-bold text-xl clos-btn">&times;</button>
+                        </div>
+                        <div class="p-3 bg-blue-50 border-b border-blue-100">
+                            <input type="text" id="queue_search" placeholder="Cari nama atau IP..." class="w-full px-4 py-2 rounded-xl border border-blue-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        </div>
+                        <div class="overflow-y-auto p-2 space-y-1" id="queue_list">
+                            <!-- Items will be injected here -->
+                        </div>
+                    `;
+
+                    modal.appendChild(content);
+                    document.body.appendChild(modal);
+
+                    // Render List Function
+                    const renderList = (items) => {
+                        const listContainer = content.querySelector('#queue_list');
+                        listContainer.innerHTML = items.map(item => {
+                            const registeredBadge = item.isRegistered ?
+                                `<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[10px] font-bold">Registered</span>` :
+                                `<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold">Available</span>`;
+
+                            return `
+                                <div class="p-3 hover:bg-blue-50 cursor-pointer rounded-xl border border-transparent hover:border-blue-100 transition-all flex justify-between items-center group ${item.isRegistered ? 'opacity-75' : ''}"
+                                     onclick="selectQueue('${item.ipAddress}', '${item.maxLimit}', '${item.name}')">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-gray-800">${item.name}</span>
+                                            ${registeredBadge}
+                                        </div>
+                                        <div class="flex gap-3 text-xs text-gray-500 mt-1">
+                                            <span class="font-mono bg-gray-100 px-1 rounded">IP: ${item.ipAddress}</span>
+                                            <span class="font-mono bg-gray-100 px-1 rounded">Limit: ${item.maxLimit}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs font-bold text-blue-600 group-hover:bg-blue-600 group-hover:text-white px-3 py-1.5 rounded-lg transition-colors">PILIH</div>
+                                </div>
+                            `;
+                        }).join('');
+                    };
+
+                    // Initial Render
+                    renderList(data.data);
+
+                    // Search Handler
+                    const searchInput = content.querySelector('#queue_search');
+                    searchInput.addEventListener('input', (e) => {
+                        const q = e.target.value.toLowerCase();
+                        const filtered = data.data.filter(item =>
+                            item.name.toLowerCase().includes(q) ||
+                            item.ipAddress.includes(q)
+                        );
+                        renderList(filtered);
+                    });
+
+                    // Close Handler
+                    const closeBtn = content.querySelector('.clos-btn');
+                    const close = () => document.body.removeChild(modal);
+                    closeBtn.onclick = close;
+                    modal.onclick = (e) => { if (e.target === modal) close(); };
+
+                    // Select Handler (Global)
+                    window.selectQueue = (ip, limit, name) => {
+                        const ipInput = document.querySelector('input[name="ip_address"]');
+                        if (ipInput) {
+                            ipInput.value = ip;
+                            ipInput.classList.add('ring-4', 'ring-blue-200');
+                            setTimeout(() => ipInput.classList.remove('ring-4', 'ring-blue-200'), 500);
+                        }
+
+                        // Try to auto-select package based on limit
+                        // Limit format: "10M/10M" (Upload/Download) or just "10M"
+                        // This is tricky because packages might not match exactly or formatting differs.
+                        // We will try simple matching if possible, otherwise user selects manually.
+                        // But finding the package select
+                        const pkgSelect = document.querySelector('select[name="static_ip_package"]');
+                        if (pkgSelect && limit) {
+                            // clean limit string (e.g. remove all non-alphanumeric except /)
+                            // Logic: iterate options, see if option text contains the limit values
+                            // This is fuzzy. Better to just let user know.
+                            // Or we can try to find simple match
+                        }
+
+                        // Also hint the name if name input is empty? No, this is edit mode.
+
+                        alert(`Data Queue dipilih:\n\nIP: ${ip}\nName: ${name}\nLimit: ${limit}\n\nSilakan sesuaikan Paket Layanan jika diperlukan.`);
+                        close();
+                    };
+
+                } catch (error) {
+                    console.error('Error fetching Queues:', error);
+                    alert('Gagal mengambil data Queue: ' + error.message);
+                } finally {
+                    importQueueBtn.innerHTML = originalText;
+                    importQueueBtn.disabled = false;
+                }
+            });
+        }
+    });
+</script>
