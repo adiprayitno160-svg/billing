@@ -32,6 +32,7 @@
             top: 0;
             z-index: 1000;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            flex-wrap: wrap;
         }
 
         button {
@@ -44,6 +45,7 @@
             align-items: center;
             gap: 8px;
             transition: all 0.2s;
+            font-size: 14px;
         }
 
         .btn-a4 {
@@ -62,6 +64,15 @@
 
         .btn-thermal:hover {
             background: #047857;
+        }
+
+        .btn-bluetooth {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .btn-bluetooth:hover {
+            background: #6d28d9;
         }
 
         .btn-close {
@@ -144,13 +155,19 @@
             display: none;
             background: white;
             width: 58mm;
+            /* Standard 58mm width */
             margin: 20px auto;
-            padding: 2mm 5px;
+            padding: 5px 2px;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             font-family: 'Courier New', Courier, monospace;
             font-size: 12px;
             line-height: 1.2;
             color: black;
+        }
+
+        /* Specific adjustments for RawBT/Thermal printing */
+        .thermal-content {
+            width: 100%;
         }
 
         .th-center {
@@ -176,10 +193,12 @@
             margin-bottom: 3px;
         }
 
-        .th-total {
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 5px;
+        /* Helper for truncated text */
+        .th-truncate {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         /* ==== PRINT MEDIA QUERIES ==== */
@@ -213,6 +232,7 @@
             body.mode-thermal .page-thermal {
                 display: block !important;
                 width: 100%;
+                /* Printer driver handles widths usually */
                 margin: 0;
                 padding: 0;
                 box-shadow: none;
@@ -224,6 +244,7 @@
 
             @page {
                 margin: 0;
+                size: auto;
             }
         }
     </style>
@@ -233,10 +254,14 @@
     <!-- CONTROLS -->
     <div class="no-print">
         <button onclick="setMode('a4'); window.print()" class="btn-a4">
-            Print Format A4
+            Print A4 (PC)
         </button>
         <button onclick="setMode('thermal'); window.print()" class="btn-thermal">
-            Print Struk (Thermal/HP)
+            Print Browser (HP/Thermal)
+        </button>
+        <!-- RawBT Integration Button -->
+        <button onclick="printViaRawBT()" class="btn-bluetooth">
+            Connect Bluetooth (RawBT/Eppos)
         </button>
         <button onclick="window.close()" class="btn-close">
             Tutup
@@ -244,7 +269,7 @@
     </div>
 
     <!-- VIEW: A4 INVOICE -->
-    <div class="page-a4">
+    <div class="page-a4" id="view-a4">
         <div class="a4-header">
             <div>
                 <div class="a4-title">INVOICE</div>
@@ -387,90 +412,123 @@
     </div>
 
     <!-- VIEW: THERMAL / STRUK (58MM) -->
-    <div class="page-thermal">
-        <div class="th-center font-bold" style="font-size: 16px; margin-bottom: 5px;">BILLING SYSTEM</div>
-        <div class="th-center">Jl. Internet No. 123</div>
-        <div class="th-center">Telp: (021) 1234-5678</div>
-        <div class="th-line"></div>
+    <!-- ID added for easy selection by JS -->
+    <div class="page-thermal" id="thermal-content">
+        <div class="thermal-content">
+            <div class="th-center font-bold" style="font-size: 16px; margin-bottom: 5px;">BILLING SYSTEM</div>
+            <div class="th-center">Jl. Internet No. 123</div>
+            <div class="th-center">Telp: (021) 1234-5678</div>
+            <div class="th-line"></div>
 
-        <div style="display: flex; justify-content: space-between;">
-            <span>Tgl: <%= new Date().toLocaleDateString('id-ID', {day: '2-digit' , month: '2-digit' , year: 'numeric'
-                    }) %></span>
-            <span>Jam: <%= new Date().toLocaleTimeString('id-ID', {hour: '2-digit' , minute: '2-digit' }) %></span>
-        </div>
-        <div class="th-line"></div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Tgl: <%= new Date().toLocaleDateString('id-ID', {day: '2-digit' , month: '2-digit' ,
+                        year: 'numeric' }) %></span>
+                <span>Jam: <%= new Date().toLocaleTimeString('id-ID', {hour: '2-digit' , minute: '2-digit' }) %></span>
+            </div>
+            <div class="th-line"></div>
 
-        <div>
-            <strong>Plg:</strong>
-            <%= invoice.customer_name %>
-        </div>
-        <div>
-            <strong>Inv:</strong>
-            <%= invoice.invoice_number %>
-        </div>
-        <div class="th-line"></div>
+            <div class="th-item">
+                <span class="th-bold">Plg:</span>
+                <span style="max-width: 70%; text-align: right;">
+                    <%= invoice.customer_name %>
+                </span>
+            </div>
+            <div class="th-item">
+                <span class="th-bold">Inv:</span>
+                <span>
+                    <%= invoice.invoice_number %>
+                </span>
+            </div>
+            <div class="th-line"></div>
 
-        <!-- Items Thermal -->
-        <% if (items && items.length> 0) { %>
-            <% items.forEach((item)=> { %>
-                <div style="margin-bottom: 5px;">
-                    <div>
-                        <%= item.description %>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>
-                            <%= item.quantity || 1 %> x <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %>
-                        </span>
-                        <span>
-                            <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
-                        </span>
-                    </div>
-                </div>
-                <% }); %>
-                    <% } %>
-
-                        <div class="th-line"></div>
-
-                        <div class="th-item">
-                            <span>Total Tagihan:</span>
-                            <span class="th-bold">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
+            <!-- Items Thermal -->
+            <% if (items && items.length> 0) { %>
+                <% items.forEach((item)=> { %>
+                    <div style="margin-bottom: 5px;">
+                        <div class="th-truncate">
+                            <%= item.description %>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>
+                                <%= item.quantity || 1 %> x <%= new Intl.NumberFormat('id-ID').format(item.unit_price)
+                                        %>
+                            </span>
+                            <span>
+                                <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
                             </span>
                         </div>
+                    </div>
+                    <% }); %>
+                        <% } %>
 
-                        <% if (invoice.status==='paid' ) { %>
+                            <div class="th-line"></div>
+
                             <div class="th-item">
-                                <span>Status:</span>
-                                <span class="th-bold">LUNAS</span>
+                                <span>Total:</span>
+                                <span class="th-bold" style="font-size: 14px;">Rp <%= new
+                                        Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
                             </div>
-                            <% } else { %>
+
+                            <% if (invoice.status==='paid' ) { %>
                                 <div class="th-item">
                                     <span>Status:</span>
-                                    <span>BELUM BAYAR</span>
+                                    <span class="th-bold">LUNAS</span>
                                 </div>
-                                <% } %>
-
-                                    <div class="th-line"></div>
-                                    <div class="th-center" style="margin-top: 10px;">
-                                        *** TERIMA KASIH ***<br>
-                                        Simpan struk ini sebagai<br>bukti pembayaran sah.
+                                <% } else { %>
+                                    <div class="th-item">
+                                        <span>Status:</span>
+                                        <span>BELUM BAYAR</span>
                                     </div>
-                                    <br>
-                                    <div class="th-center">.</div>
+                                    <% } %>
+
+                                        <div class="th-line"></div>
+                                        <div class="th-center" style="margin-top: 10px;">
+                                            *** TERIMA KASIH ***<br>
+                                            Simpan struk ini sebagai<br>bukti pembayaran sah.
+                                        </div>
+                                        <br>
+                                        <!-- Extra padding for tear-off -->
+                                        <div class="th-center"><br>.</div>
+        </div>
     </div>
 
     <script>
         function setMode(mode) {
             if (mode === 'thermal') {
                 document.body.classList.add('mode-thermal');
+                document.getElementById('view-a4').style.display = 'none';
+                document.getElementById('thermal-content').style.display = 'block';
             } else {
                 document.body.classList.remove('mode-thermal');
+                document.getElementById('view-a4').style.display = 'block';
+                document.getElementById('thermal-content').style.display = 'none';
             }
+        }
+
+        // --- RAWBT integration for Direct Bluetooth Printing on Android ---
+        function printViaRawBT() {
+            // 1. Switch to thermal view temporarily to get HTML
+            setMode('thermal');
+
+            // 2. Get the HTML content
+            var content = document.getElementById('thermal-content').innerHTML;
+
+            // 3. Construct the RawBT intent URL
+            // Using base64 encoding to support special chars
+            var base64 = btoa(unescape(encodeURIComponent(content)));
+            var url = 'rawbt:data:text/html;base64,' + base64;
+
+            // 4. Open the intent (this triggers the app on Android)
+            window.location.href = url;
+
+            // Note: If RawBT is not installed, this link will do nothing.
+            // You could add a fallback (setTimeout) to prompt user to install RawBT.
         }
 
         // Auto determine if mobile?
         if (window.innerWidth < 600) {
-            // Optional: Auto switch to thermal on mobile
-            // setMode('thermal'); 
+            // Default to thermal view on mobile load might be nice
+            // setMode('thermal');
         }
     </script>
 </body>
