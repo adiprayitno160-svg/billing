@@ -394,7 +394,19 @@
 		#sidebar {
 			pointer-events: auto !important;
 			z-index: 1000 !important;
-			position: relative !important;
+			/* REMOVED global relative position to allow fixed on mobile */
+		}
+
+		@media (min-width: 768px) {
+			#sidebar {
+				position: relative !important;
+			}
+		}
+
+		@media (max-width: 767px) {
+			#sidebar {
+				position: fixed !important;
+			}
 		}
 
 		/* Sidebar hidden state */
@@ -482,8 +494,8 @@
 
 		/* Ensure no element covers sidebar */
 		aside#sidebar {
-			position: relative !important;
 			z-index: 1000 !important;
+			/* Position handled by media queries above */
 		}
 
 		/* Force sidebar to be on top and clickable */
@@ -502,7 +514,7 @@
 		/* Ensure sidebar container doesn't get blocked */
 		.flex.h-screen>aside#sidebar {
 			z-index: 1000 !important;
-			position: relative !important;
+			/* Position handled by media queries above */
 		}
 
 		/* Prevent dashboard elements from covering sidebar */
