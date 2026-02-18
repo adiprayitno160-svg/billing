@@ -789,6 +789,18 @@
 				}
 			}
 
+			// Expose functions globally for direct access
+			window.toggleSidebar = function (e) {
+				if (e) { e.preventDefault(); e.stopPropagation(); }
+				toggleSidebar();
+			};
+
+			window.closeSidebarMobile = function (e) {
+				if (e) { e.preventDefault(); e.stopPropagation(); }
+				console.log('Global closeSidebarMobile called');
+				closeSidebarMobile();
+			};
+
 			// Setup Event Listeners
 			function setupListeners() {
 				const { sidebarToggle, overlay } = getElements();
