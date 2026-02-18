@@ -814,9 +814,28 @@
 
 			window.closeSidebarMobile = function (e) {
 				if (e) { e.preventDefault(); e.stopPropagation(); }
-				// alert('Closing Sidebar Global'); // Debug
 				console.log('Global closeSidebarMobile called');
 				closeSidebarMobile();
+			};
+
+			// NUCLEAR OPTION: Raw Force Close Function
+			window.forceCloseSidebar = function (e) {
+				if (e) { e.preventDefault(); e.stopPropagation(); }
+				console.log('FORCE CLOSING SIDEBAR');
+
+				const sb = document.getElementById('sidebar');
+				const ov = document.getElementById('sidebarOverlay');
+
+				if (sb) {
+					sb.classList.add('-translate-x-full');
+					sb.style.transform = 'translateX(-100%)'; // Inline override
+				}
+
+				if (ov) {
+					ov.classList.add('hidden');
+					ov.classList.remove('opacity-100');
+					ov.style.display = 'none'; // Inline override
+				}
 			};
 
 			// Setup Event Listeners
