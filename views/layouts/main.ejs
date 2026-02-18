@@ -820,22 +820,44 @@
 
 			// NUCLEAR OPTION: Raw Force Close Function
 			window.forceCloseSidebar = function (e) {
-				if (e) { e.preventDefault(); e.stopPropagation(); }
+				if (e) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
 				console.log('FORCE CLOSING SIDEBAR');
 
 				const sb = document.getElementById('sidebar');
 				const ov = document.getElementById('sidebarOverlay');
+				const main = document.getElementById('main-content');
 
+				// 1. Move Sidebar
 				if (sb) {
+					sb.style.transform = 'translateX(-100%)';
 					sb.classList.add('-translate-x-full');
-					sb.style.transform = 'translateX(-100%)'; // Inline override
+					sb.classList.remove('sidebar-hidden'); // Ensure no conflict
 				}
 
+				// 2. Hide Overlay
 				if (ov) {
+					ov.style.display = 'none';
 					ov.classList.add('hidden');
 					ov.classList.remove('opacity-100');
-					ov.style.display = 'none'; // Inline override
 				}
+
+				// 3. Ensure Main Content is Visible/Interactive
+				if (main) {
+					main.style.opacity = '1';
+					main.style.visibility = 'visible';
+					main.style.pointerEvents = 'auto';
+					main.style.zIndex = '1'; // Ensure it's interactive
+				}
+
+				// 4. Cleanup Body (Swal/Scroll locks)
+				document.body.classList.remove('swal2-shown');
+				document.body.classList.remove('overflow-hidden');
+				document.body.style.overflow = 'auto';
+
+				return false;
 			};
 
 			// Setup Event Listeners

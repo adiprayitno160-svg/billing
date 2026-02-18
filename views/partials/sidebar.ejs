@@ -15,7 +15,7 @@
             </div>
         </div>
         <!-- Mobile Close Button (Absolute Positioned for safety) -->
-        <button type="button" onclick="window.forceCloseSidebar(event)" ontouchstart="window.forceCloseSidebar(event)"
+        <button type="button" onclick="window.forceCloseSidebar(event); return false;"
             class="md:hidden absolute top-4 right-4 p-2 rounded-full bg-red-600 text-white shadow-lg z-[9999] cursor-pointer hover:bg-red-700 active:scale-95 transition-transform"
             style="pointer-events: auto !important; display: flex !important; align-items: center; justify-content: center;">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
