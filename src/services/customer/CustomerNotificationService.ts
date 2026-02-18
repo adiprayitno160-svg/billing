@@ -25,6 +25,9 @@ export interface NewCustomerData {
   address?: string;
   packageName?: string;
   createdBy?: string;
+  pppoeUsername?: string;
+  pppoePassword?: string;
+  staticIp?: string;
 }
 
 export class CustomerNotificationService {
