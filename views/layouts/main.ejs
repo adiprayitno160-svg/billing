@@ -867,12 +867,17 @@
 				if (btnDel) btnDel.onclick = () => clickHidden(`button[data-action="delete"][data-invoice-id="${invoiceId}"]`);
 
 				// Show
-				overlay.classList.remove('hidden');
-				overlay.style.display = 'block'; // Ensure
-				// Small delay for transition
-				requestAnimationFrame(() => {
-					sheet.classList.remove('translate-y-full');
-				});
+				if (overlay) {
+					overlay.style.display = 'block';
+					overlay.classList.remove('hidden');
+				}
+				if (sheet) {
+					sheet.style.display = 'block';
+					// Small delay for transition
+					requestAnimationFrame(() => {
+						sheet.classList.remove('translate-y-full');
+					});
+				}
 			};
 
 			window.closeMobileActionSheet = function () {
@@ -884,6 +889,7 @@
 					setTimeout(() => {
 						overlay.classList.add('hidden');
 						overlay.style.display = 'none';
+						if (sheet) sheet.style.display = 'none';
 					}, 300);
 				}
 			};
@@ -1090,7 +1096,7 @@
 		<div id="mobileActionSheetOverlay" onclick="closeMobileActionSheet()"
 			class="fixed inset-0 bg-slate-900/60 z-[9990] hidden backdrop-blur-sm transition-opacity"
 			style="display: none;"></div>
-		<div id="mobileActionSheet"
+		<div id="mobileActionSheet" style="display: none;"
 			class="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] z-[9995] transform translate-y-full transition-transform duration-300 pb-8 shadow-2xl border-t border-slate-100">
 			<div class="w-12 h-1 bg-slate-200 rounded-full mx-auto my-4"></div>
 			<div class="px-6 pb-6 space-y-2">

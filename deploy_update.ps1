@@ -48,6 +48,7 @@ $files = @(
     "views\billing\tagihan-detail.ejs",
     "views\customers\detail.ejs",
     "views\customers\edit.ejs",
+    "views\customers\list.ejs",
     "views\dashboard\index.ejs",
     "views\partials\sidebar.ejs",
     "views\monitoring\enhanced-network-map.ejs",
