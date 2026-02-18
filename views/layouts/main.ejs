@@ -585,51 +585,30 @@
 				const sidebar = document.getElementById('sidebar');
 				if (!sidebar) return;
 
-				// Force sidebar to be on top
-				sidebar.style.zIndex = '10000';
-				sidebar.style.position = 'relative';
-				sidebar.style.pointerEvents = 'auto';
+				// Force sidebar to be on top but respect hidden state
+				// sidebar.style.zIndex = '10000'; // Removed to avoid z-index wars, handled by CSS
+				// sidebar.style.position = 'relative'; // Removed to allow CSS classes to control position
 
 				// Ensure menu buttons are clickable
 				const menuButtons = sidebar.querySelectorAll('.menu-toggle[data-menu]');
 				menuButtons.forEach(button => {
-					button.style.pointerEvents = 'auto';
 					button.style.cursor = 'pointer';
-					button.style.position = 'relative';
-					button.style.zIndex = '10003';
-
 					// Ensure all child elements don't block clicks
 					const children = button.querySelectorAll('*');
 					children.forEach(child => {
-						child.style.pointerEvents = 'auto';
+						child.style.pointerEvents = 'none'; // Let clicks bubble to button
 					});
-				});
-
-				// Ensure menu content links are clickable
-				const menuLinks = sidebar.querySelectorAll('.menu-content a');
-				menuLinks.forEach(link => {
-					link.style.pointerEvents = 'auto';
-					link.style.cursor = 'pointer';
-					link.style.zIndex = '10005';
+					// Button itself captures clicks
+					button.style.pointerEvents = 'auto';
 				});
 			}
 
-			// Run when DOM is ready
+			// Run once on load
 			if (document.readyState === 'loading') {
-				document.addEventListener('DOMContentLoaded', function () {
-					setTimeout(fixSidebar, 50);
-				});
+				document.addEventListener('DOMContentLoaded', fixSidebar);
 			} else {
-				setTimeout(fixSidebar, 50);
+				fixSidebar();
 			}
-
-			// Run after sidebar.js has initialized
-			window.addEventListener('load', function () {
-				setTimeout(fixSidebar, 300);
-			}, { once: true });
-
-			// Also run periodically to ensure it stays fixed
-			setInterval(fixSidebar, 2000);
 		})();
 	</script>
 
@@ -699,41 +678,56 @@
 	<script>
 		(function () {
 			const STORAGE_KEY = 'sidebarHidden';
-			const sidebar = document.getElementById('sidebar');
-			const sidebarToggle = document.getElementById('sidebarToggle');
-			const overlay = document.getElementById('sidebarOverlay');
-			const mainContent = document.getElementById('main-content');
 
-			if (!sidebar || !sidebarToggle) return;
+			// Helper to get elements freshly
+			const getElements = () => ({
+				sidebar: document.getElementById('sidebar'),
+				sidebarToggle: document.getElementById('sidebarToggle'),
+				overlay: document.getElementById('sidebarOverlay'),
+				mainContent: document.getElementById('main-content')
+			});
 
 			function isMobile() {
 				return window.innerWidth < 768;
 			}
 
 			function toggleSidebar() {
+				const { sidebar, overlay, sidebarToggle } = getElements();
+				if (!sidebar) return;
+
 				const isMob = isMobile();
+				console.log('Toggling sidebar. Mobile:', isMob);
 
 				if (isMob) {
 					const isHidden = sidebar.classList.contains('-translate-x-full');
 					if (isHidden) {
 						// Open on mobile
+						console.log('Mobile: Opening sidebar');
 						sidebar.classList.remove('-translate-x-full');
-						overlay.classList.remove('hidden');
-						setTimeout(() => {
-							overlay.classList.add('opacity-100');
-						}, 10);
+						if (overlay) {
+							overlay.classList.remove('hidden');
+							// Small delay to allow display block to apply before opacity transition
+							requestAnimationFrame(() => {
+								overlay.classList.add('opacity-100');
+							});
+						}
 					} else {
 						// Close on mobile
+						console.log('Mobile: Closing sidebar');
 						closeSidebarMobile();
 					}
 				} else {
 					// Desktop toggle
 					const isHidden = sidebar.classList.contains('sidebar-hidden');
 					if (isHidden) {
+						// SHOW SIDEBAR
+						console.log('Desktop: Showing sidebar');
 						sidebar.classList.remove('sidebar-hidden');
 						localStorage.setItem(STORAGE_KEY, 'false');
 						updateToggleIcon(false);
 					} else {
+						// HIDE SIDEBAR
+						console.log('Desktop: Hiding sidebar');
 						sidebar.classList.add('sidebar-hidden');
 						localStorage.setItem(STORAGE_KEY, 'true');
 						updateToggleIcon(true);
@@ -742,6 +736,9 @@
 			}
 
 			function closeSidebarMobile() {
+				const { sidebar, overlay } = getElements();
+				if (!sidebar) return;
+
 				sidebar.classList.add('-translate-x-full');
 				if (overlay) {
 					overlay.classList.remove('opacity-100');
@@ -752,17 +749,29 @@
 			}
 
 			function updateToggleIcon(isHidden) {
+				const { sidebarToggle } = getElements();
+				if (!sidebarToggle) return;
+
 				const iconSvg = sidebarToggle.querySelector('svg');
 				if (!iconSvg) return;
+
 				if (isHidden) {
+					// Sidebar is HIDDEN -> Show Hamburger to open
 					iconSvg.innerHTML = '<path d="M4 6h16M4 12h16M4 18h16"></path>';
 				} else {
+					// Sidebar is VISIBLE -> Show X to close (or Hamburger depending on pref, but X is better feedback)
+					// Actually, if it's visible, user might expect to "collapse" it.
+					// Standard icon for closing/collapsing is often a different one, but let's stick to X or Hamburger logic.
+					// Providing "<-" arrow or X. Using X for now as per previous logic.
 					iconSvg.innerHTML = '<path d="M6 18L18 6M6 6l12 12"></path>';
 				}
 			}
 
 			// Initial state
 			function init() {
+				const { sidebar, sidebarToggle } = getElements();
+				if (!sidebar || !sidebarToggle) return;
+
 				const isMob = isMobile();
 				if (!isMob) {
 					const savedState = localStorage.getItem(STORAGE_KEY);
@@ -770,6 +779,7 @@
 						sidebar.classList.add('sidebar-hidden');
 						updateToggleIcon(true);
 					} else {
+						sidebar.classList.remove('sidebar-hidden');
 						updateToggleIcon(false);
 					}
 				} else {
@@ -779,14 +789,43 @@
 				}
 			}
 
-			sidebarToggle.addEventListener('click', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				toggleSidebar();
-			});
+			// Setup Event Listeners
+			function setupListeners() {
+				const { sidebarToggle, overlay } = getElements();
 
-			if (overlay) {
-				overlay.addEventListener('click', closeSidebarMobile);
+				if (sidebarToggle) {
+					// Remove existing listeners by cloning (nuclear option to ensure clean slate)
+					const newToggle = sidebarToggle.cloneNode(true);
+					sidebarToggle.parentNode.replaceChild(newToggle, sidebarToggle);
+
+					newToggle.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						console.log('Sidebar toggle clicked (event listener)');
+						toggleSidebar();
+					});
+					console.log('Sidebar toggle listener attached');
+				} else {
+					console.warn('Sidebar toggle button not found during setup');
+				}
+
+				if (overlay) {
+					const newOverlay = overlay.cloneNode(true);
+					overlay.parentNode.replaceChild(newOverlay, overlay);
+
+					newOverlay.addEventListener('click', closeSidebarMobile);
+				}
+			}
+
+			// Initialization logic
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', () => {
+					init();
+					setupListeners();
+				});
+			} else {
+				init();
+				setupListeners();
 			}
 
 			// Handle window resize
@@ -794,18 +833,9 @@
 			window.addEventListener('resize', () => {
 				clearTimeout(resizeTimer);
 				resizeTimer = setTimeout(() => {
-					const isMob = isMobile();
-					if (isMob) {
-						sidebar.classList.add('-translate-x-full');
-						sidebar.classList.remove('sidebar-hidden'); // clean desktop class
-						updateToggleIcon(true);
-					} else {
-						init(); // re-apply desktop preference
-					}
+					init();
 				}, 250);
 			});
-
-			init();
 		})();
 	</script>
 

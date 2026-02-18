@@ -5,7 +5,7 @@ $RemotePath = "/home/adi/billing-update"
 $TargetDir = "/var/www/billing"
 
 # 1. Create remote temp directories
-echo y | plink -ssh -l $User -pw $Pass $Ip "mkdir -p $RemotePath/views/dashboard $RemotePath/views/monitoring $RemotePath/views/partials $RemotePath/views/billing $RemotePath/views/customers $RemotePath/src/services/monitoring $RemotePath/src/services/billing $RemotePath/src/services/whatsapp $RemotePath/src/services/customer $RemotePath/src/services/notification $RemotePath/src/controllers/monitoring $RemotePath/src/controllers/billing $RemotePath/src/routes $RemotePath/src/schedulers $RemotePath/src/utils"
+echo y | plink -ssh -l $User -pw $Pass $Ip "mkdir -p $RemotePath/views/dashboard $RemotePath/views/monitoring $RemotePath/views/partials $RemotePath/views/billing $RemotePath/views/customers $RemotePath/views/layouts $RemotePath/src/services/monitoring $RemotePath/src/services/billing $RemotePath/src/services/whatsapp $RemotePath/src/services/customer $RemotePath/src/services/notification $RemotePath/src/controllers/monitoring $RemotePath/src/controllers/billing $RemotePath/src/routes $RemotePath/src/schedulers $RemotePath/src/utils"
 
 # 2. Transfer all modified files using pscp
 Write-Output "Transferring files..."
@@ -54,7 +54,8 @@ $files = @(
     "src\services\whatsapp\WhatsAppService.ts",
     "src\services\whatsapp\WhatsAppHandler.ts",
     "src\services\whatsapp\WhatsAppSessionService.ts",
-    "src\services\whatsapp\index.ts"
+    "src\services\whatsapp\index.ts",
+    "views\layouts\main.ejs"
 )
 
 foreach ($file in $files) {
