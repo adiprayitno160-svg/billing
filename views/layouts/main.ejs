@@ -830,6 +830,64 @@
 				closeSidebarMobile();
 			};
 
+			// Mobile Action Sheet (Bottom Sheet) Control
+			window.openMobileActionSheet = function (invoiceId) {
+				console.log('Opening Mobile Action Sheet for invoice:', invoiceId);
+				const sheet = document.getElementById('mobileActionSheet');
+				const overlay = document.getElementById('mobileActionSheetOverlay');
+
+				if (!sheet || !overlay) {
+					console.error('Mobile Action Sheet HTML not found!');
+					return;
+				}
+
+				// Clear previous handlers to prevent duplicates (using onclick is safe since it replaces)
+
+				// Helper to click hidden buttons
+				const clickHidden = (selector) => {
+					const btn = document.querySelector(selector);
+					if (btn) {
+						console.log('Clicking hidden button:', selector);
+						btn.click();
+					} else {
+						console.error('Hidden button not found:', selector);
+						// Fallback: try to find by simpler attribute if detailed one fails
+					}
+					window.closeMobileActionSheet();
+				};
+
+				// Bind actions for this specific invoice
+				const btnPrint = document.getElementById('mas-print-pdf');
+				if (btnPrint) btnPrint.onclick = () => clickHidden(`button[data-action="print"][data-invoice-id="${invoiceId}"]`);
+
+				const btnWa = document.getElementById('mas-send-wa');
+				if (btnWa) btnWa.onclick = () => clickHidden(`button[data-action="send-wanew"][data-invoice-id="${invoiceId}"]`);
+
+				const btnDel = document.getElementById('mas-delete');
+				if (btnDel) btnDel.onclick = () => clickHidden(`button[data-action="delete"][data-invoice-id="${invoiceId}"]`);
+
+				// Show
+				overlay.classList.remove('hidden');
+				overlay.style.display = 'block'; // Ensure
+				// Small delay for transition
+				requestAnimationFrame(() => {
+					sheet.classList.remove('translate-y-full');
+				});
+			};
+
+			window.closeMobileActionSheet = function () {
+				const sheet = document.getElementById('mobileActionSheet');
+				const overlay = document.getElementById('mobileActionSheetOverlay');
+
+				if (sheet) sheet.classList.add('translate-y-full');
+				if (overlay) {
+					setTimeout(() => {
+						overlay.classList.add('hidden');
+						overlay.style.display = 'none';
+					}, 300);
+				}
+			};
+
 			// NUCLEAR OPTION: Raw Force Close Function
 			window.forceCloseSidebar = function (e) {
 				if (e) {

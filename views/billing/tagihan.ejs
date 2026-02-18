@@ -561,48 +561,7 @@
                             <% } %>
         </div>
 
-        <script>
-            function openMobileActionSheet(invoiceId) {
-                const sheet = document.getElementById('mobileActionSheet');
-                const overlay = document.getElementById('mobileActionSheetOverlay');
-
-                // Print
-                document.getElementById('mas-print-pdf').onclick = () => {
-                    const btn = document.querySelector(`button[data-action="print"][data-invoice-id="${invoiceId}"]`);
-                    if (btn) btn.click();
-                    closeMobileActionSheet();
-                };
-
-                // WhatsApp
-                document.getElementById('mas-send-wa').onclick = () => {
-                    const btn = document.querySelector(`button[data-action="send-wanew"][data-invoice-id="${invoiceId}"]`);
-                    if (btn) btn.click();
-                    closeMobileActionSheet();
-                };
-
-                // Delete
-                document.getElementById('mas-delete').onclick = () => {
-                    const btn = document.querySelector(`button[data-action="delete"][data-invoice-id="${invoiceId}"]`);
-                    if (btn) btn.click();
-                    closeMobileActionSheet();
-                };
-
-                overlay.classList.remove('hidden');
-                requestAnimationFrame(() => {
-                    sheet.classList.remove('translate-y-full');
-                });
-            }
-
-            function closeMobileActionSheet() {
-                const sheet = document.getElementById('mobileActionSheet');
-                const overlay = document.getElementById('mobileActionSheetOverlay');
-
-                sheet.classList.add('translate-y-full');
-                setTimeout(() => {
-                    overlay.classList.add('hidden');
-                }, 300);
-            }
-        </script>
+        <!-- Mobile Action Sheet script moved to main.ejs for global access -->
     </div>
 </div>
 
