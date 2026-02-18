@@ -487,28 +487,66 @@
                                 <div class="relative dropdown-container">
                                     <button onclick="toggleMobileDropdown(this)"
                                         class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold shadow-sm active:scale-90 transition-all"><i
-                                            class="fas fa-ellipsis-v"></i></button>
-                                    <div
-                                        class="mobile-dropdown hidden absolute right-0 bottom-full mb-2 w-48 bg-white text-slate-700 rounded-2xl shadow-xl border border-slate-100 p-2 z-[9999] transform origin-bottom-right">
-                                        <button data-action="print" data-invoice-id="<%= invoice.id %>"
-                                            class="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-all flex items-center gap-3">
-                                            <i class="fas fa-print text-slate-400"></i> Print PDF
-                                        </button>
-                                        <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
-                                            class="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all flex items-center gap-3">
-                                            <i class="fab fa-whatsapp text-emerald-500"></i> WhatsApp
-                                        </button>
-                                        <div class="h-px bg-slate-50 my-1"></div>
-                                        <button data-action="delete" data-invoice-id="<%= invoice.id %>"
-                                            class="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 rounded-xl text-red-500 transition-all flex items-center gap-3">
-                                            <i class="fas fa-trash text-red-400"></i> Hapus
-                                        </button>
-                                    </div>
+                                            <div class="relative">
+                                            <button onclick="openMobileActionSheet('<%= invoice.id %>')"
+                                                class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold shadow-sm active:scale-90 transition-all"><i
+                                                    class="fas fa-ellipsis-v"></i></button>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <% }); %>
+
+                        <!-- Global Mobile Action Sheet (Hidden by default) -->
+                        <div id="mobileActionSheetOverlay" onclick="closeMobileActionSheet()"
+                            class="fixed inset-0 bg-slate-900/60 z-[9990] hidden backdrop-blur-sm transition-opacity">
+                        </div>
+                        <div id="mobileActionSheet"
+                            class="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] z-[9995] transform translate-y-full transition-transform duration-300 pb-8 shadow-2xl border-t border-slate-100">
+                            <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto my-4"></div>
+                            <div class="px-6 pb-6 space-y-2">
+                                <div class="text-center mb-6">
+                                    <h3 class="text-lg font-black text-slate-800 tracking-tight">Pilih Aksi</h3>
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kelola
+                                        Tagihan Ini</p>
+                                </div>
+
+                                <button id="mas-print-pdf"
+                                    class="w-full flex items-center p-4 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-all gap-4 group">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm text-slate-400 group-hover:text-blue-600 transition-colors">
+                                        <i class="fas fa-print"></i>
+                                    </div>
+                                    <span class="text-sm font-bold text-slate-600 group-hover:text-slate-900">Print PDF
+                                        Invoice</span>
+                                </button>
+
+                                <button id="mas-send-wa"
+                                    class="w-full flex items-center p-4 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all gap-4 group">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm text-emerald-500 group-hover:text-emerald-600 transition-colors">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </div>
+                                    <span class="text-sm font-bold text-emerald-700 group-hover:text-emerald-800">Kirim
+                                        WhatsApp</span>
+                                </button>
+
+                                <button id="mas-delete"
+                                    class="w-full flex items-center p-4 bg-red-50 rounded-2xl hover:bg-red-100 transition-all gap-4 group">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm text-red-500 group-hover:text-red-600 transition-colors">
+                                        <i class="fas fa-trash"></i>
+                                    </div>
+                                    <span class="text-sm font-bold text-red-700 group-hover:text-red-800">Hapus
+                                        Tagihan</span>
+                                </button>
+
+                                <button onclick="closeMobileActionSheet()"
+                                    class="w-full py-4 mt-4 text-center text-xs font-black text-slate-400 uppercase tracking-widest">
+                                    Batal
+                                </button>
+                            </div>
+                        </div>
                         <% } else { %>
                             <div
                                 class="bg-white p-12 rounded-[2rem] flex flex-col items-center justify-center text-center">
@@ -524,29 +562,46 @@
         </div>
 
         <script>
-            function toggleMobileDropdown(btn) {
-                const dropdown = btn.nextElementSibling;
-                const isHidden = dropdown.classList.contains('hidden');
+            function openMobileActionSheet(invoiceId) {
+                const sheet = document.getElementById('mobileActionSheet');
+                const overlay = document.getElementById('mobileActionSheetOverlay');
 
-                // Close all other dropdowns
-                document.querySelectorAll('.mobile-dropdown').forEach(el => el.classList.add('hidden'));
+                // Print
+                document.getElementById('mas-print-pdf').onclick = () => {
+                    const btn = document.querySelector(`button[data-action="print"][data-invoice-id="${invoiceId}"]`);
+                    if (btn) btn.click();
+                    closeMobileActionSheet();
+                };
 
-                if (isHidden) {
-                    dropdown.classList.remove('hidden');
-                } else {
-                    dropdown.classList.add('hidden');
-                }
+                // WhatsApp
+                document.getElementById('mas-send-wa').onclick = () => {
+                    const btn = document.querySelector(`button[data-action="send-wanew"][data-invoice-id="${invoiceId}"]`);
+                    if (btn) btn.click();
+                    closeMobileActionSheet();
+                };
 
-                // Stop propagation
-                event.stopPropagation();
+                // Delete
+                document.getElementById('mas-delete').onclick = () => {
+                    const btn = document.querySelector(`button[data-action="delete"][data-invoice-id="${invoiceId}"]`);
+                    if (btn) btn.click();
+                    closeMobileActionSheet();
+                };
+
+                overlay.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    sheet.classList.remove('translate-y-full');
+                });
             }
 
-            // Close dropdowns on outside click
-            document.addEventListener('click', function (e) {
-                if (!e.target.closest('.dropdown-container')) {
-                    document.querySelectorAll('.mobile-dropdown').forEach(el => el.classList.add('hidden'));
-                }
-            });
+            function closeMobileActionSheet() {
+                const sheet = document.getElementById('mobileActionSheet');
+                const overlay = document.getElementById('mobileActionSheetOverlay');
+
+                sheet.classList.add('translate-y-full');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 300);
+            }
         </script>
     </div>
 </div>
