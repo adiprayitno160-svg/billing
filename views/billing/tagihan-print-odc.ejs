@@ -44,17 +44,14 @@
             font-weight: 600;
         }
 
-        /* ===== RECEIPT BLOCK ===== */
         .receipt {
             padding: 2mm;
             margin-bottom: 5mm;
         }
 
-        /* ===== HEADER ===== */
         .header {
             text-align: center;
-            padding-bottom: 3mm;
-            margin-bottom: 2mm;
+            padding-bottom: 2mm;
         }
 
         .company-name {
@@ -70,7 +67,6 @@
             margin-top: 1mm;
         }
 
-        /* ===== SEPARATORS ===== */
         .sep {
             border: none;
             border-top: 1px dashed #000;
@@ -83,7 +79,14 @@
             margin: 2mm 0;
         }
 
-        /* ===== CUT LINE ===== */
+        .sep-double {
+            border: none;
+            border-top: 2px solid #000;
+            border-bottom: 1px solid #000;
+            height: 3px;
+            margin: 2mm 0;
+        }
+
         .cut-line {
             text-align: center;
             margin: 5mm 0;
@@ -115,24 +118,6 @@
             text-align: center;
         }
 
-        /* ===== TITLE ===== */
-        .title {
-            text-align: center;
-            font-size: 10pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 2mm 0;
-        }
-
-        .inv-number {
-            text-align: center;
-            font-size: 8pt;
-            font-weight: bold;
-            margin-bottom: 1mm;
-        }
-
-        /* ===== INFO ROWS ===== */
         .row {
             display: flex;
             justify-content: space-between;
@@ -158,9 +143,9 @@
             text-transform: uppercase;
             margin-bottom: 1mm;
             letter-spacing: 0.5px;
+            text-decoration: underline;
         }
 
-        /* ===== ITEMS TABLE ===== */
         .items-table {
             width: 100%;
             border-collapse: collapse;
@@ -191,7 +176,6 @@
             font-weight: bold;
         }
 
-        /* ===== TOTALS ===== */
         .total-row {
             display: flex;
             justify-content: space-between;
@@ -202,7 +186,7 @@
         .grand-total {
             border-top: 2px solid #000;
             padding-top: 2mm;
-            margin-top: 2mm;
+            margin-top: 1mm;
         }
 
         .grand-total .total-row {
@@ -210,7 +194,6 @@
             font-weight: bold;
         }
 
-        /* ===== PAID STAMP ===== */
         .paid-stamp {
             text-align: center;
             border: 2px solid #000;
@@ -221,9 +204,7 @@
             letter-spacing: 2px;
         }
 
-        /* ===== PAYMENT INFO ===== */
-        .payment-box {
-            text-align: center;
+        .info-box {
             font-size: 6.5pt;
             padding: 2mm;
             border: 1px dashed #000;
@@ -231,7 +212,6 @@
             margin: 2mm 0;
         }
 
-        /* ===== FOOTER ===== */
         .footer {
             text-align: center;
             font-size: 6pt;
@@ -239,7 +219,6 @@
             line-height: 1.4;
         }
 
-        /* ===== PRINT CONTROLS (screen only) ===== */
         .print-controls {
             text-align: center;
             margin-bottom: 15px;
@@ -310,22 +289,21 @@
                 <!-- PAID STAMP -->
                 <% if (invoice.status==='paid' || (invoice.paid_amount && parseFloat(invoice.paid_amount)>=
                     parseFloat(invoice.total_amount))) { %>
-                    <div class="paid-stamp">★ LUNAS ★</div>
+                    <div class="paid-stamp">★ LUNAS / PAID ★</div>
                     <% } %>
 
                         <!-- Header -->
                         <div class="header">
                             <div class="company-name">
-                                <%= typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_name ?
+                                <%= (typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_name) ?
                                     companyInfo.company_name : 'BILLING SYSTEM' %>
                             </div>
                             <div class="company-detail">
                                 <% if (typeof companyInfo !=='undefined' && companyInfo) { %>
-                                    <% if (companyInfo.company_address) { %>
-                                        <%= companyInfo.company_address %><br>
+                                    <% if (companyInfo.company_phone) { %>Telp/WA: <%= companyInfo.company_phone %><br>
                                             <% } %>
-                                                <% if (companyInfo.company_phone) { %>Telp: <%=
-                                                        companyInfo.company_phone %>
+                                                <% if (companyInfo.company_address) { %>
+                                                    <%= companyInfo.company_address %>
                                                         <% } %>
                                                             <% } %>
                             </div>
@@ -333,40 +311,15 @@
 
                         <hr class="sep-bold">
 
-                        <!-- Invoice Title -->
-                        <div class="title">TAGIHAN PEMBAYARAN</div>
-                        <div class="inv-number">
-                            <%= invoice.invoice_number %>
-                        </div>
-
-                        <hr class="sep">
-
-                        <!-- Invoice Info -->
+                        <!-- Date & Ref -->
                         <div class="row">
-                            <span class="lbl">Tanggal</span>
-                            <span class="val">
-                                <%= new Date(invoice.created_at).toLocaleDateString('id-ID', { day: '2-digit' ,
-                                    month: '2-digit' , year: 'numeric' }) %>
-                            </span>
+                            <span class="lbl">TGL: <%= new Date(invoice.created_at).toLocaleDateString('id-ID',
+                                    {day: '2-digit' , month: '2-digit' , year: 'numeric' }) %></span>
+                            <span class="val">PKL: <%= new Date().toLocaleTimeString('id-ID', {hour: '2-digit' ,
+                                    minute: '2-digit' }) %></span>
                         </div>
                         <div class="row">
-                            <span class="lbl">Periode</span>
-                            <span class="val">
-                                <% const periodParts=invoice.period.split('-'); const year=periodParts[0]; const
-                                    monthNum=parseInt(periodParts[1]); const monthNames=['Januari', 'Februari' , 'Maret'
-                                    , 'April' , 'Mei' , 'Juni' , 'Juli' , 'Agustus' , 'September' , 'Oktober'
-                                    , 'November' , 'Desember' ]; const monthName=monthNames[monthNum - 1] ||
-                                    invoice.period; %>
-                                    <%= monthName %>
-                                        <%= year %>
-                            </span>
-                        </div>
-                        <div class="row">
-                            <span class="lbl">Jatuh Tempo</span>
-                            <span class="val">
-                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID', { day: '2-digit' ,
-                                    month: '2-digit' , year: 'numeric' }) %>
-                            </span>
+                            <span class="lbl">REF: #<%= invoice.invoice_number %></span>
                         </div>
 
                         <hr class="sep">
@@ -374,15 +327,33 @@
                         <!-- Customer Info -->
                         <div class="section-title">PELANGGAN</div>
                         <div class="row">
+                            <span class="lbl">ID PEL</span>
+                            <span class="val">
+                                <%= invoice.customer_code || ('PEL-' + invoice.customer_id) %>
+                            </span>
+                        </div>
+                        <div class="row">
                             <span class="lbl">Nama</span>
                             <span class="val">
                                 <%= invoice.customer_name %>
                             </span>
                         </div>
                         <div class="row">
-                            <span class="lbl">ID</span>
+                            <span class="lbl">Periode</span>
                             <span class="val">
-                                <%= invoice.customer_code %>
+                                <% const periodParts=invoice.period.split('-'); const year=periodParts[0]; const
+                                    monthNum=parseInt(periodParts[1]); const
+                                    monthNames=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                                    const monthName=monthNames[monthNum - 1] || invoice.period; %>
+                                    <%= monthName %>
+                                        <%= year %>
+                            </span>
+                        </div>
+                        <div class="row">
+                            <span class="lbl">Jatuh Tempo</span>
+                            <span class="val">
+                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID', {day: '2-digit' ,
+                                    month: '2-digit' , year: 'numeric' }) %>
                             </span>
                         </div>
                         <% if (invoice.customer_address) { %>
@@ -397,11 +368,11 @@
                                 <hr class="sep">
 
                                 <!-- Items -->
-                                <div class="section-title">RINCIAN</div>
+                                <div class="section-title">RINCIAN TAGIHAN</div>
                                 <table class="items-table">
                                     <thead>
                                         <tr>
-                                            <th class="col-desc">Item</th>
+                                            <th class="col-desc">Layanan</th>
                                             <th class="col-price">Harga</th>
                                         </tr>
                                     </thead>
@@ -417,45 +388,24 @@
                                                                         %>
                                                             </span>
                                                     </td>
-                                                    <td class="col-price">
-                                                        Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price)
-                                                            %>
+                                                    <td class="col-price">Rp <%= new
+                                                            Intl.NumberFormat('id-ID').format(item.total_price) %>
                                                     </td>
                                                 </tr>
                                                 <% }); %>
                                                     <% } else { %>
                                                         <tr>
-                                                            <td class="col-desc">
-                                                                Layanan Internet<br>
-                                                                <span style="font-size: 6.5pt; color: #555;">
+                                                            <td class="col-desc">Layanan Internet<br><span
+                                                                    style="font-size: 6.5pt; color: #555;">
                                                                     <%= monthName %>
                                                                         <%= year %>
-                                                                </span>
-                                                            </td>
-                                                            <td class="col-price">
-                                                                Rp <%= new
+                                                                </span></td>
+                                                            <td class="col-price">Rp <%= new
                                                                     Intl.NumberFormat('id-ID').format(invoice.subtotal
                                                                     || invoice.total_amount) %>
                                                             </td>
                                                         </tr>
                                                         <% } %>
-                                                            <% if (invoice.discount_amount && invoice.discount_amount>
-                                                                0) { %>
-                                                                <tr style="color: #d9534f;">
-                                                                    <td class="col-desc">
-                                                                        Diskon
-                                                                        <% if (invoice.discount_reason) { %>
-                                                                            <br><span style="font-size: 6pt;">(<%=
-                                                                                    invoice.discount_reason %>)</span>
-                                                                            <% } %>
-                                                                    </td>
-                                                                    <td class="col-price">
-                                                                        - Rp <%= new
-                                                                            Intl.NumberFormat('id-ID').format(invoice.discount_amount)
-                                                                            %>
-                                                                    </td>
-                                                                </tr>
-                                                                <% } %>
                                     </tbody>
                                 </table>
 
@@ -470,47 +420,63 @@
                                 </div>
                                 <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
                                     <div class="total-row" style="color: #d9534f;">
-                                        <span>Diskon</span>
+                                        <span>Diskon<% if (invoice.discount_reason) { %> (<%= invoice.discount_reason %>
+                                                    )<% } %></span>
                                         <span style="font-weight: bold;">- Rp <%= new
                                                 Intl.NumberFormat('id-ID').format(invoice.discount_amount) %></span>
                                     </div>
                                     <% } %>
+                                        <div class="total-row">
+                                            <span>PPN</span>
+                                            <span>Rp 0</span>
+                                        </div>
 
                                         <div class="grand-total">
                                             <div class="total-row">
                                                 <span>TOTAL BAYAR</span>
-                                                <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount
-                                                        - (invoice.paid_amount || 0)) %></span>
+                                                <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount)
+                                                        %></span>
                                             </div>
                                         </div>
 
                                         <% if (invoice.paid_amount> 0) { %>
                                             <div class="total-row" style="margin-top: 1mm;">
-                                                <span>Terbayar</span>
+                                                <span>Sudah Dibayar</span>
                                                 <span style="font-weight: bold; color: #2e7d32;">Rp <%= new
                                                         Intl.NumberFormat('id-ID').format(invoice.paid_amount) %></span>
+                                            </div>
+                                            <div class="total-row">
+                                                <span style="font-weight: bold;">Sisa Piutang</span>
+                                                <span style="font-weight: bold; color: #d32f2f;">Rp <%= new
+                                                        Intl.NumberFormat('id-ID').format(invoice.remaining_amount ||
+                                                        (invoice.total_amount - invoice.paid_amount)) %></span>
                                             </div>
                                             <% } %>
 
                                                 <hr class="sep">
 
-                                                <!-- Payment Info -->
-                                                <div class="payment-box">
-                                                    <div style="font-weight: bold; margin-bottom: 1mm;">INFORMASI
-                                                        PEMBAYARAN</div>
-                                                    Harap bayar sebelum jatuh tempo<br>
-                                                    Konfirmasi via WhatsApp
-                                                    <% if (typeof companyInfo !=='undefined' && companyInfo &&
-                                                        companyInfo.company_phone) { %>
-                                                        <br>📞 <%= companyInfo.company_phone %>
-                                                            <% } %>
+                                                <!-- Info Box -->
+                                                <div class="info-box">
+                                                    <div
+                                                        style="font-weight: bold; margin-bottom: 1mm; text-decoration: underline;">
+                                                        INFORMASI LAYANAN:</div>
+                                                    • Simpan struk sebagai bukti bayar sah.<br>
+                                                    • Bayar tepat waktu agar tidak terisolir.
+                                                </div>
+
+                                                <!-- QR Code -->
+                                                <div style="text-align: center; margin: 2mm 0;">
+                                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('VERIFIED OK: ' + invoice.invoice_number + ' | ' + invoice.customer_name + ' | ' + invoice.total_amount) %>"
+                                                        style="width: 50px; height: 50px;" alt="QR">
+                                                    <div style="font-size: 5.5pt; margin-top: 1mm;">E-RECEIPT
+                                                        VERIFICATION</div>
                                                 </div>
 
                                                 <!-- Footer -->
                                                 <div class="footer">
-                                                    Terima kasih atas kepercayaan Anda<br>
+                                                    *** TERIMA KASIH ***<br>
                                                     Area: <%= odc.name %><br>
-                                                        <%= new Date().toLocaleString('id-ID', { day: '2-digit' ,
+                                                        <%= new Date().toLocaleString('id-ID', {day: '2-digit' ,
                                                             month: '2-digit' , year: 'numeric' , hour: '2-digit' ,
                                                             minute: '2-digit' }) %>
                                                 </div>
