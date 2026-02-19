@@ -456,10 +456,19 @@
         <div class="paper-receipt" id="thermal-content">
             <div class="receipt-inner">
                 <div class="receipt-header">
-                    <div class="receipt-logo" style="font-size: 20px;">WIFI BILLING</div>
-                    <div class="receipt-info" style="font-weight: 700;">PT. INTERNET SOLUSI UTAMA</div>
-                    <div style="font-size: 9px; margin-top: -3px;">NOC & Billing Center: 0812-3456-7890</div>
-                    <div style="font-size: 8px; opacity: 0.8;">Jl. Raya Utama No. 88, Central City</div>
+                    <div class="receipt-logo" style="font-size: 20px;">
+                        <%= (typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_name) ?
+                            companyInfo.company_name.toUpperCase() : 'WIFI BILLING' %>
+                    </div>
+                    <% if (typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_phone) { %>
+                        <div style="font-size: 9px; margin-top: 2px;">Telp/WA: <%= companyInfo.company_phone %>
+                        </div>
+                        <% } %>
+                            <% if (typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_address) { %>
+                                <div style="font-size: 8px; opacity: 0.8;">
+                                    <%= companyInfo.company_address %>
+                                </div>
+                                <% } %>
                 </div>
 
                 <div class="receipt-divider" style="border-top: 2px solid #000; margin: 4px 0;"></div>
@@ -485,7 +494,7 @@
 
                         <div style="margin: 4px 0; font-size: 10px;">
                             ID PEL : <span class="receipt-bold">
-                                <%= invoice.customer_id || 'ID-NOT-SET' %>
+                                <%= invoice.customer_code || ('PEL-' + invoice.customer_id) %>
                             </span><br>
                             NAMA : <span class="receipt-bold">
                                 <%= invoice.customer_name.toUpperCase().substring(0, 20) %>
@@ -510,7 +519,7 @@
                                 </div>
                                 <div class="receipt-item-calc">
                                     <span>
-                                        <%= item.quantity || 1 %> Item @ <%= new
+                                        <%= item.quantity || 1 %> x <%= new
                                                 Intl.NumberFormat('id-ID').format(item.unit_price) %>
                                     </span>
                                     <span class="receipt-bold">
@@ -524,49 +533,72 @@
                                     style="border-top: 2px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 5px 0;">
                                 </div>
 
-                                <div class="receipt-row" style="margin-top: 5px;">
-                                    <span>TOTAL BAYAR</span>
-                                    <span class="receipt-bold" style="font-size: 16px;">Rp <%= new
-                                            Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                                <div class="receipt-row" style="font-size: 10px; margin-top: 5px;">
+                                    <span>SUBTOTAL</span>
+                                    <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.subtotal ||
+                                            invoice.total_amount) %></span>
                                 </div>
-                                <div class="receipt-row" style="font-size: 9px; margin-top: 2px;">
-                                    <span>METODE BAYAR</span>
-                                    <span>TUNAI/CASH</span>
-                                </div>
-
-                                <% if (invoice.remaining_amount> 0) { %>
-                                    <div class="receipt-row"
-                                        style="color: #000; font-size: 11px; margin-top: 8px; border: 1px solid #000; padding: 4px;">
-                                        <span class="receipt-bold">SISA PIUTANG</span>
-                                        <span class="receipt-bold">Rp <%= new
-                                                Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span>
+                                <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
+                                    <div class="receipt-row" style="font-size: 10px;">
+                                        <span>DISKON</span>
+                                        <span>- Rp <%= new Intl.NumberFormat('id-ID').format(invoice.discount_amount) %>
+                                                </span>
                                     </div>
                                     <% } %>
-
-                                        <div class="receipt-divider"></div>
-
-                                        <div style="font-size: 9px; margin-top: 10px;">
-                                            <div class="receipt-bold"
-                                                style="text-decoration: underline; margin-bottom: 3px;">INFORMASI
-                                                LAYANAN:</div>
-                                            • Simpan struk sebagai bukti bayar sah.<br>
-                                            • Gangguan Hubungi: 0812-3456-7890.<br>
-                                            • Bayar tepat waktu agar tidak terisolir.
+                                        <div class="receipt-row" style="font-size: 10px;">
+                                            <span>PPN</span>
+                                            <span>Rp 0</span>
                                         </div>
 
-                                        <div style="text-align: center; margin-top: 15px;">
-                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('VERIFIED OK: ' + invoice.invoice_number + ' | ' + invoice.customer_name + ' | ' + invoice.total_amount) %>"
-                                                style="width: 70px; height: 70px; filter: grayscale(1);" alt="QR Code">
-                                            <div
-                                                style="font-size: 8px; margin-top: 5px; opacity: 0.6; font-weight: 700;">
-                                                E-RECEIPT VERIFICATION SYSTEM</div>
+                                        <div class="receipt-divider" style="border-top: 1px solid #000; margin: 3px 0;">
                                         </div>
 
-                                        <div class="receipt-footer"
-                                            style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
-                                            Digitalize Your Business<br>
-                                            *** TERIMA KASIH ***
+                                        <div class="receipt-row" style="margin-top: 5px;">
+                                            <span class="receipt-bold">TOTAL BAYAR</span>
+                                            <span class="receipt-bold" style="font-size: 16px;">Rp <%= new
+                                                    Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
                                         </div>
+                                        <% if (invoice.paid_amount && invoice.paid_amount> 0) { %>
+                                            <div class="receipt-row" style="font-size: 9px; margin-top: 2px;">
+                                                <span>SUDAH DIBAYAR</span>
+                                                <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.paid_amount)
+                                                        %></span>
+                                            </div>
+                                            <% } %>
+
+                                                <% if (invoice.remaining_amount> 0) { %>
+                                                    <div class="receipt-row"
+                                                        style="color: #000; font-size: 11px; margin-top: 8px; border: 1px solid #000; padding: 4px;">
+                                                        <span class="receipt-bold">SISA PIUTANG</span>
+                                                        <span class="receipt-bold">Rp <%= new
+                                                                Intl.NumberFormat('id-ID').format(invoice.remaining_amount)
+                                                                %></span>
+                                                    </div>
+                                                    <% } %>
+
+                                                        <div class="receipt-divider"></div>
+
+                                                        <div style="font-size: 9px; margin-top: 10px;">
+                                                            <div class="receipt-bold"
+                                                                style="text-decoration: underline; margin-bottom: 3px;">
+                                                                INFORMASI LAYANAN:</div>
+                                                            • Simpan struk sebagai bukti bayar sah.<br>
+                                                            • Bayar tepat waktu agar tidak terisolir.
+                                                        </div>
+
+                                                        <div style="text-align: center; margin-top: 15px;">
+                                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('VERIFIED OK: ' + invoice.invoice_number + ' | ' + invoice.customer_name + ' | ' + invoice.total_amount) %>"
+                                                                style="width: 70px; height: 70px; filter: grayscale(1);"
+                                                                alt="QR Code">
+                                                            <div
+                                                                style="font-size: 8px; margin-top: 5px; opacity: 0.6; font-weight: 700;">
+                                                                E-RECEIPT VERIFICATION SYSTEM</div>
+                                                        </div>
+
+                                                        <div class="receipt-footer"
+                                                            style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
+                                                            *** TERIMA KASIH ***
+                                                        </div>
             </div>
         </div>
     </div>
