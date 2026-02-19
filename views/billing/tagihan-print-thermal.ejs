@@ -224,16 +224,29 @@
 <body>
     <!-- Print Controls -->
     <div class="no-print"
-        style="position: fixed; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+        style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; gap: 10px; width: 90%; max-width: 350px; backdrop-filter: blur(5px); border: 1px solid rgba(0,0,0,0.1);">
         <button onclick="window.print()"
-            style="background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 5px; font-weight: bold;">
-            🖨️ Print Thermal 58mm
+            style="flex: 2; background: #007bff; color: white; padding: 12px; border: none; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span>🖨️</span> Print Pos 58mm
         </button>
         <button onclick="window.close()"
-            style="background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-            ✖ Tutup
+            style="flex: 1; background: #f8f9fa; color: #333; padding: 12px; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: bold;">
+            Tutup
         </button>
     </div>
+
+    <script>
+        // Auto print on load (with a small delay to ensure styles are applied)
+        window.onload = function () {
+            if (window.innerWidth < 768) {
+                // On mobile, maybe wait for user to be ready
+                console.log('Mobile print ready');
+            } else {
+                // On desktop, can trigger immediately
+                // window.print(); 
+            }
+        };
+    </script>
 
     <div class="receipt">
         <!-- PAID STAMP -->
