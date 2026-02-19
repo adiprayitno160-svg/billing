@@ -456,203 +456,227 @@
         <div class="paper-receipt" id="thermal-content">
             <div class="receipt-inner">
                 <div class="receipt-header">
-                    <div class="receipt-logo" style="font-size: 18px;">WIFI BILLING</div>
-                    <div class="receipt-info">Internet Service Provider</div>
-                    <div style="font-size: 9px; margin-top: -5px;">Jl. Raya Utama No. 88, Central City</div>
-                    <div style="font-size: 9px;">WA: 0812-3456-7890</div>
+                    <div class="receipt-logo" style="font-size: 20px;">WIFI BILLING</div>
+                    <div class="receipt-info" style="font-weight: 700;">PT. INTERNET SOLUSI UTAMA</div>
+                    <div style="font-size: 9px; margin-top: -3px;">NOC & Billing Center: 0812-3456-7890</div>
+                    <div style="font-size: 8px; opacity: 0.8;">Jl. Raya Utama No. 88, Central City</div>
                 </div>
 
                 <div class="receipt-divider" style="border-top: 2px solid #000; margin: 4px 0;"></div>
 
-                <div class="receipt-row" style="font-size: 9px;">
-                    <span>TGL: <%= new Date().toLocaleDateString('id-ID', {day: '2-digit' , month: '2-digit' ,
-                            year: 'numeric' }) %></span>
-                    <span>PKL: <%= new Date().toLocaleTimeString('id-ID', {hour: '2-digit' , minute: '2-digit' }) %>
+                <% if (invoice.status==='paid' ) { %>
+                    <div
+                        style="text-align: center; border: 2px solid #000; padding: 4px; margin: 5px 0; font-weight: 900; font-size: 16px;">
+                        LUNAS / PAID
+                    </div>
+                    <% } %>
+
+                        <div class="receipt-row" style="font-size: 9px;">
+                            <span>TGL: <%= new Date().toLocaleDateString('id-ID', {day: '2-digit' , month: '2-digit' ,
+                                    year: 'numeric' }) %></span>
+                            <span>PKL: <%= new Date().toLocaleTimeString('id-ID', {hour: '2-digit' , minute: '2-digit'
+                                    }) %></span>
+                        </div>
+                        <div class="receipt-row" style="font-size: 9px; margin-top: 2px;">
+                            <span>REF: #<%= invoice.invoice_number %></span>
+                        </div>
+
+                        <div class="receipt-divider"></div>
+
+                        <div style="margin: 4px 0; font-size: 10px;">
+                            ID PEL : <span class="receipt-bold">
+                                <%= invoice.customer_id || 'ID-NOT-SET' %>
+                            </span><br>
+                            NAMA : <span class="receipt-bold">
+                                <%= invoice.customer_name.toUpperCase().substring(0, 20) %>
+                            </span><br>
+                            PERIODE : <span class="receipt-bold">
+                                <%= new Date().toLocaleDateString('id-ID', {month: 'long' , year: 'numeric'
+                                    }).toUpperCase() %>
                             </span>
-                </div>
-                <div class="receipt-row" style="font-size: 9px; margin-top: 2px;">
-                    <span>NO: #<%= invoice.invoice_number.split('/').pop() %></span>
-                    <span>KASIR: ADMIN</span>
-                </div>
+                        </div>
 
-                <div class="receipt-divider"></div>
+                        <div class="receipt-divider" style="border-top: 1px solid #000;"></div>
 
-                <div style="margin: 4px 0;">
-                    PELANGGAN: <span class="receipt-bold">
-                        <%= invoice.customer_name.toUpperCase().substring(0, 20) %>
+                        <div class="receipt-row receipt-bold" style="font-size: 10px; margin-bottom: 3px;">
+                            <span>RINCIAN TAGIHAN</span>
+                            <span>TOTAL</span>
+                        </div>
+
+                        <% if (items && items.length> 0) { items.forEach((item) => { %>
+                            <div style="margin-bottom: 6px; border-left: 3px solid #000; padding-left: 5px;">
+                                <div class="receipt-item-desc" style="font-size: 10px;">
+                                    <%= item.description.toUpperCase() %>
+                                </div>
+                                <div class="receipt-item-calc">
+                                    <span>
+                                        <%= item.quantity || 1 %> Item @ <%= new
+                                                Intl.NumberFormat('id-ID').format(item.unit_price) %>
+                                    </span>
+                                    <span class="receipt-bold">
+                                        <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
+                                    </span>
+                                </div>
+                            </div>
+                            <% }); } %>
+
+                                <div class="receipt-divider"
+                                    style="border-top: 2px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 5px 0;">
+                                </div>
+
+                                <div class="receipt-row" style="margin-top: 5px;">
+                                    <span>TOTAL BAYAR</span>
+                                    <span class="receipt-bold" style="font-size: 16px;">Rp <%= new
+                                            Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                                </div>
+                                <div class="receipt-row" style="font-size: 9px; margin-top: 2px;">
+                                    <span>METODE BAYAR</span>
+                                    <span>TUNAI/CASH</span>
+                                </div>
+
+                                <% if (invoice.remaining_amount> 0) { %>
+                                    <div class="receipt-row"
+                                        style="color: #000; font-size: 11px; margin-top: 8px; border: 1px solid #000; padding: 4px;">
+                                        <span class="receipt-bold">SISA PIUTANG</span>
+                                        <span class="receipt-bold">Rp <%= new
+                                                Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span>
+                                    </div>
+                                    <% } %>
+
+                                        <div class="receipt-divider"></div>
+
+                                        <div style="font-size: 9px; margin-top: 10px;">
+                                            <div class="receipt-bold"
+                                                style="text-decoration: underline; margin-bottom: 3px;">INFORMASI
+                                                LAYANAN:</div>
+                                            • Simpan struk sebagai bukti bayar sah.<br>
+                                            • Gangguan Hubungi: 0812-3456-7890.<br>
+                                            • Bayar tepat waktu agar tidak terisolir.
+                                        </div>
+
+                                        <div style="text-align: center; margin-top: 15px;">
+                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('VERIFIED OK: ' + invoice.invoice_number + ' | ' + invoice.customer_name + ' | ' + invoice.total_amount) %>"
+                                                style="width: 70px; height: 70px; filter: grayscale(1);" alt="QR Code">
+                                            <div
+                                                style="font-size: 8px; margin-top: 5px; opacity: 0.6; font-weight: 700;">
+                                                E-RECEIPT VERIFICATION SYSTEM</div>
+                                        </div>
+
+                                        <div class="receipt-footer"
+                                            style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
+                                            Digitalize Your Business<br>
+                                            *** TERIMA KASIH ***
+                                        </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- A4 INVOICE VIEW -->
+    <div class="paper-a4" id="view-a4">
+        <div class="a4-header">
+            <div class="a4-brand">
+                <h1>WIFI BILLING</h1>
+                <p style="color: #64748b; font-size: 14px;">Internet Service Provider Extreme</p>
+            </div>
+            <div class="a4-invoice-info">
+                <h2>INVOICE</h2>
+                <p style="font-weight: 700; color: #1e293b;">#<%= invoice.invoice_number %>
+                </p>
+            </div>
+        </div>
+
+        <div class="a4-grid">
+            <div>
+                <div class="a4-section-title">TAGIHAN KEPADA</div>
+                <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">
+                    <%= invoice.customer_name %>
+                </div>
+                <div style="color: #64748b; font-size: 14px; line-height: 1.5;">
+                    <%= invoice.customer_address || 'No Address Provided' %>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div class="a4-section-title">WAKTU PENERBITAN</div>
+                <div style="font-size: 16px; font-weight: 700;">
+                    <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'numeric' , month: 'long' ,
+                        year: 'numeric' }) %>
+                </div>
+                <div style="margin-top: 20px;">
+                    <span
+                        style="padding: 6px 12px; border-radius: 99px; font-size: 12px; font-weight: 800; <%= invoice.status === 'paid' ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;' %>">
+                        <%= invoice.status==='paid' ? 'LUNAS' : 'PENDING' %>
                     </span>
                 </div>
-
-                <div class="receipt-divider" style="border-top: 1px solid #000;"></div>
-
-                <div class="receipt-row receipt-bold" style="font-size: 10px; margin-bottom: 2px;">
-                    <span>LAYANAN / DESKRIPSI</span>
-                    <span>TOTAL</span>
-                </div>
-
-                <% if (items && items.length> 0) { items.forEach((item) => { %>
-                    <div style="margin-bottom: 6px;">
-                        <div class="receipt-item-desc" style="font-size: 10px;">
-                            <%= item.description.toUpperCase() %>
-                        </div>
-                        <div class="receipt-item-calc">
-                            <span>
-                                <%= item.quantity || 1 %> x <%= new Intl.NumberFormat('id-ID').format(item.unit_price)
-                                        %>
-                            </span>
-                            <span class="receipt-bold">
-                                <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
-                            </span>
-                        </div>
-                    </div>
-                    <% }); } %>
-
-                        <div class="receipt-divider"
-                            style="border-top: 2px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 5px 0;">
-                        </div>
-
-                        <div class="receipt-row receipt-total" style="border-top: none; padding-top: 0; margin-top: 0;">
-                            <span class="receipt-bold">GRAND TOTAL</span>
-                            <span class="receipt-bold" style="font-size: 16px;">Rp <%= new
-                                    Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
-                        </div>
-
-                        <% if (invoice.remaining_amount> 0) { %>
-                            <div class="receipt-row"
-                                style="color: #000; font-size: 11px; margin-top: 5px; background: #eee; padding: 2px 4px;">
-                                <span class="receipt-bold">BELUM DIBAYAR</span>
-                                <span class="receipt-bold">Rp <%= new
-                                        Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span>
-                            </div>
-                            <% } %>
-
-                                <div class="receipt-divider"></div>
-
-                                <div style="text-align: center; margin-top: 15px;">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('Invoice: ' + invoice.invoice_number + ' - Customer: ' + invoice.customer_name) %>"
-                                        style="width: 70px; height: 70px; filter: grayscale(1);" alt="QR Code">
-                                    <div style="font-size: 8px; margin-top: 5px; opacity: 0.6;">SCAN UNTUK VERIFIKASI
-                                    </div>
-                                </div>
-
-                                <div class="receipt-footer"
-                                    style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
-                                    Pembaruan Paket Otomatis<br>
-                                    * TERIMA KASIH *<br>
-                                    IKLAN: MAU PASANG WIFI? HUB KAMI!
-                                </div>
             </div>
         </div>
 
-        <!-- A4 INVOICE VIEW -->
-        <div class="paper-a4" id="view-a4">
-            <div class="a4-header">
-                <div class="a4-brand">
-                    <h1>WIFI BILLING</h1>
-                    <p style="color: #64748b; font-size: 14px;">Internet Service Provider Extreme</p>
-                </div>
-                <div class="a4-invoice-info">
-                    <h2>INVOICE</h2>
-                    <p style="font-weight: 700; color: #1e293b;">#<%= invoice.invoice_number %>
-                    </p>
-                </div>
-            </div>
-
-            <div class="a4-grid">
-                <div>
-                    <div class="a4-section-title">TAGIHAN KEPADA</div>
-                    <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">
-                        <%= invoice.customer_name %>
-                    </div>
-                    <div style="color: #64748b; font-size: 14px; line-height: 1.5;">
-                        <%= invoice.customer_address || 'No Address Provided' %>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <div class="a4-section-title">WAKTU PENERBITAN</div>
-                    <div style="font-size: 16px; font-weight: 700;">
-                        <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'numeric' , month: 'long' ,
-                            year: 'numeric' }) %>
-                    </div>
-                    <div style="margin-top: 20px;">
-                        <span
-                            style="padding: 6px 12px; border-radius: 99px; font-size: 12px; font-weight: 800; <%= invoice.status === 'paid' ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;' %>">
-                            <%= invoice.status==='paid' ? 'LUNAS' : 'PENDING' %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <table class="a4-table">
-                <thead>
+        <table class="a4-table">
+            <thead>
+                <tr>
+                    <th width="80px">ITEM</th>
+                    <th>DESKRIPSI LAYANAN</th>
+                    <th style="text-align: right;">HARGA SATUAN</th>
+                    <th style="text-align: right;">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (items && items.length> 0) { items.forEach((item, index) => { %>
                     <tr>
-                        <th width="80px">ITEM</th>
-                        <th>DESKRIPSI LAYANAN</th>
-                        <th style="text-align: right;">HARGA SATUAN</th>
-                        <th style="text-align: right;">TOTAL</th>
+                        <td style="color: #94a3b8; font-weight: 700;">#0<%= index + 1 %>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700;">
+                                <%= item.description %>
+                            </div>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Periode Layanan: <%= new
+                                    Date().toLocaleDateString('id-ID', {month: 'long' , year: 'numeric' }) %>
+                            </div>
+                        </td>
+                        <td style="text-align: right;">Rp <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %>
+                        </td>
+                        <td style="text-align: right; font-weight: 700;">Rp <%= new
+                                Intl.NumberFormat('id-ID').format(item.total_price) %>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <% if (items && items.length> 0) { items.forEach((item, index) => { %>
-                        <tr>
-                            <td style="color: #94a3b8; font-weight: 700;">#0<%= index + 1 %>
-                            </td>
-                            <td>
-                                <div style="font-weight: 700;">
-                                    <%= item.description %>
-                                </div>
-                                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Periode Layanan: <%= new
-                                        Date().toLocaleDateString('id-ID', {month: 'long' , year: 'numeric' }) %>
-                                </div>
-                            </td>
-                            <td style="text-align: right;">Rp <%= new Intl.NumberFormat('id-ID').format(item.unit_price)
-                                    %>
-                            </td>
-                            <td style="text-align: right; font-weight: 700;">Rp <%= new
-                                    Intl.NumberFormat('id-ID').format(item.total_price) %>
-                            </td>
-                        </tr>
-                        <% }); } %>
-                </tbody>
-            </table>
+                    <% }); } %>
+            </tbody>
+        </table>
 
-            <div class="a4-totals-box">
-                <div class="a4-total-row">
-                    <span>Subtotal</span>
-                    <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
-                </div>
-                <div class="a4-total-row">
-                    <span>Diskon</span>
-                    <span>Rp 0</span>
-                </div>
-                <div class="a4-total-row a4-total-final">
-                    <span>TOTAL</span>
-                    <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
-                </div>
+        <div class="a4-totals-box">
+            <div class="a4-total-row">
+                <span>Subtotal</span>
+                <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
             </div>
-
-            <div style="margin-top: 80px; display: flex; justify-content: space-between;">
-                <div style="width: 200px;">
-                    <div class="a4-section-title" style="text-align: center;">TANDA TERIMA</div>
-                    <div style="height: 80px;"></div>
-                    <div
-                        style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
-                        PELANGGAN</div>
-                </div>
-                <div style="width: 200px;">
-                    <div class="a4-section-title" style="text-align: center;">KASIR PENAGIHAN</div>
-                    <div style="height: 80px;"></div>
-                    <div
-                        style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
-                        ADMIN BILLING</div>
-                </div>
+            <div class="a4-total-row">
+                <span>Diskon</span>
+                <span>Rp 0</span>
             </div>
-
-            <div
-                style="position: absolute; bottom: 25mm; left: 25mm; right: 25mm; border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; text-align: center;">
-                Generated by System Billing ISP • www.isp-billing.id • Thank you for your business!
+            <div class="a4-total-row a4-total-final">
+                <span>TOTAL</span>
+                <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
             </div>
         </div>
+
+        <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+            <div style="width: 200px;">
+                <div class="a4-section-title" style="text-align: center;">TANDA TERIMA</div>
+                <div style="height: 80px;"></div>
+                <div style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
+                    PELANGGAN</div>
+            </div>
+            <div style="width: 200px;">
+                <div class="a4-section-title" style="text-align: center;">KASIR PENAGIHAN</div>
+                <div style="height: 80px;"></div>
+                <div style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
+                    ADMIN BILLING</div>
+            </div>
+        </div>
+
+        <div
+            style="position: absolute; bottom: 25mm; left: 25mm; right: 25mm; border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; text-align: center;">
+            Generated by System Billing ISP • www.isp-billing.id • Thank you for your business!
+        </div>
+    </div>
     </div>
 
     <script>
