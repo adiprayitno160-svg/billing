@@ -406,18 +406,28 @@
 		@media (max-width: 767px) {
 			#sidebar {
 				position: fixed !important;
+				height: 100vh;
+				z-index: 9999 !important;
+			}
+
+			#main-content {
+				width: 100vw !important;
+				max-width: 100vw !important;
+				margin-left: 0 !important;
+				flex: none !important;
+				min-width: 100vw !important;
+				/* Force full viewport width */
 			}
 		}
 
-		/* Sidebar hidden state */
+		/* Sidebar hidden state for desktop */
 		#sidebar.sidebar-hidden {
 			transform: translateX(-100%);
 			width: 0 !important;
 			min-width: 0 !important;
 			overflow: hidden;
-			border: none;
-			margin: 0;
-			padding: 0;
+			display: none !important;
+			/* Absolute hide */
 		}
 
 		/* Main content expands when sidebar is hidden */
@@ -429,7 +439,7 @@
 
 		/* Ensure smooth transition */
 		#sidebar {
-			transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, min-width 0.3s ease-in-out;
+			transition: transform 0.3s ease-in-out;
 		}
 
 		#sidebar * {
@@ -518,16 +528,15 @@
 		}
 
 		/* Prevent dashboard elements from covering sidebar */
-		body>div.flex.h-screen {
-			position: relative;
-		}
-
-		body>div.flex.h-screen>aside {
-			z-index: 1000 !important;
+		body>div.flex {
+			width: 100%;
+			overflow-x: hidden;
 		}
 
 		body>div.flex.h-screen>main {
 			z-index: 1 !important;
+			min-width: 0;
+			/* Critical for flex layout not to blow out or squeeze */
 		}
 	</style>
 
@@ -564,13 +573,12 @@
 
 		<!-- Sidebar -->
 		<aside id="sidebar"
-			class="fixed inset-y-0 left-0 w-72 md:relative md:translate-x-0 -translate-x-full text-white bg-[#0f172a] h-full overflow-y-auto shadow-2xl flex-shrink-0 transition-all duration-300 ease-in-out z-[1000]">
+			class="fixed inset-y-0 left-0 w-72 md:relative md:translate-x-0 -translate-x-full text-white bg-[#0f172a] h-full overflow-y-auto shadow-2xl transition-all duration-300 ease-in-out z-[1000]">
 			<%- include('../partials/sidebar') %>
 		</aside>
 
 		<!-- Main Content -->
-		<main id="main-content"
-			class="flex-1 h-full overflow-y-auto transition-all duration-300 bg-white relative z-10 w-full">
+		<main id="main-content" class="flex-1 h-full overflow-y-auto bg-white relative z-10 w-full">
 			<div class="flex flex-col min-h-full">
 				<div class="w-full p-3 sm:p-4 md:p-6 lg:p-8 max-w-[1920px] mx-auto flex-grow">
 					<header class="mb-4 md:mb-8 sticky top-0 md:relative z-40">
@@ -831,8 +839,8 @@
 			};
 
 			// Mobile Action Sheet (Bottom Sheet) Control
-			window.openMobileActionSheet = function (invoiceId) {
-				console.log('Opening Mobile Action Sheet for invoice:', invoiceId);
+			window.openMobileActionSheet = function (invoiceId, isolationAction, customerId, customerName) {
+				console.log('Opening Mobile Action Sheet for invoice:', invoiceId, 'Action:', isolationAction);
 				const sheet = document.getElementById('mobileActionSheet');
 				const overlay = document.getElementById('mobileActionSheetOverlay');
 
@@ -841,55 +849,136 @@
 					return;
 				}
 
-				// Clear previous handlers to prevent duplicates (using onclick is safe since it replaces)
-
-				// Helper to click hidden buttons
-				const clickHidden = (selector) => {
-					const btn = document.querySelector(selector);
-					if (btn) {
-						console.log('Clicking hidden button:', selector);
-						btn.click();
-					} else {
-						console.error('Hidden button not found:', selector);
-						// Fallback: try to find by simpler attribute if detailed one fails
+				// Try to get customerId/customerName from the mobile card if not passed
+				if (!customerId || !customerName) {
+					const checkbox = document.querySelector(`input[value="${invoiceId}"].invoice-checkbox`);
+					if (checkbox) {
+						const card = checkbox.closest('.bg-white');
+						if (card) {
+							const nameEl = card.querySelector('.text-sm.font-black.text-slate-800');
+							if (nameEl) customerName = nameEl.textContent.trim();
+						}
 					}
+				}
+
+				// Direct action: Print Invoice
+				document.getElementById('mas-print-pdf').onclick = () => {
 					window.closeMobileActionSheet();
+					window.open(`/billing/tagihan/${invoiceId}/print?format=thermal`, '_blank');
 				};
 
-				// Bind actions for this specific invoice
-				const btnPrint = document.getElementById('mas-print-pdf');
-				if (btnPrint) btnPrint.onclick = () => clickHidden(`button[data-action="print"][data-invoice-id="${invoiceId}"]`);
+				// Direct action: Send WhatsApp
+				document.getElementById('mas-send-wa').onclick = async () => {
+					window.closeMobileActionSheet();
+					const ok = await Swal.fire({ title: 'Kirim WhatsApp?', text: 'Kirim rincian tagihan via WA?', icon: 'question', showCancelButton: true });
+					if (ok.isConfirmed) {
+						Swal.fire({ title: 'Mengirim...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+						try {
+							const res = await fetch(`/billing/tagihan/${invoiceId}/send-whatsapp`, { method: 'POST' });
+							const data = await res.json();
+							Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
+						} catch (err) {
+							Swal.fire('Error', err.message, 'error');
+						}
+					}
+				};
 
-				const btnWa = document.getElementById('mas-send-wa');
-				if (btnWa) btnWa.onclick = () => clickHidden(`button[data-action="send-wanew"][data-invoice-id="${invoiceId}"]`);
+				// Direct action: Delete
+				document.getElementById('mas-delete').onclick = async () => {
+					window.closeMobileActionSheet();
+					const del = await Swal.fire({ title: 'Hapus Tagihan?', text: 'Data tidak bisa dikembalikan!', icon: 'warning', showCancelButton: true });
+					if (del.isConfirmed) {
+						const res = await fetch(`/billing/tagihan/${invoiceId}`, { method: 'DELETE' });
+						const d = await res.json();
+						if (d.success) location.reload();
+						else Swal.fire('Gagal', d.message, 'error');
+					}
+				};
 
-				const btnDel = document.getElementById('mas-delete');
-				if (btnDel) btnDel.onclick = () => clickHidden(`button[data-action="delete"][data-invoice-id="${invoiceId}"]`);
+				// Handle Isolation/Restoration
+				const btnRestore = document.getElementById('mas-restore');
+				const btnIsolate = document.getElementById('mas-isolate');
 
-				// Show
-				if (overlay) {
-					overlay.style.display = 'block';
-					overlay.classList.remove('hidden');
+				if (btnRestore) btnRestore.classList.add('hidden');
+				if (btnIsolate) btnIsolate.classList.add('hidden');
+
+				if (isolationAction === 'restore' && btnRestore) {
+					btnRestore.classList.remove('hidden');
+					btnRestore.onclick = async () => {
+						window.closeMobileActionSheet();
+						const { value: reason } = await Swal.fire({
+							title: 'Pulihkan Pelanggan?',
+							text: `Alasan untuk ${customerName || 'pelanggan'}:`,
+							input: 'text',
+							inputValue: 'Sudah bayar',
+							showCancelButton: true
+						});
+						if (reason) {
+							const cid = customerId || invoiceId;
+							const res = await fetch('/billing/customer/restore', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ customerId: cid, reason })
+							});
+							const d = await res.json();
+							if (d.success) location.reload();
+							else Swal.fire('Gagal', d.message, 'error');
+						}
+					};
+				} else if (isolationAction === 'isolate' && btnIsolate) {
+					btnIsolate.classList.remove('hidden');
+					btnIsolate.onclick = async () => {
+						window.closeMobileActionSheet();
+						const { value: reason } = await Swal.fire({
+							title: 'Isolir Pelanggan?',
+							text: `Alasan untuk ${customerName || 'pelanggan'}:`,
+							input: 'text',
+							inputValue: 'Tunggakan pembayaran',
+							showCancelButton: true
+						});
+						if (reason) {
+							const cid = customerId || invoiceId;
+							const res = await fetch('/billing/customer/isolate', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ customerId: cid, reason })
+							});
+							const d = await res.json();
+							if (d.success) location.reload();
+							else Swal.fire('Gagal', d.message, 'error');
+						}
+					};
 				}
-				if (sheet) {
-					sheet.style.display = 'block';
-					// Small delay for transition
-					requestAnimationFrame(() => {
-						sheet.classList.remove('translate-y-full');
-					});
-				}
+
+				// Show sheet
+				overlay.style.display = 'block';
+				sheet.style.display = 'block';
+
+				requestAnimationFrame(() => {
+					overlay.classList.remove('hidden', 'opacity-0');
+					sheet.classList.remove('translate-y-full');
+					sheet.style.pointerEvents = 'auto';
+					sheet.classList.add('translate-y-0');
+				});
 			};
 
 			window.closeMobileActionSheet = function () {
 				const sheet = document.getElementById('mobileActionSheet');
 				const overlay = document.getElementById('mobileActionSheetOverlay');
 
-				if (sheet) sheet.classList.add('translate-y-full');
+				if (sheet) {
+					sheet.classList.add('translate-y-full');
+					sheet.classList.remove('translate-y-0');
+				}
 				if (overlay) {
+					overlay.classList.add('opacity-0');
 					setTimeout(() => {
 						overlay.classList.add('hidden');
 						overlay.style.display = 'none';
-						if (sheet) sheet.style.display = 'none';
+						if (sheet) {
+							sheet.style.display = 'none';
+							sheet.style.pointerEvents = 'none'; // Disable interaction
+						}
 					}, 300);
 				}
 			};
@@ -1096,47 +1185,76 @@
 		<div id="mobileActionSheetOverlay" onclick="closeMobileActionSheet()"
 			class="fixed inset-0 bg-slate-900/60 z-[9990] hidden backdrop-blur-sm transition-opacity"
 			style="display: none;"></div>
-		<div id="mobileActionSheet" style="display: none;"
-			class="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] z-[9995] transform translate-y-full transition-transform duration-300 pb-8 shadow-2xl border-t border-slate-100">
-			<div class="w-12 h-1 bg-slate-200 rounded-full mx-auto my-4"></div>
-			<div class="px-6 pb-6 space-y-2">
+		<div id="mobileActionSheet" style="display: none; pointer-events: none;"
+			class="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] z-[9995] transform translate-y-full transition-all duration-300 pb-10 shadow-2xl border-t border-slate-100 px-6">
+			<div class="w-12 h-1.5 bg-slate-100 rounded-full mx-auto my-6"></div>
+			<div class="space-y-3">
 				<div class="text-center mb-6">
-					<h3 class="text-lg font-black text-slate-800 tracking-tight">Pilih Aksi</h3>
-					<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kelola Tagihan Ini</p>
+					<h3 class="text-lg font-black text-slate-800 tracking-tight flex items-center justify-center gap-2">
+						<i class="fas fa-tasks text-blue-500 text-sm"></i>
+						PILIH AKSI
+					</h3>
+					<p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Opsi Pengelolaan Invoice
+					</p>
 				</div>
 
-				<button id="mas-print-pdf"
-					class="w-full flex items-center p-4 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-all gap-4 group">
-					<div
-						class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm text-slate-400 group-hover:text-blue-600 transition-colors">
-						<i class="fas fa-print"></i>
-					</div>
-					<span class="text-sm font-bold text-slate-600 group-hover:text-slate-900">Print PDF Invoice</span>
-				</button>
+				<div class="grid grid-cols-1 gap-3">
+					<button id="mas-print-pdf"
+						class="w-full flex items-center p-4 bg-slate-50 rounded-2xl hover:bg-white border border-transparent hover:border-blue-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
+							<i class="fas fa-print"></i>
+						</div>
+						<span
+							class="text-xs font-black text-slate-600 uppercase tracking-widest group-hover:text-blue-600">Print
+							Invoice</span>
+					</button>
 
-				<button id="mas-send-wa"
-					class="w-full flex items-center p-4 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all gap-4 group">
-					<div
-						class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm text-emerald-500 group-hover:text-emerald-600 transition-colors">
-						<i class="fab fa-whatsapp"></i>
-					</div>
-					<span class="text-sm font-bold text-emerald-700 group-hover:text-emerald-800">Kirim WhatsApp</span>
-				</button>
+					<button id="mas-send-wa"
+						class="w-full flex items-center p-4 bg-emerald-50 rounded-2xl hover:bg-white border border-transparent hover:border-emerald-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">
+							<i class="fab fa-whatsapp"></i>
+						</div>
+						<span
+							class="text-xs font-black text-emerald-700 uppercase tracking-widest group-hover:text-emerald-800">WhatsApp
+							Notif</span>
+					</button>
 
-				<button id="mas-delete"
-					class="w-full flex items-center p-4 bg-red-50 rounded-2xl hover:bg-red-100 transition-all gap-4 group">
-					<div
-						class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm text-red-500 group-hover:text-red-600 transition-colors">
-						<i class="fas fa-trash"></i>
-					</div>
-					<span class="text-sm font-bold text-red-700 group-hover:text-red-800">Hapus Tagihan</span>
-				</button>
+					<button id="mas-restore"
+						class="hidden w-full flex items-center p-4 bg-amber-50 rounded-2xl hover:bg-white border border-transparent hover:border-amber-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-sm group-hover:bg-amber-600 group-hover:text-white transition-all">
+							<i class="fas fa-unlock"></i>
+						</div>
+						<span class="text-xs font-black text-amber-700 uppercase tracking-widest">Buka Isolir</span>
+					</button>
+
+					<button id="mas-isolate"
+						class="hidden w-full flex items-center p-4 bg-rose-50 rounded-2xl hover:bg-white border border-transparent hover:border-rose-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shadow-sm group-hover:bg-rose-600 group-hover:text-white transition-all">
+							<i class="fas fa-lock"></i>
+						</div>
+						<span class="text-xs font-black text-rose-700 uppercase tracking-widest">Isolir Sekarang</span>
+					</button>
+
+					<button id="mas-delete"
+						class="w-full flex items-center p-4 bg-rose-50/50 rounded-2xl hover:bg-white border border-transparent hover:border-rose-200 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-white text-rose-500 flex items-center justify-center shadow-sm group-hover:bg-rose-600 group-hover:text-white transition-all border border-rose-100">
+							<i class="fas fa-trash-alt"></i>
+						</div>
+						<span class="text-xs font-black text-rose-700 uppercase tracking-widest">Hapus Tagihan</span>
+					</button>
+				</div>
 
 				<button onclick="closeMobileActionSheet()"
-					class="w-full py-4 mt-4 text-center text-xs font-black text-slate-400 uppercase tracking-widest">
-					Batal
+					class="w-full py-5 mt-4 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-slate-200 active:scale-95 transition-all">
+					Tutup Dialog
 				</button>
 			</div>
+			<div class="h-6"></div> <!-- Padding for safe area -->
 		</div>
 </body>
 

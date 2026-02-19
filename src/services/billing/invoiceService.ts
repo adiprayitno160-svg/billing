@@ -1,3 +1,4 @@
+import { SLARebateService } from './SLARebateService';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 
@@ -373,12 +374,22 @@ export class InvoiceService {
                             }
                         }
 
-                        let ppnAmount = 0;
-                        if (ppnEnabled && ppnRate > 0 && subscription.is_taxable) {
-                            const taxBase = subtotal + deviceFee;
-                            ppnAmount = Math.round(taxBase * (ppnRate / 100));
-                        }
+                        // 1. Calculate SLA Rebate for previous period
+                        const [year, month] = period.split('-').map(Number);
+                        const prevDate = new Date(year, month - 2, 1);
+                        const prevPeriod = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
+                        let slaRebateAmount = 0;
+                        let slaReason = '';
+                        try {
+                            const rebate = await SLARebateService.calculateRebate(subscription.customer_id, prevPeriod);
+                            if (rebate.isEligible && rebate.rebateAmount > 0) {
+                                slaRebateAmount = rebate.rebateAmount;
+                                slaReason = rebate.reason;
+                            }
+                        } catch (e) { console.error('Error calculating SLA rebate:', e); }
+
+                        // 2. Fetch pending compensations
                         let compensationTotal = 0;
                         let compensations: any[] = [];
                         try {
@@ -391,7 +402,16 @@ export class InvoiceService {
                             compensationTotal = compensations.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
                         } catch (e) { console.error('Error fetching compensations:', e); }
 
-                        const totalAmount = Math.max(0, subtotal + deviceFee + ppnAmount + carryOverAmount - compensationTotal);
+                        const totalDiscount = slaRebateAmount + compensationTotal;
+
+                        // 3. Calculate PPN (Tax) - Calculated AFTER discount for better accuracy
+                        let ppnAmount = 0;
+                        if (ppnEnabled && ppnRate > 0 && subscription.is_taxable) {
+                            const taxBase = Math.max(0, subtotal + deviceFee - totalDiscount);
+                            ppnAmount = Math.round(taxBase * (ppnRate / 100));
+                        }
+
+                        const totalAmount = Math.max(0, subtotal + deviceFee + ppnAmount + carryOverAmount - totalDiscount);
 
                         // Apply balance deduction
                         let accountBalance = parseFloat(subscription.account_balance || 0);
@@ -411,7 +431,7 @@ export class InvoiceService {
                             device_fee: deviceFee,
                             total_amount: totalAmount,
                             paid_amount: amountFromBalance,
-                            discount_amount: compensationTotal,
+                            discount_amount: totalDiscount,
                             notes: carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')}` : undefined
                         };
 
@@ -428,6 +448,16 @@ export class InvoiceService {
 
                         if (carryOverAmount > 0) {
                             items.push({ description: `Sisa Hutang Bulan Sebelumnya - ${period}`, quantity: 1, unit_price: carryOverAmount, total_price: carryOverAmount });
+                        }
+
+                        // Add SLA Rebate line item
+                        if (slaRebateAmount > 0) {
+                            items.push({
+                                description: slaReason || `SLA Rebate - ${prevPeriod}`,
+                                quantity: 1,
+                                unit_price: -slaRebateAmount,
+                                total_price: -slaRebateAmount
+                            });
                         }
 
                         // Add compensation line items

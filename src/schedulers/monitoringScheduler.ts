@@ -59,6 +59,9 @@ export class MonitoringScheduler {
             // 9. Two Hour Notification Service - Every 2 hours
             this.startTwoHourNotificationService();
 
+            // 10. GenieACS Device Sync - Every 1 hour
+            this.startGenieacsSync();
+
             this.isRunning = true;
             console.log('[MonitoringScheduler] All schedulers started successfully');
         } catch (error) {
@@ -292,6 +295,24 @@ export class MonitoringScheduler {
         this.jobs.set('two-hour-notification-service', job);
         console.log('[MonitoringScheduler] ✓ Two Hour Notification Service scheduled (every 2 hours)');
     }
+    /**
+     * 10. GenieACS Device Sync - Every 1 hour
+     */
+    private startGenieacsSync(): void {
+        const job = cron.schedule('0 * * * *', async () => {
+            try {
+                console.log('[GenieacsSync] Starting GenieACS device sync...');
+                await NetworkMonitoringService.syncDevicesFromGenieACS();
+                console.log('[GenieacsSync] Sync completed');
+            } catch (error) {
+                console.error('[GenieacsSync] Error:', error);
+            }
+        });
+
+        this.jobs.set('genieacs-sync', job);
+        console.log('[MonitoringScheduler] ✓ GenieACS Sync scheduled (every 1 hour)');
+    }
+
     private startPrepaidExpiryWarnings(): void {
         const job = cron.schedule('0 9 * * *', async () => {
             try {
@@ -360,6 +381,10 @@ export class MonitoringScheduler {
                     await NetworkMonitoringService.detectTimeoutIssues();
                     await NetworkMonitoringService.detectDegradedPerformance();
                     await NetworkMonitoringService.getTroubleCustomers(true);
+                    break;
+
+                case 'genieacs-sync':
+                    await NetworkMonitoringService.syncDevicesFromGenieACS();
                     break;
 
                 default:

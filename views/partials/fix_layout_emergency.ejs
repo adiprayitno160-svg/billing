@@ -40,9 +40,11 @@
 
             // 3. Generic Fixed Overlay Scanner
             // Use a walker to find any element with fixed positioning that covers the screen
-            const allElements = document.querySelectorAll('body > div:not(#sidebar):not(#main-content)');
+            const allElements = document.querySelectorAll('body > div:not(#sidebar):not(#main-content):not(#mobileActionSheet):not(#mobileActionSheetOverlay):not(#modalOverlay)');
             allElements.forEach(el => {
                 if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return;
+                // Skip mobile action sheet and modal elements
+                if (el.id === 'mobileActionSheet' || el.id === 'mobileActionSheetOverlay' || el.id === 'modalOverlay') return;
 
                 const style = window.getComputedStyle(el);
                 if (style.position === 'fixed' && style.zIndex > 1000) {
