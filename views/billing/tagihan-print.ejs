@@ -4,482 +4,669 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice #<%= invoice.invoice_number %>
+    <title>Print Invoice #<%= invoice.invoice_number %>
     </title>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-        /* RESET & BASE */
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --secondary: #10b981;
+            --secondary-glow: rgba(16, 185, 129, 0.5);
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.5);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.5);
+            --bg-dark: #0f172a;
+            --card-glass: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.1);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #e5e7eb;
-            color: #1f2937;
-            padding-bottom: 50px;
-            /* Space for buttons on mobile */
-        }
-
-        /* UTILITIES */
-        .no-print {
-            background: #374151;
-            padding: 10px;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
             color: white;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            flex-wrap: wrap;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
         }
 
-        button {
+        /* --- CONTROL BAR --- */
+        .preview-controls {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            padding: 8px;
+            border-radius: 24px;
+            border: 1px solid var(--border-glass);
+            display: flex;
+            gap: 8px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 1px var(--border-glass);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .preview-controls:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn {
             cursor: pointer;
-            padding: 8px 16px;
-            border-radius: 4px;
+            padding: 10px 20px;
+            border-radius: 16px;
             border: none;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 13px;
             display: flex;
             align-items: center;
-            gap: 5px;
-            transition: all 0.2s;
-            font-size: 13px;
-        }
-
-        .btn-a4 {
-            background: #2563eb;
+            gap: 8px;
             color: white;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .btn-thermal {
-            background: #059669;
-            color: white;
+        .btn-blue {
+            background: var(--primary);
+            box-shadow: 0 4px 15px var(--primary-glow);
         }
 
-        .btn-bluetooth {
-            background: #7c3aed;
-            color: white;
+        .btn-green {
+            background: var(--secondary);
+            box-shadow: 0 4px 15px var(--secondary-glow);
         }
 
-        .btn-close {
-            background: #ef4444;
-            color: white;
+        .btn-purple {
+            background: var(--accent);
+            box-shadow: 0 4px 15px var(--accent-glow);
         }
 
-        /* ==== A4 MODE STYLES ==== */
-        .page-a4 {
-            background: white;
-            width: 210mm;
-            min-height: 297mm;
-            margin: 20px auto;
-            padding: 20mm;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            display: block;
+        .btn-red {
+            background: var(--danger);
+            box-shadow: 0 4px 15px var(--danger-glow);
         }
 
-        /* ... (A4 styles kept minimal for brevity, focusing on thermal fix) ... */
-        .a4-header {
+        .btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        /* --- PREVIEW CANVAS --- */
+        .preview-canvas {
+            padding: 120px 20px 100px;
             display: flex;
-            justify-content: space-between;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
         }
 
-        .a4-title {
-            font-size: 24pt;
-            font-weight: 800;
-            color: #2563eb;
-            text-transform: uppercase;
-        }
-
-        .a4-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-
-        .a4-table th {
-            background: #f3f4f6;
-            padding: 12px;
-            text-align: left;
-            border-bottom: 2px solid #e5e7eb;
-            font-size: 10pt;
-            text-transform: uppercase;
-            color: #6b7280;
-        }
-
-        .a4-table td {
-            padding: 12px;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 11pt;
-        }
-
-        .a4-totals {
-            width: 40%;
-            margin-left: auto;
-            margin-top: 20px;
-        }
-
-        .a4-totals td {
-            padding: 8px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .a4-totals .total-final {
-            font-weight: bold;
-            font-size: 14pt;
-            color: #2563eb;
-            border-top: 2px solid #2563eb;
-        }
-
-        /* ==== THERMAL MODE STYLES (Ultra Compact) ==== */
-        .page-thermal {
-            display: none;
-            background: white;
-            width: 48mm;
+        /* --- THERMAL PAPER STYLE --- */
+        .paper-receipt {
+            background: #fff;
+            color: #000;
+            width: 58mm;
+            padding: 20px 15px;
+            font-family: 'JetBrains Mono', monospace;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 100px rgba(255, 255, 255, 0.05);
+            position: relative;
+            transform: rotate(-0.5deg);
             margin: 20px auto;
-            /* Centered on screen */
-            padding: 10px 5px;
-            font-family: 'Courier New', Courier, monospace;
+            transition: all 0.5s ease;
+        }
+
+        .paper-receipt::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: linear-gradient(-45deg, #fff 5px, transparent 0), linear-gradient(45deg, #fff 5px, transparent 0);
+            background-size: 10px 10px;
+        }
+
+        .paper-receipt::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: linear-gradient(-45deg, transparent 5px, #fff 0), linear-gradient(45deg, transparent 5px, #fff 0);
+            background-size: 10px 10px;
+        }
+
+        .receipt-inner {
             font-size: 11px;
-            /* Slightly readable on screen */
-            line-height: 1.2;
-            color: black;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            /* Visual card effect on screen */
+            line-height: 1.4;
         }
 
-        .thermal-body {
-            width: 100%;
-            /* Space for tear-off */
-        }
-
-        .th-center {
+        .receipt-header {
             text-align: center;
+            margin-bottom: 12px;
         }
 
-        .th-right {
-            text-align: right;
+        .receipt-logo {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 2px;
+            letter-spacing: -0.5px;
         }
 
-        .th-bold {
-            font-weight: bold;
+        .receipt-info {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-bottom: 10px;
         }
 
-        .th-line {
-            border-top: 1px dashed #000;
-            margin: 5px 0;
-            width: 100%;
+        .receipt-divider {
+            border-top: 1px dashed rgba(0, 0, 0, 0.2);
+            margin: 8px 0;
         }
 
-        .th-row {
+        .receipt-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 4px;
         }
 
-        .th-item-name {
-            font-weight: bold;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
-            margin-bottom: 2px;
+        .receipt-bold {
+            font-weight: 700;
         }
 
-        /* ==== SCREEN RESPONSIVENESS (MOBILE) ==== */
-        @media screen and (max-width: 600px) {
-            .page-a4 {
-                display: none !important;
-                /* Force hide A4 on mobile screen */
+        .receipt-item-desc {
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .receipt-item-calc {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+
+        .receipt-total {
+            margin-top: 10px;
+            font-size: 14px;
+            border-top: 1px solid #000;
+            padding-top: 8px;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        /* --- A4 PAPER STYLE --- */
+        .paper-a4 {
+            background: white;
+            color: #1e293b;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 25mm;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+            display: none;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
             }
 
-            .page-thermal {
-                display: block !important;
-                /* Default show Thermal on mobile screen */
-                width: 90% !important;
-                /* Scale to screen width */
-                max-width: 300px;
-                /* Don't get too wide */
-                margin: 20px auto;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
+        }
 
-            .thermal-body {
-                /* Use larger font for easier reading on phone */
-                font-size: 13px;
-            }
+        .a4-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            border-bottom: 4px solid var(--primary);
+            padding-bottom: 20px;
+        }
 
-            .no-print {
-                position: fixed;
-                bottom: 0;
+        .a4-brand h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .a4-invoice-info {
+            text-align: right;
+        }
+
+        .a4-invoice-info h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .a4-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .a4-section-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .a4-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+
+        .a4-table th {
+            text-align: left;
+            padding: 12px 15px;
+            background: #f8fafc;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #64748b;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .a4-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 14px;
+        }
+
+        .a4-totals-box {
+            width: 300px;
+            margin-left: auto;
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .a4-total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .a4-total-final {
+            border-top: 2px solid #e2e8f0;
+            margin-top: 10px;
+            padding-top: 15px;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        /* --- MOBILE ADAPTATION --- */
+        @media (max-width: 600px) {
+            .preview-controls {
                 top: auto;
-                width: 100%;
-                justify-content: space-around;
-                padding: 15px 5px;
-            }
-
-            button {
-                flex-grow: 1;
+                bottom: 24px;
+                width: calc(100% - 32px);
                 justify-content: center;
-                font-size: 12px;
-                padding: 12px 5px;
+                border-radius: 32px;
+                padding: 10px;
             }
 
-            /* Hide close/A4 buttons on mobile to simplify */
-            .btn-a4,
-            .btn-close {
+            .btn span {
                 display: none;
             }
-        }
 
-        /* ==== PRINT MEDIA QUERIES ==== */
-        @media print {
-            @page {
-                margin: 0;
-                size: auto;
+            .btn i {
+                font-size: 18px;
             }
 
-            /* Critical: remove browser margins */
-            .no-print {
+            .btn {
+                padding: 12px;
+                border-radius: 20px;
+                flex: 1;
+                justify-content: center;
+            }
+
+            .preview-canvas {
+                padding-top: 40px;
+                padding-bottom: 120px;
+            }
+
+            .paper-a4 {
+                display: none !important;
+            }
+
+            .paper-receipt {
+                width: 90%;
+                max-width: 300px;
+                transform: none;
+            }
+        }
+
+        /* --- PRINT OVERRIDES --- */
+        @media print {
+            .preview-controls {
                 display: none !important;
             }
 
             body {
-                background: white;
-                padding-bottom: 0;
+                background: white !important;
+                padding: 0 !important;
             }
 
-            /* A4 Mode Logic */
-            body:not(.mode-thermal) .page-thermal {
-                display: none !important;
+            .preview-canvas {
+                padding: 0 !important;
+                width: 100% !important;
             }
 
-            body:not(.mode-thermal) .page-a4 {
-                display: block !important;
-                width: 100%;
-                margin: 0;
-                box-shadow: none;
-                page-break-after: always;
-            }
-
-            /* Thermal Mode Logic */
-            body.mode-thermal .page-a4 {
-                display: none !important;
-            }
-
-            body.mode-thermal {
-                width: 48mm;
-            }
-
-            /* Setup body width */
-            body.mode-thermal .page-thermal {
-                display: block !important;
+            body.mode-thermal .paper-receipt {
                 width: 48mm !important;
-                /* Strict 48mm for printer */
-                max-width: 48mm !important;
-                margin: 0;
-                padding: 0;
-                box-shadow: none;
-                font-size: 10px !important;
-                /* Force small font for print */
-                page-break-inside: avoid;
-                /* Try to prevent breaks */
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                transform: none !important;
+            }
+
+            body.mode-thermal .paper-receipt::before,
+            body.mode-thermal .paper-receipt::after {
+                display: none !important;
+            }
+
+            body.mode-thermal .paper-a4 {
+                display: none !important;
+            }
+
+            body.mode-a4 .paper-a4 {
+                display: block !important;
+                width: 210mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                animation: none !important;
+            }
+
+            body.mode-a4 .paper-receipt {
+                display: none !important;
             }
         }
     </style>
 </head>
 
-<body>
+<body class="mode-thermal">
     <!-- CONTROLS -->
-    <div class="no-print">
-        <button onclick="setMode('a4'); window.print()" class="btn-a4">A4 Print</button>
-        <button onclick="setMode('thermal'); window.print()" class="btn-thermal">Browser Print</button>
-        <button onclick="printViaRawBT()" class="btn-bluetooth">RawBT/HP</button>
-        <button onclick="window.close()" class="btn-close">Close</button>
+    <div class="preview-controls">
+        <button onclick="setMode('a4'); window.print()" class="btn btn-blue">
+            <i class="fas fa-file-invoice"></i> <span>A4 Print</span>
+        </button>
+        <button onclick="setMode('thermal'); window.print()" class="btn btn-green">
+            <i class="fas fa-receipt"></i> <span>Browser Print</span>
+        </button>
+        <button onclick="printViaRawBT()" class="btn btn-purple">
+            <i class="fas fa-print"></i> <span>RawBT/HP</span>
+        </button>
+        <button onclick="window.close()" class="btn btn-red">
+            <i class="fas fa-times"></i> <span>Close</span>
+        </button>
     </div>
 
-    <!-- VIEW: A4 INVOICE (Standard) -->
-    <div class="page-a4" id="view-a4">
-        <!-- (Header and content same as before for A4) -->
-        <div class="a4-header">
-            <div>
-                <div class="a4-title">INVOICE</div>
-                <div style="color: #6b7280; margin-top: 5px;">#<%= invoice.invoice_number %>
+    <div class="preview-canvas">
+
+        <!-- THERMAL RECEIPT VIEW -->
+        <div class="paper-receipt" id="thermal-content">
+            <div class="receipt-inner">
+                <div class="receipt-header">
+                    <div class="receipt-logo">WIFI BILLING</div>
+                    <div class="receipt-info">0812-3456-7890</div>
                 </div>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-weight: bold; font-size: 16pt; margin-bottom: 5px;">BILLING SYSTEM</div>
-                <div style="font-size: 10pt; color: #4b5563;">Jl. Internet No. 123<br>Indonesia</div>
-            </div>
-        </div>
-        <table style="width: 100%; margin-bottom: 30px;">
-            <tr>
-                <td style="width: 60%; vertical-align: top;">
-                    <strong style="color: #6b7280; font-size: 10pt;">Kepada:</strong><br>
-                    <div style="font-size: 12pt; font-weight: bold; margin-top: 2px;">
-                        <%= invoice.customer_name %>
-                    </div>
-                    <div style="font-size: 10pt;">
-                        <%= invoice.customer_address %>
-                    </div>
-                </td>
-                <td style="width: 40%; vertical-align: top; text-align: right;">
-                    <div style="font-size: 10pt;"><strong>Tgl:</strong>
-                        <%= new Date(invoice.created_at).toLocaleDateString('id-ID') %>
-                    </div>
-                    <div style="font-size: 10pt;">
-                        <strong>Status:</strong>
-                        <%= invoice.status==='paid' ? 'LUNAS' : 'BELUM LUNAS' %>
-                    </div>
-                </td>
-            </tr>
-        </table>
-        <table class="a4-table">
-            <thead>
-                <tr>
-                    <th width="5%">No</th>
-                    <th width="55%">Deskripsi</th>
-                    <th width="20%" style="text-align:right">Harga</th>
-                    <th width="20%" style="text-align:right">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% if (items && items.length> 0) { items.forEach((item, index)=> { %>
-                    <tr>
-                        <td>
-                            <%= index + 1 %>
-                        </td>
-                        <td>
-                            <%= item.description %>
-                        </td>
-                        <td align="right">
-                            <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %>
-                        </td>
-                        <td align="right">
-                            <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
-                        </td>
-                    </tr>
-                    <% }); } %>
-            </tbody>
-        </table>
-        <table class="a4-totals">
-            <tr class="total-final">
-                <td>TOTAL</td>
-                <td align="right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
-                </td>
-            </tr>
-        </table>
-    </div>
 
-    <!-- VIEW: THERMAL / STRUK (58MM) - ULTRA COMPACT -->
-    <div class="page-thermal" id="thermal-content">
-        <div class="thermal-body">
-            <!-- Header -->
-            <div class="th-center font-bold" style="font-size: 12px; margin-bottom: 2px;">WIFI BILLING</div>
-            <div class="th-center" style="font-size: 9px; margin-bottom: 5px;">0812-3456-7890</div>
+                <div class="receipt-divider"></div>
 
-            <div class="th-line"></div>
+                <div class="receipt-row">
+                    <span>
+                        <%= new Date().toLocaleDateString('id-ID', {day: 'numeric' , month: 'numeric' , year: 'numeric'
+                            }) %>
+                    </span>
+                    <span>#<%= invoice.invoice_number.split('/').pop() %></span>
+                </div>
 
-            <!-- Date & Inv -->
-            <div class="th-row">
-                <span>
-                    <%= new Date().toLocaleDateString('id-ID', {day: 'numeric' , month: 'numeric' , year: 'numeric' })
-                        %>
-                </span>
-                <span>#<%= invoice.invoice_number.split('/').pop() /* Short ID */ %></span>
-            </div>
+                <div style="margin: 4px 0;">
+                    PEL: <span class="receipt-bold">
+                        <%= invoice.customer_name.toUpperCase().substring(0, 20) %>
+                    </span>
+                </div>
 
-            <!-- Customer -->
-            <div style="margin-bottom: 2px;">
-                Pel: <span class="th-bold">
-                    <%= invoice.customer_name.substring(0, 18) %>
-                </span>
-            </div>
+                <div class="receipt-divider"></div>
 
-            <div class="th-line"></div>
-
-            <!-- Items -->
-            <% if (items && items.length> 0) { %>
-                <% items.forEach((item)=> { %>
-                    <div style="margin-bottom: 2px;">
-                        <div class="th-item-name">
-                            <%= item.description %>
+                <% if (items && items.length> 0) { items.forEach((item) => { %>
+                    <div style="margin-bottom: 8px;">
+                        <div class="receipt-item-desc">
+                            <%= item.description.toUpperCase() %>
                         </div>
-                        <div class="th-row">
+                        <div class="receipt-item-calc">
                             <span>
                                 <%= item.quantity || 1 %>x <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %>
                             </span>
-                            <span class="th-bold">
+                            <span class="receipt-bold">
                                 <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
                             </span>
                         </div>
                     </div>
-                    <% }); %>
-                        <% } %>
+                    <% }); } %>
 
-                            <div class="th-line"></div>
+                        <div class="receipt-divider"></div>
 
-                            <!-- Total -->
-                            <div class="th-row" style="margin-top: 2px;">
-                                <span class="th-bold" style="font-size: 12px;">TOTAL</span>
-                                <span class="th-bold" style="font-size: 12px;">Rp<%= new
-                                        Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                        <div class="receipt-row receipt-total">
+                            <span class="receipt-bold">TOTAL</span>
+                            <span class="receipt-bold">Rp <%= new
+                                    Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                        </div>
+
+                        <% if (invoice.remaining_amount> 0) { %>
+                            <div class="receipt-row" style="color: #ef4444; font-size: 10px; margin-top: 4px;">
+                                <span>SISA TAGIHAN</span>
+                                <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span>
                             </div>
+                            <% } %>
 
-                            <% if (invoice.remaining_amount> 0) { %>
-                                <div class="th-row">
-                                    <span>Sisa Tagihan</span>
-                                    <span style="color:red">Rp<%= new
-                                            Intl.NumberFormat('id-ID').format(invoice.remaining_amount) %></span>
+                                <div class="receipt-divider"></div>
+
+                                <div class="receipt-footer">
+                                    * TERIMA KASIH *<br>
+                                    SEMOGA BERLANGGANAN KEMBALI
                                 </div>
-                                <% } %>
+            </div>
+        </div>
 
-                                    <div class="th-line"></div>
+        <!-- A4 INVOICE VIEW -->
+        <div class="paper-a4" id="view-a4">
+            <div class="a4-header">
+                <div class="a4-brand">
+                    <h1>WIFI BILLING</h1>
+                    <p style="color: #64748b; font-size: 14px;">Internet Service Provider Extreme</p>
+                </div>
+                <div class="a4-invoice-info">
+                    <h2>INVOICE</h2>
+                    <p style="font-weight: 700; color: #1e293b;">#<%= invoice.invoice_number %>
+                    </p>
+                </div>
+            </div>
 
-                                    <div class="th-center" style="margin-top: 10px; font-size: 9px;">
-                                        * TERIMA KASIH *
-                                    </div>
+            <div class="a4-grid">
+                <div>
+                    <div class="a4-section-title">TAGIHAN KEPADA</div>
+                    <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">
+                        <%= invoice.customer_name %>
+                    </div>
+                    <div style="color: #64748b; font-size: 14px; line-height: 1.5;">
+                        <%= invoice.customer_address || 'No Address Provided' %>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="a4-section-title">WAKTU PENERBITAN</div>
+                    <div style="font-size: 16px; font-weight: 700;">
+                        <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'long' , month: 'long' ,
+                            year: 'numeric' }) %>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <span
+                            style="padding: 6px 12px; border-radius: 99px; font-size: 12px; font-weight: 800; <%= invoice.status === 'paid' ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;' %>">
+                            <%= invoice.status==='paid' ? 'LUNAS' : 'PENDING' %>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <table class="a4-table">
+                <thead>
+                    <tr>
+                        <th width="80px">ITEM</th>
+                        <th>DESKRIPSI LAYANAN</th>
+                        <th style="text-align: right;">HARGA SATUAN</th>
+                        <th style="text-align: right;">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (items && items.length> 0) { items.forEach((item, index) => { %>
+                        <tr>
+                            <td style="color: #94a3b8; font-weight: 700;">#0<%= index + 1 %>
+                            </td>
+                            <td>
+                                <div style="font-weight: 700;">
+                                    <%= item.description %>
+                                </div>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Periode Layanan: <%= new
+                                        Date().toLocaleDateString('id-ID', {month: 'long' , year: 'numeric' }) %>
+                                </div>
+                            </td>
+                            <td style="text-align: right;">Rp <%= new Intl.NumberFormat('id-ID').format(item.unit_price)
+                                    %>
+                            </td>
+                            <td style="text-align: right; font-weight: 700;">Rp <%= new
+                                    Intl.NumberFormat('id-ID').format(item.total_price) %>
+                            </td>
+                        </tr>
+                        <% }); } %>
+                </tbody>
+            </table>
+
+            <div class="a4-totals-box">
+                <div class="a4-total-row">
+                    <span>Subtotal</span>
+                    <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                </div>
+                <div class="a4-total-row">
+                    <span>Diskon</span>
+                    <span>Rp 0</span>
+                </div>
+                <div class="a4-total-row a4-total-final">
+                    <span>TOTAL</span>
+                    <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                </div>
+            </div>
+
+            <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+                <div style="width: 200px;">
+                    <div class="a4-section-title" style="text-align: center;">TANDA TERIMA</div>
+                    <div style="height: 80px;"></div>
+                    <div
+                        style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
+                        PELANGGAN</div>
+                </div>
+                <div style="width: 200px;">
+                    <div class="a4-section-title" style="text-align: center;">KASIR PENAGIHAN</div>
+                    <div style="height: 80px;"></div>
+                    <div
+                        style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
+                        ADMIN BILLING</div>
+                </div>
+            </div>
+
+            <div
+                style="position: absolute; bottom: 25mm; left: 25mm; right: 25mm; border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; text-align: center;">
+                Generated by System Billing ISP • www.isp-billing.id • Thank you for your business!
+            </div>
         </div>
     </div>
 
     <script>
         function setMode(mode) {
+            const body = document.body;
+            const a4View = document.getElementById('view-a4');
+            const thermalView = document.getElementById('thermal-content');
+
             if (mode === 'thermal') {
-                document.body.classList.add('mode-thermal');
-                document.getElementById('view-a4').style.display = 'none';
-                document.getElementById('thermal-content').style.display = 'block';
+                body.classList.remove('mode-a4');
+                body.classList.add('mode-thermal');
+                a4View.style.display = 'none';
+                thermalView.style.display = 'block';
             } else {
-                document.body.classList.remove('mode-thermal');
-                /* Only show A4 if NOT on mobile */
-                if (window.innerWidth > 600) {
-                    document.getElementById('view-a4').style.display = 'block';
-                }
-                document.getElementById('thermal-content').style.display = 'none';
+                body.classList.remove('mode-thermal');
+                body.classList.add('mode-a4');
+                thermalView.style.display = 'none';
+                a4View.style.display = 'block';
             }
         }
 
         function printViaRawBT() {
             setMode('thermal');
-            var content = document.getElementById('thermal-content').innerHTML;
-            // Add forced inline CSS for RawBT to respect widths
-            var styledContent = '<div style="font-family:monospace; width:48mm; font-size:10px;">' + content + '</div>';
-            var base64 = btoa(unescape(encodeURIComponent(styledContent)));
+            const content = document.getElementById('thermal-content').querySelector('.receipt-inner').innerHTML;
+            // Enhanced template for RawBT
+            const styledContent = `
+                <div style="font-family:'Courier New', monospace; width:48mm; font-size:12px; line-height:1.2;">
+                    ${content}
+                </div>
+            `;
+            const base64 = btoa(unescape(encodeURIComponent(styledContent)));
             window.location.href = 'rawbt:data:text/html;base64,' + base64;
         }
 
-        // Default mobile layout
-        if (window.innerWidth < 600) {
-            document.body.classList.add('mode-thermal'); // Force thermal styling
-            document.getElementById('view-a4').style.display = 'none';
-            document.getElementById('thermal-content').style.display = 'block';
-        }
+        // Auto-adapt on load
+        window.addEventListener('load', () => {
+            if (window.innerWidth < 600) {
+                setMode('thermal');
+            }
+        });
     </script>
 </body>
 
