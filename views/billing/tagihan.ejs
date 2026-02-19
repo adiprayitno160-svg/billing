@@ -420,729 +420,793 @@
         <!-- Mobile Layout -->
         <div class="md:hidden space-y-3">
             <% if (invoices && invoices.length> 0) { %>
-                <div class="flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mb-2">
+                <div
+                    class="flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mb-2">
                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pilih Semua</span>
-                    <input type="checkbox" id="selectAllMobile" class="w-6 h-6 rounded-lg border-slate-300 text-blue-600">
+                    <input type="checkbox" id="selectAllMobile"
+                        class="w-6 h-6 rounded-lg border-slate-300 text-blue-600">
                 </div>
                 <% invoices.forEach(function(invoice) { %>
                     <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden">
                         <div class="absolute top-3 right-3 z-20">
-                            <input type="checkbox" class="invoice-checkbox w-5 h-5 rounded-lg border-slate-300 text-blue-600" value="<%= invoice.id %>">
+                            <input type="checkbox"
+                                class="invoice-checkbox w-5 h-5 rounded-lg border-slate-300 text-blue-600"
+                                value="<%= invoice.id %>">
                         </div>
                         <div class="flex items-center gap-3 mb-3 pr-8">
-                            <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-sm flex-shrink-0"><%= invoice.customer_name ? invoice.customer_name.charAt(0) : '?' %></div>
+                            <div
+                                class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-sm flex-shrink-0">
+                                <%= invoice.customer_name ? invoice.customer_name.charAt(0) : '?' %>
+                            </div>
                             <div class="flex flex-col min-w-0">
-                                <span class="text-sm font-black text-slate-800 leading-tight truncate"><%= invoice.customer_name %></span>
-                                <span class="text-[10px] font-bold text-slate-400 truncate"><%= invoice.invoice_number %> &bull; <%= invoice.odc_name || 'NO AREA' %></span>
+                                <span class="text-sm font-black text-slate-800 leading-tight truncate">
+                                    <%= invoice.customer_name %>
+                                </span>
+                                <span class="text-[10px] font-bold text-slate-400 truncate">
+                                    <%= invoice.invoice_number %> &bull; <%= invoice.odc_name || 'NO AREA' %>
+                                </span>
                             </div>
                         </div>
                         <div class="flex items-center justify-between mb-3 bg-slate-50 rounded-xl p-3">
                             <div class="flex flex-col">
                                 <span class="text-[8px] font-black text-slate-400 uppercase">Total Tagihan</span>
-                                <span class="text-sm font-black text-slate-900">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
+                                <span class="text-sm font-black text-slate-900">Rp <%= new
+                                        Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span>
                             </div>
                             <div>
-                                <% let mClass='bg-slate-200 text-slate-500'; let mLabel=invoice.status; if (invoice.status==='paid') { mClass='bg-emerald-500 text-white'; mLabel='LUNAS'; } else if (invoice.status==='overdue') { mClass='bg-rose-500 text-white'; mLabel='EXPIRED'; } else if (invoice.status==='sent') { mClass='bg-blue-500 text-white'; mLabel='SENT'; } else if (invoice.status==='partial') { mClass='bg-amber-500 text-white'; mLabel='PARTIAL'; } else if (invoice.status==='draft') { mClass='bg-slate-300 text-slate-600'; mLabel='DRAFT'; } %>
-                                <span class="text-[9px] font-black px-3 py-1 rounded-full <%= mClass %> uppercase"><%= mLabel %></span>
+                                <% let mClass='bg-slate-200 text-slate-500' ; let mLabel=invoice.status; if
+                                    (invoice.status==='paid' ) { mClass='bg-emerald-500 text-white' ; mLabel='LUNAS' ; }
+                                    else if (invoice.status==='overdue' ) { mClass='bg-rose-500 text-white' ;
+                                    mLabel='EXPIRED' ; } else if (invoice.status==='sent' ) {
+                                    mClass='bg-blue-500 text-white' ; mLabel='SENT' ; } else if
+                                    (invoice.status==='partial' ) { mClass='bg-amber-500 text-white' ; mLabel='PARTIAL'
+                                    ; } else if (invoice.status==='draft' ) { mClass='bg-slate-300 text-slate-600' ;
+                                    mLabel='DRAFT' ; } %>
+                                    <span class="text-[9px] font-black px-3 py-1 rounded-full <%= mClass %> uppercase">
+                                        <%= mLabel %>
+                                    </span>
                             </div>
                         </div>
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between mb-3">
                             <div class="flex flex-col">
                                 <span class="text-[8px] font-black text-slate-400 uppercase">Jatuh Tempo</span>
-                                <span class="text-[11px] font-bold text-slate-700"><%= new Date(invoice.due_date).toLocaleDateString('id-ID') %></span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <button data-action="detail" data-invoice-id="<%= invoice.id %>" class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm active:scale-90 transition-all"><i class="fas fa-eye text-xs"></i></button>
-                                <% if (invoice.status !=='paid') { %>
-                                <button data-action="pay" data-invoice-id="<%= invoice.id %>" class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm active:scale-90 transition-all"><i class="fas fa-wallet text-xs"></i></button>
-                                <% } %>
-                                <button onclick="openMobileActionSheet('<%= invoice.id %>', '<%= invoice.customer_is_isolated ? 'restore' : 'isolate' %>', '<%= invoice.customer_id %>', decodeURIComponent('<%= encodeURIComponent(invoice.customer_name || '') %>'))" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shadow-sm active:scale-90 transition-all"><i class="fas fa-ellipsis-v text-xs"></i></button>
+                                <span class="text-[11px] font-bold text-slate-700">
+                                    <%= new Date(invoice.due_date).toLocaleDateString('id-ID') %>
+                                </span>
                             </div>
                         </div>
-                    </div>
-                <% }); %>
-
-                            <!-- Mobile Action Sheet HTML moved to main.ejs -->
-                            <% } else { %>
-                                <div
-                                    class="bg-white p-12 rounded-[2rem] flex flex-col items-center justify-center text-center">
-                                    <div
-                                        class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
-                                        <i class="fas fa-file-invoice text-3xl"></i>
-                                    </div>
-                                    <span
-                                        class="text-xs font-black text-slate-400 uppercase tracking-widest tracking-tighter">Belum
-                                        ada tagihan</span>
-                                </div>
+                        <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
+                            <button data-action="detail" data-invoice-id="<%= invoice.id %>"
+                                class="flex-1 min-w-0 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                <i class="fas fa-eye text-[10px]"></i><span class="text-[9px] font-bold">Detail</span>
+                            </button>
+                            <% if (invoice.status !=='paid' ) { %>
+                                <button data-action="pay" data-invoice-id="<%= invoice.id %>"
+                                    class="flex-1 min-w-0 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                    <i class="fas fa-wallet text-[10px]"></i><span
+                                        class="text-[9px] font-bold">Bayar</span>
+                                </button>
                                 <% } %>
-                    </div>
-
-                    <!-- Mobile Action Sheet script moved to main.ejs for global access -->
-        </div>
-    </div>
-
-    <!-- Pagination -->
-    <% if (pagination.totalPages> 1) { %>
-        <div
-            class="flex flex-col md:flex-row items-center justify-between gap-4 mt-8 bg-white/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Showing <span class="text-slate-800">
-                    <%= ((pagination.currentPage - 1) * pagination.limit) + 1 %>
-                </span>
-                to <span class="text-slate-800">
-                    <%= Math.min(pagination.currentPage * pagination.limit, pagination.totalCount) %>
-                </span>
-                of <span class="text-slate-800">
-                    <%= pagination.totalCount %>
-                </span> results
-            </div>
-
-            <nav class="flex items-center gap-1">
-                <% if (pagination.currentPage> 1) { %>
-                    <a href="?page=<%= pagination.currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>"
-                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                        <i class="fas fa-chevron-left text-xs"></i>
-                    </a>
-                    <% } %>
-
-                        <% let startPage=Math.max(1, pagination.currentPage - 2); let
-                            endPage=Math.min(pagination.totalPages, pagination.currentPage + 2); %>
-
-                            <% for (let i=startPage; i <=endPage; i++) { %>
-                                <% if (i===pagination.currentPage) { %>
-                                    <span
-                                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-600 text-white font-black text-xs shadow-lg shadow-blue-200">
-                                        <%= i %>
-                                    </span>
-                                    <% } else { %>
-                                        <a href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>"
-                                            class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 transition-all font-bold text-xs">
-                                            <%= i %>
-                                        </a>
-                                        <% } %>
+                                    <button data-action="print" data-invoice-id="<%= invoice.id %>"
+                                        class="flex-1 min-w-0 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                        <i class="fas fa-print text-[10px]"></i><span
+                                            class="text-[9px] font-bold">Print</span>
+                                    </button>
+                                    <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
+                                        class="flex-1 min-w-0 h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                        <i class="fab fa-whatsapp text-[10px]"></i><span
+                                            class="text-[9px] font-bold">WA</span>
+                                    </button>
+                                    <% if (invoice.customer_is_isolated) { %>
+                                        <button data-action="restore" data-customer-id="<%= invoice.customer_id %>"
+                                            data-customer-name="<%= invoice.customer_name %>"
+                                            class="flex-1 min-w-0 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                            <i class="fas fa-unlock text-[10px]"></i><span
+                                                class="text-[9px] font-bold">Buka</span>
+                                        </button>
+                                        <% } else { %>
+                                            <button data-action="isolate" data-customer-id="<%= invoice.customer_id %>"
+                                                data-customer-name="<%= invoice.customer_name %>"
+                                                class="flex-1 min-w-0 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                                <i class="fas fa-lock text-[10px]"></i><span
+                                                    class="text-[9px] font-bold">Isolir</span>
+                                            </button>
                                             <% } %>
-
-                                                <% if (pagination.currentPage < pagination.totalPages) { %>
-                                                    <a href="?page=<%= pagination.currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>"
-                                                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                                                        <i class="fas fa-chevron-right text-xs"></i>
-                                                    </a>
-                                                    <% } %>
-            </nav>
-        </div>
-        <% } %>
-</div>
-
-<!-- Modal Container (Overlay) -->
-<div id="modalOverlay"
-    class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
-    <!-- Generate Invoice Modal -->
-    <div id="generateInvoiceModal"
-        class="hidden glass-panel w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
-        <div class="p-8">
-            <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-4">
-                    <div
-                        class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
-                        <i class="fas fa-magic text-xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-black text-slate-800 tracking-tight">GENERATE TAGIHAN</h3>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pembuatan
-                            invoice otomatis massal</p>
-                    </div>
-                </div>
-                <button onclick="closeModals()"
-                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <form id="generateInvoiceForm" class="space-y-6">
-                <div>
-                    <label
-                        class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Periode
-                        Tagihan</label>
-                    <input type="month" id="invoicePeriod" required
-                        class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-slate-700">
-                    <p class="text-[9px] font-bold text-slate-400 mt-2 ml-1 uppercase leading-relaxed italic">
-                        *Jatuh tempo & isolir otomatis sesuai grup pelanggan</p>
-                </div>
-
-                <div class="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100/50">
-                    <label class="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Target
-                        Penagihan</label>
-                    <div class="flex p-1 bg-white/50 rounded-2xl border border-blue-50">
-                        <label
-                            class="flex-1 text-center py-2.5 rounded-xl cursor-pointer transition-all has-[:checked]:bg-blue-600 has-[:checked]:text-white text-[11px] font-black uppercase tracking-widest text-slate-400">
-                            <input type="radio" name="targetType" value="all" checked class="hidden"
-                                onchange="toggleCustomerSelect('all')">
-                            Semua
-                        </label>
-                        <label
-                            class="flex-1 text-center py-2.5 rounded-xl cursor-pointer transition-all has-[:checked]:bg-blue-600 has-[:checked]:text-white text-[11px] font-black uppercase tracking-widest text-slate-400">
-                            <input type="radio" name="targetType" value="selected" class="hidden"
-                                onchange="toggleCustomerSelect('selected')">
-                            Pilih Manual
-                        </label>
-                    </div>
-                </div>
-
-                <div id="customerSelectorContainer"
-                    class="hidden bg-slate-50 p-6 rounded-[2rem] border border-slate-100 animate-fadeIn">
-                    <div class="relative mb-4">
-                        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
-                        <input type="text" id="customerSearch" placeholder="Cari pelanggan..."
-                            onkeyup="filterCustomers()"
-                            class="w-full pl-11 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20">
-                    </div>
-                    <div id="customerList" class="max-height-[250px] overflow-y-auto space-y-1 custom-scrollbar pr-2">
-                        <% if (typeof activeCustomers !=='undefined' && activeCustomers) { %>
-                            <% activeCustomers.forEach(c=> { %>
-                                <label
-                                    class="customer-item flex items-center gap-3 p-3 rounded-xl hover:bg-white transition-all cursor-pointer group">
-                                    <input type="checkbox" name="customer_ids" value="<%= c.id %>"
-                                        data-name="<%= c.name.toLowerCase() %> <%= (c.customer_code || '').toLowerCase() %>"
-                                        onchange="updateSelectedCount()"
-                                        class="w-5 h-5 rounded-lg border-slate-200 text-blue-600 transition-all">
-                                    <div class="flex flex-col">
-                                        <span class="text-xs font-bold text-slate-700">
-                                            <%= c.name %>
-                                        </span>
-                                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-                                            <%= c.odc_name || 'NO AREA' %> • <%= c.customer_code || '-' %>
-                                        </span>
-                                    </div>
-                                </label>
-                                <% }) %>
-                                    <% } %>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                    <input type="checkbox" id="sendWhatsapp"
-                        class="w-6 h-6 rounded-lg border-emerald-200 text-emerald-600">
-                    <label for="sendWhatsapp"
-                        class="text-[10px] font-black text-emerald-700 uppercase tracking-widest cursor-pointer">Kirim
-                        Notifikasi WhatsApp <span class="text-emerald-500/70">(Antrian Manual)</span></label>
-                </div>
-
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeModals()"
-                        class="flex-1 py-4 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
-                    <button type="submit"
-                        class="flex-[2] py-4 bg-blue-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">Mulai
-                        Generate</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Print ODC Modal -->
-    <div id="odcPrintModal"
-        class="hidden glass-panel w-full max-w-xl rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
-        <div class="p-8">
-            <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-4">
-                    <div
-                        class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
-                        <i class="fas fa-map-marked-alt text-xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-black text-slate-800 tracking-tight">PRINT AREA ODC</h3>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cetak tagihan
-                            per area distribusi</p>
-                    </div>
-                </div>
-                <button onclick="closeModals()"
-                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="relative mb-6">
-                <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
-                <input type="text" id="odcSearchInput" placeholder="Cari nama ODC atau lokasi..."
-                    onkeyup="filterOdcList()"
-                    class="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm focus:ring-4 focus:ring-blue-500/10">
-            </div>
-
-            <div class="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                <!-- TANPA ODC/ODP - Pelanggan yang belum terdaftar di area -->
-                <div class="odc-item group flex items-center justify-between p-5 bg-amber-50 border-2 border-amber-200 border-dashed rounded-2xl hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/5 transition-all mb-3"
-                    data-name="tanpa odc odp" data-location="belum ditugaskan">
-                    <div class="flex flex-col">
-                        <span
-                            class="text-sm font-black text-amber-800 group-hover:text-amber-600 transition-colors flex items-center gap-2">
-                            <i class="fas fa-exclamation-triangle text-amber-500"></i>
-                            TANPA ODC / ODP
-                        </span>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="text-[9px] font-black text-amber-500 uppercase tracking-widest">
-                                <i class="fas fa-user-slash mr-1"></i>
-                                Pelanggan belum terdaftar di area ODC/ODP
-                            </span>
+                                                <button data-action="delete" data-invoice-id="<%= invoice.id %>"
+                                                    class="flex-1 min-w-0 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                                    <i class="fas fa-trash text-[10px]"></i><span
+                                                        class="text-[9px] font-bold">Hapus</span>
+                                                </button>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <a href="/billing/tagihan/print-no-odc?period=<%= filters.period || '' %>&format=a4"
-                            target="_blank"
-                            class="w-10 h-10 bg-amber-700 text-white rounded-xl flex items-center justify-center hover:bg-amber-800 transition-all shadow-md active:scale-95"
-                            title="Print A4">
-                            <i class="fas fa-file-invoice text-xs"></i>
-                        </a>
-                        <a href="/billing/tagihan/print-no-odc?period=<%= filters.period || '' %>&format=thermal"
-                            target="_blank"
-                            class="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center hover:bg-amber-600 transition-all shadow-md active:scale-95"
-                            title="Print Thermal">
-                            <i class="fas fa-receipt text-xs"></i>
-                        </a>
-                    </div>
-                </div>
+        </div>
+        <% }); %>
 
-                <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
-                    <div id="odcListContainer" class="grid grid-cols-1 gap-2">
-                        <% odcList.forEach(function(odc) { %>
-                            <div class="odc-item group flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all"
-                                data-name="<%= odc.name.toLowerCase() %>"
-                                data-location="<%= (odc.location || '').toLowerCase() %>">
-                                <div class="flex flex-col">
-                                    <span
-                                        class="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors">
-                                        <%= odc.name %>
+            <!-- Mobile Action Sheet HTML moved to main.ejs -->
+            <% } else { %>
+                <div class="bg-white p-12 rounded-[2rem] flex flex-col items-center justify-center text-center">
+                    <div
+                        class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
+                        <i class="fas fa-file-invoice text-3xl"></i>
+                    </div>
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest tracking-tighter">Belum
+                        ada tagihan</span>
+                </div>
+                <% } %>
+    </div>
+
+    <!-- Mobile Action Sheet script moved to main.ejs for global access -->
+</div>
+</div>
+
+<!-- Pagination -->
+<% if (pagination.totalPages> 1) { %>
+    <div
+        class="flex flex-col md:flex-row items-center justify-between gap-4 mt-8 bg-white/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm">
+        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            Showing <span class="text-slate-800">
+                <%= ((pagination.currentPage - 1) * pagination.limit) + 1 %>
+            </span>
+            to <span class="text-slate-800">
+                <%= Math.min(pagination.currentPage * pagination.limit, pagination.totalCount) %>
+            </span>
+            of <span class="text-slate-800">
+                <%= pagination.totalCount %>
+            </span> results
+        </div>
+
+        <nav class="flex items-center gap-1">
+            <% if (pagination.currentPage> 1) { %>
+                <a href="?page=<%= pagination.currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                    <i class="fas fa-chevron-left text-xs"></i>
+                </a>
+                <% } %>
+
+                    <% let startPage=Math.max(1, pagination.currentPage - 2); let
+                        endPage=Math.min(pagination.totalPages, pagination.currentPage + 2); %>
+
+                        <% for (let i=startPage; i <=endPage; i++) { %>
+                            <% if (i===pagination.currentPage) { %>
+                                <span
+                                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-600 text-white font-black text-xs shadow-lg shadow-blue-200">
+                                    <%= i %>
+                                </span>
+                                <% } else { %>
+                                    <a href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>"
+                                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 transition-all font-bold text-xs">
+                                        <%= i %>
+                                    </a>
+                                    <% } %>
+                                        <% } %>
+
+                                            <% if (pagination.currentPage < pagination.totalPages) { %>
+                                                <a href="?page=<%= pagination.currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>"
+                                                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                                                    <i class="fas fa-chevron-right text-xs"></i>
+                                                </a>
+                                                <% } %>
+        </nav>
+    </div>
+    <% } %>
+        </div>
+
+        <!-- Modal Container (Overlay) -->
+        <div id="modalOverlay"
+            class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+            <!-- Generate Invoice Modal -->
+            <div id="generateInvoiceModal"
+                class="hidden glass-panel w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
+                                <i class="fas fa-magic text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black text-slate-800 tracking-tight">GENERATE TAGIHAN</h3>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pembuatan
+                                    invoice otomatis massal</p>
+                            </div>
+                        </div>
+                        <button onclick="closeModals()"
+                            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="generateInvoiceForm" class="space-y-6">
+                        <div>
+                            <label
+                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Periode
+                                Tagihan</label>
+                            <input type="month" id="invoicePeriod" required
+                                class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-slate-700">
+                            <p class="text-[9px] font-bold text-slate-400 mt-2 ml-1 uppercase leading-relaxed italic">
+                                *Jatuh tempo & isolir otomatis sesuai grup pelanggan</p>
+                        </div>
+
+                        <div class="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100/50">
+                            <label
+                                class="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Target
+                                Penagihan</label>
+                            <div class="flex p-1 bg-white/50 rounded-2xl border border-blue-50">
+                                <label
+                                    class="flex-1 text-center py-2.5 rounded-xl cursor-pointer transition-all has-[:checked]:bg-blue-600 has-[:checked]:text-white text-[11px] font-black uppercase tracking-widest text-slate-400">
+                                    <input type="radio" name="targetType" value="all" checked class="hidden"
+                                        onchange="toggleCustomerSelect('all')">
+                                    Semua
+                                </label>
+                                <label
+                                    class="flex-1 text-center py-2.5 rounded-xl cursor-pointer transition-all has-[:checked]:bg-blue-600 has-[:checked]:text-white text-[11px] font-black uppercase tracking-widest text-slate-400">
+                                    <input type="radio" name="targetType" value="selected" class="hidden"
+                                        onchange="toggleCustomerSelect('selected')">
+                                    Pilih Manual
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="customerSelectorContainer"
+                            class="hidden bg-slate-50 p-6 rounded-[2rem] border border-slate-100 animate-fadeIn">
+                            <div class="relative mb-4">
+                                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                                <input type="text" id="customerSearch" placeholder="Cari pelanggan..."
+                                    onkeyup="filterCustomers()"
+                                    class="w-full pl-11 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                            <div id="customerList"
+                                class="max-height-[250px] overflow-y-auto space-y-1 custom-scrollbar pr-2">
+                                <% if (typeof activeCustomers !=='undefined' && activeCustomers) { %>
+                                    <% activeCustomers.forEach(c=> { %>
+                                        <label
+                                            class="customer-item flex items-center gap-3 p-3 rounded-xl hover:bg-white transition-all cursor-pointer group">
+                                            <input type="checkbox" name="customer_ids" value="<%= c.id %>"
+                                                data-name="<%= c.name.toLowerCase() %> <%= (c.customer_code || '').toLowerCase() %>"
+                                                onchange="updateSelectedCount()"
+                                                class="w-5 h-5 rounded-lg border-slate-200 text-blue-600 transition-all">
+                                            <div class="flex flex-col">
+                                                <span class="text-xs font-bold text-slate-700">
+                                                    <%= c.name %>
+                                                </span>
+                                                <span
+                                                    class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                                    <%= c.odc_name || 'NO AREA' %> • <%= c.customer_code || '-' %>
+                                                </span>
+                                            </div>
+                                        </label>
+                                        <% }) %>
+                                            <% } %>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                            <input type="checkbox" id="sendWhatsapp"
+                                class="w-6 h-6 rounded-lg border-emerald-200 text-emerald-600">
+                            <label for="sendWhatsapp"
+                                class="text-[10px] font-black text-emerald-700 uppercase tracking-widest cursor-pointer">Kirim
+                                Notifikasi WhatsApp <span class="text-emerald-500/70">(Antrian Manual)</span></label>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" onclick="closeModals()"
+                                class="flex-1 py-4 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
+                            <button type="submit"
+                                class="flex-[2] py-4 bg-blue-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">Mulai
+                                Generate</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Print ODC Modal -->
+            <div id="odcPrintModal"
+                class="hidden glass-panel w-full max-w-xl rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
+                                <i class="fas fa-map-marked-alt text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black text-slate-800 tracking-tight">PRINT AREA ODC</h3>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cetak tagihan
+                                    per area distribusi</p>
+                            </div>
+                        </div>
+                        <button onclick="closeModals()"
+                            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="relative mb-6">
+                        <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                        <input type="text" id="odcSearchInput" placeholder="Cari nama ODC atau lokasi..."
+                            onkeyup="filterOdcList()"
+                            class="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm focus:ring-4 focus:ring-blue-500/10">
+                    </div>
+
+                    <div class="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                        <!-- TANPA ODC/ODP - Pelanggan yang belum terdaftar di area -->
+                        <div class="odc-item group flex items-center justify-between p-5 bg-amber-50 border-2 border-amber-200 border-dashed rounded-2xl hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/5 transition-all mb-3"
+                            data-name="tanpa odc odp" data-location="belum ditugaskan">
+                            <div class="flex flex-col">
+                                <span
+                                    class="text-sm font-black text-amber-800 group-hover:text-amber-600 transition-colors flex items-center gap-2">
+                                    <i class="fas fa-exclamation-triangle text-amber-500"></i>
+                                    TANPA ODC / ODP
+                                </span>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                                        <i class="fas fa-user-slash mr-1"></i>
+                                        Pelanggan belum terdaftar di area ODC/ODP
                                     </span>
-                                    <div class="flex items-center gap-2 mt-1">
-                                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest"><i
-                                                class="fas fa-map-pin mr-1"></i>
-                                            <%= odc.location || 'Area' %>
-                                        </span>
-                                        <span class="w-1 h-1 rounded-full bg-slate-300"></span>
-                                        <span
-                                            class="text-[9px] font-black text-blue-500 uppercase tracking-widest">Aktif</span>
-                                    </div>
-                                </div>
-                                <div class="flex gap-2">
-                                    <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=a4"
-                                        target="_blank"
-                                        class="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-slate-900 transition-all shadow-md active:scale-95"
-                                        title="Print A4">
-                                        <i class="fas fa-file-invoice text-xs"></i>
-                                    </a>
-                                    <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=thermal"
-                                        target="_blank"
-                                        class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all shadow-md active:scale-95"
-                                        title="Print Thermal">
-                                        <i class="fas fa-receipt text-xs"></i>
-                                    </a>
                                 </div>
                             </div>
-                            <% }); %>
-                    </div>
-                    <% } else { %>
-                        <div class="py-20 text-center">
-                            <i class="fas fa-inbox text-4xl text-slate-100 mb-4"></i>
-                            <p class="text-xs font-black text-slate-300 uppercase tracking-widest">Tidak ada
-                                data ODC</p>
+                            <div class="flex gap-2">
+                                <a href="/billing/tagihan/print-no-odc?period=<%= filters.period || '' %>&format=a4"
+                                    target="_blank"
+                                    class="w-10 h-10 bg-amber-700 text-white rounded-xl flex items-center justify-center hover:bg-amber-800 transition-all shadow-md active:scale-95"
+                                    title="Print A4">
+                                    <i class="fas fa-file-invoice text-xs"></i>
+                                </a>
+                                <a href="/billing/tagihan/print-no-odc?period=<%= filters.period || '' %>&format=thermal"
+                                    target="_blank"
+                                    class="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center hover:bg-amber-600 transition-all shadow-md active:scale-95"
+                                    title="Print Thermal">
+                                    <i class="fas fa-receipt text-xs"></i>
+                                </a>
+                            </div>
                         </div>
-                        <% } %>
-            </div>
 
-            <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Area: <%= typeof
-                        odcList !=='undefined' ? odcList.length : 0 %> + 1 (Tanpa ODC)</span>
-                <button onclick="closeModals()"
-                    class="px-8 py-3 bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all shadow-lg active:scale-95">Selesai</button>
+                        <% if (typeof odcList !=='undefined' && odcList && odcList.length> 0) { %>
+                            <div id="odcListContainer" class="grid grid-cols-1 gap-2">
+                                <% odcList.forEach(function(odc) { %>
+                                    <div class="odc-item group flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all"
+                                        data-name="<%= odc.name.toLowerCase() %>"
+                                        data-location="<%= (odc.location || '').toLowerCase() %>">
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors">
+                                                <%= odc.name %>
+                                            </span>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span
+                                                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest"><i
+                                                        class="fas fa-map-pin mr-1"></i>
+                                                    <%= odc.location || 'Area' %>
+                                                </span>
+                                                <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                <span
+                                                    class="text-[9px] font-black text-blue-500 uppercase tracking-widest">Aktif</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=a4"
+                                                target="_blank"
+                                                class="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-slate-900 transition-all shadow-md active:scale-95"
+                                                title="Print A4">
+                                                <i class="fas fa-file-invoice text-xs"></i>
+                                            </a>
+                                            <a href="/billing/tagihan/print-odc/<%= odc.id %>?period=<%= filters.period || '' %>&format=thermal"
+                                                target="_blank"
+                                                class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                                                title="Print Thermal">
+                                                <i class="fas fa-receipt text-xs"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <% }); %>
+                            </div>
+                            <% } else { %>
+                                <div class="py-20 text-center">
+                                    <i class="fas fa-inbox text-4xl text-slate-100 mb-4"></i>
+                                    <p class="text-xs font-black text-slate-300 uppercase tracking-widest">Tidak ada
+                                        data ODC</p>
+                                </div>
+                                <% } %>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Area: <%=
+                                typeof odcList !=='undefined' ? odcList.length : 0 %> + 1 (Tanpa ODC)</span>
+                        <button onclick="closeModals()"
+                            class="px-8 py-3 bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all shadow-lg active:scale-95">Selesai</button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Janji Bayar Modal -->
-<div id="janjiBayarModal"
-    class="hidden glass-panel w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
-    <div class="p-8">
-        <div class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-4">
-                <div
-                    class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
-                    <i class="fas fa-calendar-alt text-xl"></i>
+        <!-- Janji Bayar Modal -->
+        <div id="janjiBayarModal"
+            class="hidden glass-panel w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/40 animate-slideUp">
+            <div class="p-8">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
+                            <i class="fas fa-calendar-alt text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-black text-slate-800 tracking-tight">JANJI BAYAR</h3>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Perpanjang batas
+                                waktu bayar</p>
+                        </div>
+                    </div>
+                    <button onclick="closeModals()"
+                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div>
-                    <h3 class="text-xl font-black text-slate-800 tracking-tight">JANJI BAYAR</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Perpanjang batas
-                        waktu bayar</p>
+
+                <div class="space-y-6">
+                    <input type="hidden" id="janjiBayarInvoiceId">
+                    <div>
+                        <label
+                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Batas
+                            Waktu Baru</label>
+                        <input type="date" id="janjiBayarDate" required
+                            class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-bold text-slate-700">
+                    </div>
+
+                    <div class="p-5 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+                        <div class="flex gap-3">
+                            <i class="fas fa-info-circle text-amber-500 mt-1"></i>
+                            <p class="text-[10px] font-bold text-amber-800 uppercase leading-relaxed tracking-tight">
+                                Status isolir akan otomatis dipulihkan/ditunda hingga tanggal yang disepakati. Pelanggan
+                                akan menerima notifikasi update.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button type="button" onclick="closeModals()"
+                            class="flex-1 py-4 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
+                        <button onclick="saveJanjiBayar()"
+                            class="flex-[2] py-4 bg-amber-500 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95">Simpan
+                            Janji</button>
+                    </div>
                 </div>
             </div>
-            <button onclick="closeModals()"
-                class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
-                <i class="fas fa-times"></i>
-            </button>
+        </div>
         </div>
 
-        <div class="space-y-6">
-            <input type="hidden" id="janjiBayarInvoiceId">
-            <div>
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Batas
-                    Waktu Baru</label>
-                <input type="date" id="janjiBayarDate" required
-                    class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-bold text-slate-700">
-            </div>
-
-            <div class="p-5 bg-amber-50/50 rounded-2xl border border-amber-100/50">
-                <div class="flex gap-3">
-                    <i class="fas fa-info-circle text-amber-500 mt-1"></i>
-                    <p class="text-[10px] font-bold text-amber-800 uppercase leading-relaxed tracking-tight">
-                        Status isolir akan otomatis dipulihkan/ditunda hingga tanggal yang disepakati. Pelanggan
-                        akan menerima notifikasi update.
-                    </p>
-                </div>
-            </div>
-
-            <div class="flex gap-3">
-                <button type="button" onclick="closeModals()"
-                    class="flex-1 py-4 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
-                <button onclick="saveJanjiBayar()"
-                    class="flex-[2] py-4 bg-amber-500 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95">Simpan
-                    Janji</button>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
-
-<script>
+        <script>
       *
-       BILLING - TAGIHAN PAGE LOGIC
+                BILLING - TAGIHAN PAGE LOGIC
        Refined for Glassmorphism & Enhanced Performance
-       
+
 
     // --- Selectors ---
     const selectAllCheck = document.getElementById('selectAll');
-    const getCheckboxes = () => document.querySelectorAll('.invoice-checkbox');
-    const getChecked = () => document.querySelectorAll('.invoice-checkbox:checked');
-    const modalOverlay = document.getElementById('modalOverlay');
-    const floatBar = document.getElementById('bulkActionFloat');
+            const getCheckboxes = () => document.querySelectorAll('.invoice-checkbox');
+            const getChecked = () => document.querySelectorAll('.invoice-checkbox:checked');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const floatBar = document.getElementById('bulkActionFloat');
 
-    // --- Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('💎 Premium Billing Logic Initialized');
+            // --- Initialization ---
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('💎 Premium Billing Logic Initialized');
 
-        // Auto-set current month if empty
-        const periodInp = document.getElementById('invoicePeriod');
-        if (periodInp && !periodInp.value) {
-            const now = new Date();
-            periodInp.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        }
+                // Auto-set current month if empty
+                const periodInp = document.getElementById('invoicePeriod');
+                if (periodInp && !periodInp.value) {
+                    const now = new Date();
+                    periodInp.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                }
 
-        // Initialize Selection UI
-        updateSelectionUI();
-    });
-
-    // --- Selection & Bulk Logic ---
-    function updateSelectionUI() {
-        const checked = getChecked();
-        const count = checked.length;
-        const total = getCheckboxes().length;
-
-        // Update Count Display
-        const countBadge = document.getElementById('selectedCountFloat');
-        if (countBadge) countBadge.textContent = count;
-
-        // Toggle Floating Bar
-        if (floatBar) {
-            if (count > 0) {
-                floatBar.classList.remove('scale-90', 'opacity-0', 'pointer-events-none');
-                floatBar.classList.add('scale-100', 'opacity-100', 'pointer-events-auto');
-            } else {
-                floatBar.classList.remove('scale-100', 'opacity-100', 'pointer-events-auto');
-                floatBar.classList.add('scale-90', 'opacity-0', 'pointer-events-none');
-            }
-        }
-
-        // Parent SelectAll Checkbox State
-        if (selectAllCheck) {
-            selectAllCheck.checked = count > 0 && count === total;
-            selectAllCheck.indeterminate = count > 0 && count < total;
-        }
-    }
-
-    function deselectAllInvoices() {
-        getCheckboxes().forEach(cb => cb.checked = false);
-        if (selectAllCheck) selectAllCheck.checked = false;
-        updateSelectionUI();
-    }
-
-    // --- Modal Management ---
-    function openModal(modalId) {
-        if (!modalOverlay) return;
-
-        // Hide all modals first
-        modalOverlay.querySelectorAll('.glass-panel').forEach(m => m.classList.add('hidden'));
-
-        // Show specific modal
-        const target = document.getElementById(modalId);
-        if (target) {
-            target.classList.remove('hidden');
-            modalOverlay.classList.remove('hidden');
-            modalOverlay.classList.add('flex');
-            document.body.style.overflow = 'hidden'; // Prevent scroll
-        }
-    }
-
-    function closeModals() {
-        if (!modalOverlay) return;
-        modalOverlay.classList.add('hidden');
-        modalOverlay.classList.remove('flex');
-        document.body.style.overflow = '';
-    }
-
-    // Close on overlay click (if exactly overlay)
-    modalOverlay?.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) closeModals();
-    });
-
-    // --- Action Functions ---
-
-    // Generate Invoice Logic
-    async function checkExistingInvoices() {
-        const period = document.getElementById('invoicePeriod').value;
-        if (!period) return;
-
-        try {
-            const res = await fetch(`/billing/tagihan/check-duplicates?period=${period}`);
-            const data = await res.json();
-            if (data.success) {
-                const existingIds = new Set(data.customerIds);
-                const items = document.querySelectorAll('.customer-item');
-                let hiddenCount = 0;
-
-                items.forEach(item => {
-                    const cb = item.querySelector('input');
-                    const cid = parseInt(cb.value);
-                    if (existingIds.has(cid)) {
-                        item.classList.add('hidden');
-                        cb.checked = false;
-                        hiddenCount++;
-                    } else {
-                        item.classList.remove('hidden');
-                    }
-                });
-                updateSelectedCount();
-            }
-        } catch (e) { console.error('Duplicate check failed', e); }
-    }
-
-    window.toggleCustomerSelect = (type) => {
-        const container = document.getElementById('customerSelectorContainer');
-        if (type === 'selected') {
-            container?.classList.remove('hidden');
-            checkExistingInvoices(); // Refresh when opening
-        } else {
-            container?.classList.add('hidden');
-        }
-    };
-
-    window.filterCustomers = () => {
-        const q = document.getElementById('customerSearch').value.toLowerCase();
-        document.querySelectorAll('.customer-item').forEach(item => {
-            const name = item.dataset.name || "";
-            if (item.classList.contains('hidden') && !q) return; // Keep hidden by duplicate check
-            item.style.display = name.includes(q) ? 'flex' : 'none';
-        });
-    };
-
-    window.updateSelectedCount = () => {
-        const count = document.querySelectorAll('input[name="customer_ids"]:checked').length;
-        const el = document.getElementById('selectedCustomerCount');
-        if (el) el.textContent = count;
-    };
-
-    // Bulk Actions Implementation
-    async function bulkAction(action) {
-        const selected = Array.from(getChecked()).map(cb => cb.value);
-        if (selected.length === 0) return;
-
-        let config = {
-            'bulk-delete': { title: 'Hapus Masal?', text: `Hapus permanent ${selected.length} tagihan?`, icon: 'warning', color: '#ef4444', url: '/billing/tagihan/bulk-delete', method: 'POST', bodyKey: 'invoiceIds' },
-            'bulk-send-wa': { title: 'Kirim WA Masal?', text: `Antrean untuk ${selected.length} pelanggan terpilih?`, icon: 'question', color: '#10b981', url: '/billing/tagihan/bulk-send-whatsapp', method: 'POST', bodyKey: 'invoice_ids' },
-            'bulk-reminder': { title: 'Kirim Pengingat?', text: `Kirim pengingat tempo ke ${selected.length} orang?`, icon: 'info', color: '#f59e0b', url: '/billing/tagihan/bulk-reminder', method: 'POST', bodyKey: 'invoiceIds' }
-        }[action];
-
-        if (!config) return;
-
-        const confirm = await Swal.fire({
-            title: config.title,
-            text: config.text,
-            icon: config.icon,
-            showCancelButton: true,
-            confirmButtonColor: config.color,
-            confirmButtonText: 'Ya, Lanjutkan'
-        });
-
-        if (!confirm.isConfirmed) return;
-
-        Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-        try {
-            const res = await fetch(config.url, {
-                method: config.method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ [config.bodyKey]: selected })
+                // Initialize Selection UI
+                updateSelectionUI();
             });
-            const data = await res.json();
-            if (data.success || data.deleted !== undefined) {
-                Swal.fire('Berhasil', data.message || 'Proses selesai.', 'success').then(() => location.reload());
-            } else {
-                Swal.fire('Gagal', data.message || 'Terjadi kesalahan.', 'error');
+
+            // --- Selection & Bulk Logic ---
+            function updateSelectionUI() {
+                const checked = getChecked();
+                const count = checked.length;
+                const total = getCheckboxes().length;
+
+                // Update Count Display
+                const countBadge = document.getElementById('selectedCountFloat');
+                if (countBadge) countBadge.textContent = count;
+
+                // Toggle Floating Bar
+                if (floatBar) {
+                    if (count > 0) {
+                        floatBar.classList.remove('scale-90', 'opacity-0', 'pointer-events-none');
+                        floatBar.classList.add('scale-100', 'opacity-100', 'pointer-events-auto');
+                    } else {
+                        floatBar.classList.remove('scale-100', 'opacity-100', 'pointer-events-auto');
+                        floatBar.classList.add('scale-90', 'opacity-0', 'pointer-events-none');
+                    }
+                }
+
+                // Parent SelectAll Checkbox State
+                if (selectAllCheck) {
+                    selectAllCheck.checked = count > 0 && count === total;
+                    selectAllCheck.indeterminate = count > 0 && count < total;
+                }
             }
-        } catch (e) { Swal.fire('Error', 'Sistem gagal merespon.', 'error'); }
-    }
 
-    // --- Event Listeners ---
+            function deselectAllInvoices() {
+                getCheckboxes().forEach(cb => cb.checked = false);
+                if (selectAllCheck) selectAllCheck.checked = false;
+                updateSelectionUI();
+            }
 
-    // Select All Checkbox
-    selectAllCheck?.addEventListener('change', (e) => {
-        getCheckboxes().forEach(cb => cb.checked = e.target.checked);
-        updateSelectionUI();
-    });
+            // --- Modal Management ---
+            function openModal(modalId) {
+                if (!modalOverlay) return;
 
-    // Individual Checkboxes (Delegated)
-    document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('invoice-checkbox')) {
-            updateSelectionUI();
-        }
-    });
+                // Hide all modals first
+                modalOverlay.querySelectorAll('.glass-panel').forEach(m => m.classList.add('hidden'));
 
-    // Global Action Clicks
-    document.addEventListener('click', async (e) => {
-        const btn = e.target.closest('[data-action]');
-        if (!btn) return;
+                // Show specific modal
+                const target = document.getElementById(modalId);
+                if (target) {
+                    target.classList.remove('hidden');
+                    modalOverlay.classList.remove('hidden');
+                    modalOverlay.classList.add('flex');
+                    document.body.style.overflow = 'hidden'; // Prevent scroll
+                }
+            }
 
-        const action = btn.dataset.action;
-        const id = btn.dataset.invoiceId;
-        const customerId = btn.dataset.customerId;
-        const customerName = btn.dataset.customerName;
+            function closeModals() {
+                if (!modalOverlay) return;
+                modalOverlay.classList.add('hidden');
+                modalOverlay.classList.remove('flex');
+                document.body.style.overflow = '';
+            }
 
-        switch (action) {
-            case 'generate-invoice': openModal('generateInvoiceModal'); break;
-            case 'open-odc-print': openModal('odcPrintModal'); break;
-            case 'detail': location.href = `/billing/tagihan/${id}`; break;
-            case 'pay': location.href = `/billing/tagihan/${id}/pay`; break;
+            // Close on overlay click (if exactly overlay)
+            modalOverlay?.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModals();
+            });
 
-            case 'promise':
-                document.getElementById('janjiBayarInvoiceId').value = id;
-                const dateVal = btn.dataset.invoiceDate ? new Date(btn.dataset.invoiceDate).toISOString().split('T')[0] : '';
-                document.getElementById('janjiBayarDate').value = dateVal;
-                openModal('janjiBayarModal');
-                break;
+            // --- Action Functions ---
 
-            case 'send-wanew':
-                const ok = await Swal.fire({ title: 'Kirim WhatsApp?', text: "Kirim rincian tagihan via WA?", icon: 'question', showCancelButton: true });
-                if (ok.isConfirmed) {
-                    btn.disabled = true;
-                    const res = await fetch(`/billing/tagihan/${id}/send-whatsapp`, { method: 'POST' });
+            // Generate Invoice Logic
+            async function checkExistingInvoices() {
+                const period = document.getElementById('invoicePeriod').value;
+                if (!period) return;
+
+                try {
+                    const res = await fetch(`/billing/tagihan/check-duplicates?period=${period}`);
                     const data = await res.json();
-                    Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
-                    btn.disabled = false;
-                }
-                break;
+                    if (data.success) {
+                        const existingIds = new Set(data.customerIds);
+                        const items = document.querySelectorAll('.customer-item');
+                        let hiddenCount = 0;
 
-            case 'isolate':
-            case 'restore':
-                const label = action === 'isolate' ? 'Isolir' : 'Pulihkan';
-                const { value: reason } = await Swal.fire({
-                    title: `${label} Pelanggan?`,
-                    text: `Alasan untuk ${customerName}:`,
-                    input: 'text',
-                    inputValue: action === 'isolate' ? 'Tunggakan pembayaran' : 'Sudah bayar',
-                    showCancelButton: true
+                        items.forEach(item => {
+                            const cb = item.querySelector('input');
+                            const cid = parseInt(cb.value);
+                            if (existingIds.has(cid)) {
+                                item.classList.add('hidden');
+                                cb.checked = false;
+                                hiddenCount++;
+                            } else {
+                                item.classList.remove('hidden');
+                            }
+                        });
+                        updateSelectedCount();
+                    }
+                } catch (e) { console.error('Duplicate check failed', e); }
+            }
+
+            window.toggleCustomerSelect = (type) => {
+                const container = document.getElementById('customerSelectorContainer');
+                if (type === 'selected') {
+                    container?.classList.remove('hidden');
+                    checkExistingInvoices(); // Refresh when opening
+                } else {
+                    container?.classList.add('hidden');
+                }
+            };
+
+            window.filterCustomers = () => {
+                const q = document.getElementById('customerSearch').value.toLowerCase();
+                document.querySelectorAll('.customer-item').forEach(item => {
+                    const name = item.dataset.name || "";
+                    if (item.classList.contains('hidden') && !q) return; // Keep hidden by duplicate check
+                    item.style.display = name.includes(q) ? 'flex' : 'none';
                 });
-                if (reason) {
-                    const res = await fetch(`/billing/customer/${action}`, {
-                        method: 'POST',
+            };
+
+            window.updateSelectedCount = () => {
+                const count = document.querySelectorAll('input[name="customer_ids"]:checked').length;
+                const el = document.getElementById('selectedCustomerCount');
+                if (el) el.textContent = count;
+            };
+
+            // Bulk Actions Implementation
+            async function bulkAction(action) {
+                const selected = Array.from(getChecked()).map(cb => cb.value);
+                if (selected.length === 0) return;
+
+                let config = {
+                    'bulk-delete': { title: 'Hapus Masal?', text: `Hapus permanent ${selected.length} tagihan?`, icon: 'warning', color: '#ef4444', url: '/billing/tagihan/bulk-delete', method: 'POST', bodyKey: 'invoiceIds' },
+                    'bulk-send-wa': { title: 'Kirim WA Masal?', text: `Antrean untuk ${selected.length} pelanggan terpilih?`, icon: 'question', color: '#10b981', url: '/billing/tagihan/bulk-send-whatsapp', method: 'POST', bodyKey: 'invoice_ids' },
+                    'bulk-reminder': { title: 'Kirim Pengingat?', text: `Kirim pengingat tempo ke ${selected.length} orang?`, icon: 'info', color: '#f59e0b', url: '/billing/tagihan/bulk-reminder', method: 'POST', bodyKey: 'invoiceIds' }
+                }[action];
+
+                if (!config) return;
+
+                const confirm = await Swal.fire({
+                    title: config.title,
+                    text: config.text,
+                    icon: config.icon,
+                    showCancelButton: true,
+                    confirmButtonColor: config.color,
+                    confirmButtonText: 'Ya, Lanjutkan'
+                });
+
+                if (!confirm.isConfirmed) return;
+
+                Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                try {
+                    const res = await fetch(config.url, {
+                        method: config.method,
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ customerId, reason })
+                        body: JSON.stringify({ [config.bodyKey]: selected })
                     });
-                    const d = await res.json();
-                    if (d.success) location.reload();
-                    else Swal.fire('Gagal', d.message, 'error');
+                    const data = await res.json();
+                    if (data.success || data.deleted !== undefined) {
+                        Swal.fire('Berhasil', data.message || 'Proses selesai.', 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Gagal', data.message || 'Terjadi kesalahan.', 'error');
+                    }
+                } catch (e) { Swal.fire('Error', 'Sistem gagal merespon.', 'error'); }
+            }
+
+            // --- Event Listeners ---
+
+            // Select All Checkbox
+            selectAllCheck?.addEventListener('change', (e) => {
+                getCheckboxes().forEach(cb => cb.checked = e.target.checked);
+                updateSelectionUI();
+            });
+
+            // Individual Checkboxes (Delegated)
+            document.addEventListener('change', (e) => {
+                if (e.target.classList.contains('invoice-checkbox')) {
+                    updateSelectionUI();
                 }
-                break;
+            });
 
-            case 'delete':
-                const del = await Swal.fire({ title: 'Hapus Tagihan?', text: 'Data tidak bisa dikembalikan!', icon: 'warning', showCancelButton: true });
-                if (del.isConfirmed) {
-                    const res = await fetch(`/billing/tagihan/${id}`, { method: 'DELETE' });
-                    const d = await res.json();
-                    if (d.success) location.reload();
+            // Global Action Clicks
+            document.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+
+                const action = btn.dataset.action;
+                const id = btn.dataset.invoiceId;
+                const customerId = btn.dataset.customerId;
+                const customerName = btn.dataset.customerName;
+
+                switch (action) {
+                    case 'generate-invoice': openModal('generateInvoiceModal'); break;
+                    case 'open-odc-print': openModal('odcPrintModal'); break;
+                    case 'detail': location.href = `/billing/tagihan/${id}`; break;
+                    case 'pay': location.href = `/billing/tagihan/${id}/pay`; break;
+                    case 'print': window.open(`/billing/tagihan/${id}/print?format=thermal`, '_blank'); break;
+
+                    case 'promise':
+                        document.getElementById('janjiBayarInvoiceId').value = id;
+                        const dateVal = btn.dataset.invoiceDate ? new Date(btn.dataset.invoiceDate).toISOString().split('T')[0] : '';
+                        document.getElementById('janjiBayarDate').value = dateVal;
+                        openModal('janjiBayarModal');
+                        break;
+
+                    case 'send-wanew':
+                        const ok = await Swal.fire({ title: 'Kirim WhatsApp?', text: "Kirim rincian tagihan via WA?", icon: 'question', showCancelButton: true });
+                        if (ok.isConfirmed) {
+                            btn.disabled = true;
+                            const res = await fetch(`/billing/tagihan/${id}/send-whatsapp`, { method: 'POST' });
+                            const data = await res.json();
+                            Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
+                            btn.disabled = false;
+                        }
+                        break;
+
+                    case 'isolate':
+                    case 'restore':
+                        const label = action === 'isolate' ? 'Isolir' : 'Pulihkan';
+                        const { value: reason } = await Swal.fire({
+                            title: `${label} Pelanggan?`,
+                            text: `Alasan untuk ${customerName}:`,
+                            input: 'text',
+                            inputValue: action === 'isolate' ? 'Tunggakan pembayaran' : 'Sudah bayar',
+                            showCancelButton: true
+                        });
+                        if (reason) {
+                            const res = await fetch(`/billing/customer/${action}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ customerId, reason })
+                            });
+                            const d = await res.json();
+                            if (d.success) location.reload();
+                            else Swal.fire('Gagal', d.message, 'error');
+                        }
+                        break;
+
+                    case 'delete':
+                        const del = await Swal.fire({ title: 'Hapus Tagihan?', text: 'Data tidak bisa dikembalikan!', icon: 'warning', showCancelButton: true });
+                        if (del.isConfirmed) {
+                            const res = await fetch(`/billing/tagihan/${id}`, { method: 'DELETE' });
+                            const d = await res.json();
+                            if (d.success) location.reload();
+                        }
+                        break;
+
+                    case 'bulk-delete':
+                    case 'bulk-send-wa':
+                    case 'bulk-reminder':
+                        bulkAction(action);
+                        break;
+
+                    case 'print-selected':
+                        const ids = Array.from(getChecked()).map(cb => cb.value);
+                        const params = new URLSearchParams();
+                        ids.forEach(id => params.append('ids[]', id));
+                        params.append('format', 'thermal');
+                        window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
+                        break;
                 }
-                break;
+            });
 
-            case 'bulk-delete':
-            case 'bulk-send-wa':
-            case 'bulk-reminder':
-                bulkAction(action);
-                break;
+            // Form Submissions
+            document.getElementById('generateInvoiceForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const period = document.getElementById('invoicePeriod').value;
+                const sendWA = document.getElementById('sendWhatsapp').checked;
+                const targetType = document.querySelector('input[name="targetType"]:checked').value;
+                const customerIds = targetType === 'selected' ? Array.from(document.querySelectorAll('input[name="customer_ids"]:checked')).map(cb => cb.value) : null;
 
-            case 'print-selected':
-                const ids = Array.from(getChecked()).map(cb => cb.value);
-                const params = new URLSearchParams();
-                ids.forEach(id => params.append('ids[]', id));
-                params.append('format', 'thermal');
-                window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
-                break;
-        }
-    });
+                Swal.fire({ title: 'Generating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const res = await fetch('/billing/tagihan/generate-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ period, customer_ids: customerIds, send_whatsapp: sendWA })
+                });
+                const d = await res.json();
+                if (d.success) Swal.fire('Sukses', d.message, 'success').then(() => location.reload());
+                else Swal.fire('Gagal', d.message, 'error');
+            });
 
-    // Form Submissions
-    document.getElementById('generateInvoiceForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const period = document.getElementById('invoicePeriod').value;
-        const sendWA = document.getElementById('sendWhatsapp').checked;
-        const targetType = document.querySelector('input[name="targetType"]:checked').value;
-        const customerIds = targetType === 'selected' ? Array.from(document.querySelectorAll('input[name="customer_ids"]:checked')).map(cb => cb.value) : null;
+            // Janji Bayar Logic
+            window.saveJanjiBayar = async () => {
+                const id = document.getElementById('janjiBayarInvoiceId').value;
+                const date = document.getElementById('janjiBayarDate').value;
+                if (!date) return;
 
-        Swal.fire({ title: 'Generating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const res = await fetch('/billing/tagihan/generate-bulk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ period, customer_ids: customerIds, send_whatsapp: sendWA })
-        });
-        const d = await res.json();
-        if (d.success) Swal.fire('Sukses', d.message, 'success').then(() => location.reload());
-        else Swal.fire('Gagal', d.message, 'error');
-    });
+                const res = await fetch(`/billing/tagihan/${id}/due-date`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ due_date: date })
+                });
+                const d = await res.json();
+                if (d.success) location.reload();
+                else Swal.fire('Gagal', d.message, 'error');
+            };
 
-    // Janji Bayar Logic
-    window.saveJanjiBayar = async () => {
-        const id = document.getElementById('janjiBayarInvoiceId').value;
-        const date = document.getElementById('janjiBayarDate').value;
-        if (!date) return;
+            // Show ODC Print Modal
+            window.showOdcPrintModal = () => {
+                openModal('odcPrintModal');
+            };
 
-        const res = await fetch(`/billing/tagihan/${id}/due-date`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ due_date: date })
-        });
-        const d = await res.json();
-        if (d.success) location.reload();
-        else Swal.fire('Gagal', d.message, 'error');
-    };
+            // Filter ODC Modal
+            window.filterOdcList = () => {
+                const q = document.getElementById('odcSearchInput').value.toLowerCase();
+                document.querySelectorAll('.odc-item').forEach(item => {
+                    const name = (item.dataset.name || '').toLowerCase();
+                    const loc = (item.dataset.location || '').toLowerCase();
+                    item.style.display = (name.includes(q) || loc.includes(q)) ? 'flex' : 'none';
+                });
+            };
 
-    // Show ODC Print Modal
-    window.showOdcPrintModal = () => {
-        openModal('odcPrintModal');
-    };
-
-    // Filter ODC Modal
-    window.filterOdcList = () => {
-        const q = document.getElementById('odcSearchInput').value.toLowerCase();
-        document.querySelectorAll('.odc-item').forEach(item => {
-            const name = (item.dataset.name || '').toLowerCase();
-            const loc = (item.dataset.location || '').toLowerCase();
-            item.style.display = (name.includes(q) || loc.includes(q)) ? 'flex' : 'none';
-        });
-    };
-
-    window.closeModals = closeModals;
-</script>
+            window.closeModals = closeModals;
+        </script>
