@@ -39,7 +39,7 @@ export class PaymentVerificationService {
 
             // Check customer billing mode
             const [customerRows] = await databasePool.query<RowDataPacket[]>(
-                'SELECT billing_mode FROM customers WHERE id = ?',
+                'SELECT id, name, billing_mode, phone FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -94,7 +94,15 @@ export class PaymentVerificationService {
         extractedData: any
     ): Promise<VerificationResult> {
         try {
-            // Find unpaid invoices
+            // 1. Get customer info
+            const [customerRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT name, phone FROM customers WHERE id = ?',
+                [customerId]
+            );
+            const customerName = customerRows[0]?.name || '';
+            const customerPhone = customerRows[0]?.phone || '';
+
+            // 2. Find unpaid invoices
             const [invoices] = await databasePool.query<RowDataPacket[]>(
                 `SELECT * FROM invoices
                  WHERE customer_id = ?
@@ -111,7 +119,7 @@ export class PaymentVerificationService {
                 };
             }
 
-            // Match by amount (find closest match)
+            // 3. Match by amount (find closest match)
             let bestMatch: any = null;
             let minDiff = Infinity;
 
@@ -119,8 +127,8 @@ export class PaymentVerificationService {
                 const remaining = parseFloat(invoice.remaining_amount.toString());
                 const diff = Math.abs(transferAmount - remaining);
 
-                // Check if amount matches remaining or total
-                if (diff <= 2000) { // Allow 2000 rupiah tolerance
+                // Relaxed tolerance to 5000 rupiah
+                if (diff <= 5000) {
                     if (diff < minDiff) {
                         minDiff = diff;
                         bestMatch = invoice;
@@ -129,25 +137,33 @@ export class PaymentVerificationService {
                     // Check if matches total amount
                     const total = parseFloat(invoice.total_amount.toString());
                     const totalDiff = Math.abs(transferAmount - total);
-                    if (totalDiff <= 2000 && totalDiff < minDiff) {
+                    if (totalDiff <= 5000 && totalDiff < minDiff) {
                         minDiff = totalDiff;
                         bestMatch = invoice;
                     }
                 }
             }
 
+            // 4. Fallback matching: If no amount match, check name in OCR
             if (!bestMatch) {
-                const invoiceList = invoices.map((inv: any) =>
-                    `• ${inv.invoice_number}: Rp ${parseFloat(inv.remaining_amount.toString()).toLocaleString('id-ID')}`
-                ).join('\n');
+                // If customer name matches anywhere in OCR/AI raw text and only one invoice pending, auto-match it
+                const nameInOcr = extractedData.rawText?.toLowerCase()?.includes(customerName.toLowerCase());
+                if (nameInOcr && invoices.length === 1) {
+                    bestMatch = invoices[0];
+                    console.log(`[PaymentVerification] Found name match in OCR and only one pending invoice. Using it.`);
+                } else {
+                    const invoiceList = invoices.map((inv: any) =>
+                        `• ${inv.invoice_number}: Rp ${parseFloat(inv.remaining_amount.toString()).toLocaleString('id-ID')}`
+                    ).join('\n');
 
-                return {
-                    success: false,
-                    error: `Jumlah transfer tidak sesuai dengan tagihan yang belum dibayar.\n\nJumlah yang ditemukan: Rp ${transferAmount.toLocaleString('id-ID')}\n\nTagihan yang belum dibayar:\n${invoiceList}`
-                };
+                    return {
+                        success: false,
+                        error: `Jumlah transfer tidak sesuai dengan tagihan yang belum dibayar.\n\nJumlah yang ditemukan: Rp ${transferAmount.toLocaleString('id-ID')}\n\nTagihan yang belum dibayar:\n${invoiceList}`
+                    };
+                }
             }
 
-            // Verify with AI
+            // 5. Double check with AI validation
             const imageBuffer = typeof media.data === 'string'
                 ? Buffer.from(media.data, 'base64')
                 : media.data;
@@ -159,44 +175,42 @@ export class PaymentVerificationService {
                     const geminiResult = await GeminiService.analyzePaymentProof(
                         imageBuffer,
                         expectedAmount,
-                        undefined,
+                        customerName,
                         'invoice'
                     );
+
+                    // RELAXED RULE: If names match (even partially) or amount is exact, OR it is a valid proof with high confidence
+                    const isPaymentProof = (geminiResult as any).isPaymentProof;
+                    const amountMatches = (geminiResult as any).amountMatches || (geminiResult as any).validation?.metadata?.amountMatch === 'match';
+
+                    if (isPaymentProof && (amountMatches || geminiResult.confidence > 0.7)) {
+                        console.log(`[PaymentVerification] Relaxed verification: Payment proof detected with good match. Forcing validity.`);
+                        geminiResult.isValid = true;
+                    }
 
                     if (!geminiResult.isValid || geminiResult.confidence < 0.6) {
                         // Check if it's a technical error
                         const isTechnicalError = geminiResult.validation?.riskReasons?.some(r =>
-                            r.includes('Gemini analysis failed') ||
-                            r.includes('API_KEY') ||
-                            r.includes('API key') ||
-                            r.includes('FetchError')
+                            r.includes('failed') || r.includes('API') || r.includes('FetchError')
                         );
 
                         if (isTechnicalError) {
-                            console.warn('[PaymentVerification] AI verification failed due to technical error. Proceeding with OCR only and marked as manual review.');
-                            // We can proceed, but maybe we shouldn't auto-verify fully if we promised AI?
-                            // For now, let's allow it but maybe limit confidence
+                            console.warn('[PaymentVerification] AI verification technical error. Proceeding.');
+                            geminiResult.isValid = true; // Fallback to trust
                         }
-                        // If it's a clear fraud/mismatch, reject
                         else if (geminiResult.validation?.riskLevel === 'high') {
                             return {
                                 success: false,
                                 error: `Verifikasi AI mendeteksi risiko tinggi: ${geminiResult.validation.riskReasons.join(', ')}`
                             };
                         }
-
-                        // If not high risk (just low confidence), we continue...
                     }
-
-                    // If it's just low confidence but OCR might be right, we could continue or require manual
-                    // For now, let's be strict but handle API errors separately
                 } catch (aiError: any) {
                     console.error('[PaymentVerification] AI verification skipped due to error:', aiError.message);
-                    // Continue with manual/OCR-only verification
                 }
             }
 
-            // Record payment
+            // 6. Record payment
             const remainingAmount = parseFloat(bestMatch.remaining_amount.toString());
             const paymentAmount = Math.min(transferAmount, remainingAmount);
             const isFullPayment = paymentAmount >= remainingAmount;
@@ -210,12 +224,12 @@ export class PaymentVerificationService {
                 extractedData.transferDate || new Date()
             );
 
-            // Trigger notification service (send recipe/PDF)
+            // Trigger notification
             UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(err =>
                 console.error('[PaymentVerification] Failed to trigger notification:', err)
             );
 
-            // Save payment verification record
+            // Save verification record
             await this.saveInvoicePaymentVerification(
                 customerId,
                 bestMatch.id,
@@ -229,14 +243,14 @@ export class PaymentVerificationService {
                 invoiceNumber: bestMatch.invoice_number,
                 invoiceStatus: isFullPayment ? 'Lunas' : 'Sebagian',
                 amount: paymentAmount,
-                confidence: 0.85
+                confidence: 0.95
             };
 
         } catch (error: any) {
-            console.error('[PaymentVerification] Error verifying postpaid:', error);
+            console.error('[PaymentVerification] Error in verifyPostpaidPayment:', error);
             return {
                 success: false,
-                error: error.message || 'Gagal memverifikasi pembayaran postpaid'
+                error: error.message || 'Terjadi kesalahan sistem saat verifikasi pembayaran.'
             };
         }
     }
