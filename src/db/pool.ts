@@ -11,9 +11,12 @@ const databaseUser = process.env.DB_USER ?? 'root';
 const databasePassword = process.env.DB_PASSWORD ?? '';
 const databaseName = process.env.DB_NAME ?? 'billing';
 
+const databaseSocket = process.env.DB_SOCKET;
+
 export const databasePool = mysql.createPool({
-	host: databaseHost,
-	port: databasePort,
+	host: databaseSocket ? undefined : databaseHost,
+	port: databaseSocket ? undefined : databasePort,
+	socketPath: databaseSocket || undefined,
 	user: databaseUser,
 	password: databasePassword,
 	database: databaseName,
@@ -46,8 +49,9 @@ export default databasePool;
 export async function ensureInitialSchema(): Promise<void> {
 	// Create database if not exists using a connection without default DB
 	const rootConnection = await mysql.createConnection({
-		host: databaseHost,
-		port: databasePort,
+		host: databaseSocket ? undefined : databaseHost,
+		port: databaseSocket ? undefined : databasePort,
+		socketPath: databaseSocket || undefined,
 		user: databaseUser,
 		password: databasePassword,
 		connectTimeout: 30000
