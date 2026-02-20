@@ -47,6 +47,7 @@ export const db = databasePool;
 export default databasePool;
 
 export async function ensureInitialSchema(): Promise<void> {
+	/*
 	// Create database if not exists using a connection without default DB
 	const rootConnection = await mysql.createConnection({
 		host: databaseSocket ? undefined : databaseHost,
@@ -63,6 +64,7 @@ export async function ensureInitialSchema(): Promise<void> {
 	} finally {
 		await rootConnection.end();
 	}
+	*/
 
 	// Ensure essential table exists
 	const conn = await databasePool.getConnection();
