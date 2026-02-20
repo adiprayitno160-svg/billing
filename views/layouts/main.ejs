@@ -425,9 +425,12 @@
 			transform: translateX(-100%);
 			width: 0 !important;
 			min-width: 0 !important;
+			max-width: 0 !important;
+			padding: 0 !important;
 			overflow: hidden;
-			display: none !important;
-			/* Absolute hide */
+			visibility: hidden;
+			opacity: 0;
+			pointer-events: none;
 		}
 
 		/* Main content expands when sidebar is hidden */
@@ -439,7 +442,11 @@
 
 		/* Ensure smooth transition */
 		#sidebar {
-			transition: transform 0.3s ease-in-out;
+			transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, min-width 0.3s ease-in-out, max-width 0.3s ease-in-out, opacity 0.3s ease-in-out, visibility 0.3s ease-in-out, padding 0.3s ease-in-out;
+		}
+
+		#main-content {
+			transition: width 0.3s ease-in-out, max-width 0.3s ease-in-out, margin-left 0.3s ease-in-out;
 		}
 
 		#sidebar * {
@@ -983,7 +990,7 @@
 				}
 			};
 
-			// NUCLEAR OPTION: Raw Force Close Function
+			// NUCLEAR OPTION: Raw Force Close Function (Works on both mobile and desktop)
 			window.forceCloseSidebar = function (e) {
 				if (e) {
 					e.preventDefault();
@@ -995,29 +1002,47 @@
 				const ov = document.getElementById('sidebarOverlay');
 				const main = document.getElementById('main-content');
 
-				// 1. Move Sidebar
-				if (sb) {
+				if (!sb) return false;
+
+				const isMob = window.innerWidth < 768;
+
+				if (isMob) {
+					// Mobile: Use translate
 					sb.style.transform = 'translateX(-100%)';
 					sb.classList.add('-translate-x-full');
-					sb.classList.remove('sidebar-hidden'); // Ensure no conflict
+					sb.classList.remove('sidebar-hidden');
+				} else {
+					// Desktop: Use sidebar-hidden class
+					sb.classList.add('sidebar-hidden');
+					sb.classList.remove('-translate-x-full');
+					sb.style.transform = '';
+					localStorage.setItem('sidebarHidden', 'true');
 				}
 
-				// 2. Hide Overlay
+				// Hide Overlay
 				if (ov) {
 					ov.style.display = 'none';
 					ov.classList.add('hidden');
 					ov.classList.remove('opacity-100');
 				}
 
-				// 3. Ensure Main Content is Visible/Interactive
+				// Ensure Main Content is Visible/Interactive
 				if (main) {
 					main.style.opacity = '1';
 					main.style.visibility = 'visible';
 					main.style.pointerEvents = 'auto';
-					main.style.zIndex = '1'; // Ensure it's interactive
 				}
 
-				// 4. Cleanup Body (Swal/Scroll locks)
+				// Update toggle icon to hamburger (sidebar is now hidden)
+				const toggleBtn = document.getElementById('sidebarToggle');
+				if (toggleBtn) {
+					const iconSvg = toggleBtn.querySelector('svg');
+					if (iconSvg) {
+						iconSvg.innerHTML = '<path d="M4 6h16M4 12h16M4 18h16"></path>';
+					}
+				}
+
+				// Cleanup Body (Swal/Scroll locks)
 				document.body.classList.remove('swal2-shown');
 				document.body.classList.remove('overflow-hidden');
 				document.body.style.overflow = 'auto';

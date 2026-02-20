@@ -1,6 +1,7 @@
 import { databasePool } from '../../db/pool';
 import { MikrotikService } from '../mikrotik/MikrotikService';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
+import { NotificationTemplateService } from '../notification/NotificationTemplateService';
 
 export class PPPoEActivationService {
     private mikrotikService: MikrotikService;
@@ -29,6 +30,12 @@ export class PPPoEActivationService {
                 `SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username
                  FROM subscriptions s
                  JOIN customers c ON s.customer_id = c.id
+                 LEFT JOIN (
+                     SELECT subscription_id, MAX(id) as invoice_id 
+                     FROM invoices 
+                     WHERE status != 'paid' 
+                     GROUP BY subscription_id
+                 ) inv ON s.id = inv.subscription_id
                  WHERE s.status = 'active' 
                  AND s.is_activated = TRUE
                  AND s.next_block_date = DATE_ADD(CURDATE(), INTERVAL 3 DAY)`
@@ -45,13 +52,65 @@ export class PPPoEActivationService {
                             customer_name: sub.customer_name,
                             service_type: 'PPPoE',
                             block_date: new Date(sub.next_block_date).toLocaleDateString('id-ID'),
-                            amount: sub.price.toLocaleString('id-ID'),
+                            amount: NotificationTemplateService.formatCurrency(sub.price),
+                            total_amount: NotificationTemplateService.formatCurrency(sub.price),
                             customer_code: sub.customer_code
                         },
+                        attachment_path: sub.invoice_id ? await UnifiedNotificationService.generateInvoicePdf(sub.invoice_id) : undefined,
                         channels: ['whatsapp']
                     });
                 } catch (err) {
                     console.error(`[PPPoEActivationService] Error sending reminder for sub ${sub.id}:`, err);
+                }
+            }
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Send H-7 reminders for upcoming PPPoE blocks
+     */
+    async sendH7Reminders(): Promise<void> {
+        const connection = await databasePool.getConnection();
+        try {
+            // Get subscriptions that will be blocked in 7 days
+            const [subscriptions] = await connection.execute(
+                `SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 LEFT JOIN (
+                     SELECT subscription_id, MAX(id) as invoice_id 
+                     FROM invoices 
+                     WHERE status != 'paid' 
+                     GROUP BY subscription_id
+                 ) inv ON s.id = inv.subscription_id
+                 WHERE s.status = 'active' 
+                 AND s.is_activated = TRUE
+                 AND s.next_block_date = DATE_ADD(CURDATE(), INTERVAL 7 DAY)`
+            );
+
+            console.log(`[PPPoEActivationService] Sending H-7 reminders for ${(subscriptions as any[]).length} subscriptions`);
+
+            for (const sub of subscriptions as any[]) {
+                try {
+                    await UnifiedNotificationService.queueNotification({
+                        customer_id: sub.customer_id,
+                        notification_type: 'payment_reminder',
+                        variables: {
+                            customer_name: sub.customer_name,
+                            service_type: 'PPPoE',
+                            block_date: new Date(sub.next_block_date).toLocaleDateString('id-ID'),
+                            amount: NotificationTemplateService.formatCurrency(sub.price),
+                            total_amount: NotificationTemplateService.formatCurrency(sub.price),
+                            customer_code: sub.customer_code,
+                            note: 'Peringatan H-7 sebelum isolir otomatis.'
+                        },
+                        attachment_path: sub.invoice_id ? await UnifiedNotificationService.generateInvoicePdf(sub.invoice_id) : undefined,
+                        channels: ['whatsapp']
+                    });
+                } catch (err) {
+                    console.error(`[PPPoEActivationService] Error sending H-7 reminder for sub ${sub.id}:`, err);
                 }
             }
         } finally {
@@ -390,12 +449,12 @@ export class PPPoEActivationService {
         try {
             // Get subscriptions that need to be blocked
             const [subscriptions] = await connection.execute(
-                `SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username
+                `SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username, COALESCE(c.grace_period, 0) as grace_period
                  FROM subscriptions s
                  JOIN customers c ON s.customer_id = c.id
                  WHERE s.status = 'active' 
                  AND s.is_activated = TRUE
-                 AND s.next_block_date <= CURDATE()
+                 AND DATE_ADD(s.next_block_date, INTERVAL COALESCE(c.grace_period, 0) DAY) <= CURDATE()
                  -- Skip if already paid for current month
                  AND s.customer_id NOT IN (
                      SELECT DISTINCT customer_id 

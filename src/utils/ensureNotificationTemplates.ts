@@ -62,7 +62,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'payment_partial',
         channel: 'whatsapp',
         title_template: 'Pembayaran Kurang',
-        message_template: '⚠️ *Pembayaran Kurang*\n\nHalo {customer_name},\n\nTerima kasih atas pembayaran Anda untuk invoice *{invoice_number}*.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Jumlah Dibayar: Rp {paid_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n\n💰 *Informasi Saldo:*\n• Digunakan: Rp {balance_used}\n• Saldo Bertambah: Rp {excess_amount}\n• Saldo Akhir: Rp {new_balance}\n\n💡 *Informasi Penting:*\n• Masih ada sisa tagihan yang harus dilunasi\n• Silakan lakukan pembayaran sisa tagihan segera\n• Layanan dapat terganggu jika sisa tagihan tidak dilunasi\n• Hubungi kami jika ada pertanyaan tentang tagihan\n\n📅 *Jatuh Tempo:* {due_date}\n\nTerima kasih,\nTim Support',
+        message_template: '⚠️ *Pembayaran Kurang*\n\nHalo {customer_name},\n\nTerima kasih atas pembayaran Anda untuk invoice *{invoice_number}*.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: {total_amount}\n• Jumlah Dibayar: {paid_amount}\n• Sisa Tagihan: {remaining_amount}\n\n💰 *Informasi Saldo:*\n• Digunakan: {balance_used}\n• Saldo Bertambah: {excess_amount}\n• Saldo Akhir: {new_balance}\n\n💡 *Informasi Penting:*\n• Masih ada sisa tagihan yang harus dilunasi\n• Silakan lakukan pembayaran sisa tagihan segera\n• Layanan dapat terganggu jika sisa tagihan tidak dilunasi\n• Hubungi kami jika ada pertanyaan tentang tagihan\n\n📅 *Jatuh Tempo:* {due_date}\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'paid_amount', 'remaining_amount', 'due_date', 'balance_used', 'excess_amount', 'new_balance']),
         priority: 'high',
         is_active: true
@@ -73,7 +73,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'payment_received',
         channel: 'whatsapp',
         title_template: 'Pembayaran Diterima - {invoice_number}',
-        message_template: '✅ *Pembayaran Diterima*\n\nHalo {customer_name},\n\nTerima kasih! Pembayaran Anda telah kami terima.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Tagihan: {billing_month}\n• Jumlah: Rp {amount}\n• Metode: {payment_method}\n• Tanggal: {payment_date}\n\n💡 *Terima Kasih:*\nLayanan internet Anda tetap aktif. Terima kasih atas kerja samanya!\n\nJika ada pertanyaan, silakan hubungi kami.\n\nTerima kasih,\nTim Support',
+        message_template: '✅ *Pembayaran Diterima*\n\nHalo {customer_name},\n\nTerima kasih! Pembayaran Anda telah kami terima.\n\n📋 *Detail Pembayaran:*\n• Invoice: {invoice_number}\n• Tagihan: {billing_month}\n• Jumlah: {amount}\n• Metode: {payment_method}\n• Tanggal: {payment_date}\n\n💡 *Terima Kasih:*\nLayanan internet Anda tetap aktif. Terima kasih atas kerja samanya!\n\nJika ada pertanyaan, silakan hubungi kami.\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'billing_month', 'amount', 'payment_method', 'payment_date']),
         priority: 'normal',
         is_active: true
@@ -84,7 +84,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'payment_debt',
         channel: 'whatsapp',
         title_template: 'Pembayaran Ditunda',
-        message_template: '📋 *Pembayaran Ditunda / Hutang*\n\nHalo {customer_name},\n\nKami memberitahukan bahwa pembayaran untuk invoice *{invoice_number}* telah ditunda dan dicatat sebagai hutang.\n\n📋 *Detail Hutang:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Jumlah Hutang: Rp {debt_amount}\n• Alasan: {debt_reason}\n• Tanggal Hutang: {debt_date}\n• Jatuh Tempo: {due_date}\n\n💡 *Informasi Penting:*\n• Hutang ini harus dilunasi sesuai kesepakatan\n• Silakan hubungi customer service untuk informasi lebih lanjut\n• Layanan dapat terganggu jika hutang tidak dilunasi\n• Catatan: {notes}\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
+        message_template: '📋 *Pembayaran Ditunda / Hutang*\n\nHalo {customer_name},\n\nKami memberitahukan bahwa pembayaran untuk invoice *{invoice_number}* telah ditunda dan dicatat sebagai hutang.\n\n📋 *Detail Hutang:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: {total_amount}\n• Jumlah Hutang: {debt_amount}\n• Alasan: {debt_reason}\n• Tanggal Hutang: {debt_date}\n• Jatuh Tempo: {due_date}\n\n💡 *Informasi Penting:*\n• Hutang ini harus dilunasi sesuai kesepakatan\n• Silakan hubungi customer service untuk informasi lebih lanjut\n• Layanan dapat terganggu jika hutang tidak dilunasi\n• Catatan: {notes}\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'debt_amount', 'debt_reason', 'debt_date', 'due_date', 'notes']),
         priority: 'high',
         is_active: true
@@ -95,7 +95,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'isolation_warning',
         channel: 'whatsapp',
         title_template: 'Peringatan: Layanan Akan Diisolir',
-        message_template: '⚠️ *Peringatan: Layanan Akan Diisolir*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet Anda akan diisolir dalam *{days_remaining} hari* jika tagihan tidak dilunasi.\n\n📋 *Detail Tagihan:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n• Jatuh Tempo: {due_date}\n• Hari Tersisa: {days_remaining} hari\n\n💡 *Tindakan yang Diperlukan:*\n• Segera lakukan pembayaran tagihan yang tertunggak\n• Setelah pembayaran, layanan akan tetap aktif\n• Jika tidak dibayar, layanan akan diisolir otomatis\n• Hubungi customer service jika ada pertanyaan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Atau datang ke kantor kami\n• Konfirmasi pembayaran setelah transfer\n\nJangan sampai layanan Anda terganggu. Lakukan pembayaran sekarang!\n\nTerima kasih,\nTim Support',
+        message_template: '⚠️ *Peringatan: Layanan Akan Diisolir*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet Anda akan diisolir dalam *{days_remaining} hari* jika tagihan tidak dilunasi.\n\n📋 *Detail Tagihan:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: {total_amount}\n• Sisa Tagihan: {remaining_amount}\n• Jatuh Tempo: {due_date}\n• Hari Tersisa: {days_remaining} hari\n\n💡 *Tindakan yang Diperlukan:*\n• Segera lakukan pembayaran tagihan yang tertunggak\n• Setelah pembayaran, layanan akan tetap aktif\n• Jika tidak dibayar, layanan akan diisolir otomatis\n• Hubungi customer service jika ada pertanyaan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Atau datang ke kantor kami\n• Konfirmasi pembayaran setelah transfer\n\nJangan sampai layanan Anda terganggu. Lakukan pembayaran sekarang!\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'remaining_amount', 'due_date', 'days_remaining']),
         priority: 'high',
         is_active: true
@@ -106,7 +106,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'payment_shortage_warning',
         channel: 'whatsapp',
         title_template: 'Peringatan: Pembayaran Masih Kurang',
-        message_template: '⚠️ *Peringatan: Pembayaran Masih Kurang / Menunggak*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa Anda masih memiliki tagihan yang *belum dilunasi* atau *kurang pembayaran*.\n\n📋 *Detail Tagihan:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Jumlah Dibayar: Rp {paid_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n• Jatuh Tempo: {due_date}\n• Hari Menunggak: {days_overdue} hari\n\n💡 *Informasi Penting:*\n• Pembayaran Anda masih kurang atau belum dilunasi\n• Silakan segera lakukan pembayaran sisa tagihan\n• Layanan dapat terganggu jika tagihan tidak dilunasi\n• Hubungi customer service jika ada pertanyaan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Cantumkan nomor invoice di keterangan transfer\n• Konfirmasi pembayaran setelah transfer\n\nJangan sampai layanan Anda terganggu. Segera lakukan pembayaran!\n\nTerima kasih,\nTim Support',
+        message_template: '⚠️ *Peringatan: Pembayaran Masih Kurang / Menunggak*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa Anda masih memiliki tagihan yang *belum dilunasi* atau *kurang pembayaran*.\n\n📋 *Detail Tagihan:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: {total_amount}\n• Jumlah Dibayar: {paid_amount}\n• Sisa Tagihan: {remaining_amount}\n• Jatuh Tempo: {due_date}\n• Hari Menunggak: {days_overdue} hari\n\n💡 *Informasi Penting:*\n• Pembayaran Anda masih kurang atau belum dilunasi\n• Silakan segera lakukan pembayaran sisa tagihan\n• Layanan dapat terganggu jika tagihan tidak dilunasi\n• Hubungi customer service jika ada pertanyaan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Cantumkan nomor invoice di keterangan transfer\n• Konfirmasi pembayaran setelah transfer\n\nJangan sampai layanan Anda terganggu. Segera lakukan pembayaran!\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'paid_amount', 'remaining_amount', 'due_date', 'days_overdue']),
         priority: 'high',
         is_active: true
@@ -117,7 +117,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'pre_block_warning',
         channel: 'whatsapp',
         title_template: 'Peringatan: Layanan Akan Diblokir Tanggal 1',
-        message_template: '🚨 *PERINGATAN: Layanan Akan Diblokir*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet Anda akan *DIBLOKIR pada tanggal {blocking_date}* jika tagihan tidak dilunasi.\n\n📋 *Detail Tagihan:*\n• Kode Pelanggan: {customer_code}\n• Invoice: {invoice_number}\n• Jumlah Tagihan: Rp {total_amount}\n• Sisa Tagihan: Rp {remaining_amount}\n• Jatuh Tempo: {due_date}\n\n⏳ *Waktu Tersisa: {days_until_block} hari*\n\n⚠️ *PENTING:*\n• Tanggal 1 adalah masa transisi ke blokir\n• Segera lakukan pembayaran sebelum tanggal 1\n• Setelah diblokir, layanan tidak dapat digunakan\n• Pembayaran setelah blokir akan memulihkan layanan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Cantumkan nomor invoice di keterangan transfer\n• Konfirmasi pembayaran setelah transfer\n\n        🔔 Jangan sampai layanan Anda terputus. Bayar sekarang!\n\nTerima kasih,\nTim Support',
+        message_template: '🚨 *PERINGATAN: Layanan Akan Diblokir*\n\nHalo {customer_name},\n\nKami mengingatkan bahwa layanan internet Anda akan *DIBLOKIR pada tanggal {blocking_date}* jika tagihan tidak dilunasi.\n\n📋 *Detail Tagihan:*\n• Kode Pelanggan: {customer_code}\n• Invoice: {invoice_number}\n• Jumlah Tagihan: {total_amount}\n• Sisa Tagihan: {remaining_amount}\n• Jatuh Tempo: {due_date}\n\n⏳ *Waktu Tersisa: {days_until_block} hari*\n\n⚠️ *PENTING:*\n• Tanggal 1 adalah masa transisi ke blokir\n• Segera lakukan pembayaran sebelum tanggal 1\n• Setelah diblokir, layanan tidak dapat digunakan\n• Pembayaran setelah blokir akan memulihkan layanan\n\n📱 *Cara Pembayaran:*\n• Transfer ke rekening yang tertera di invoice\n• Cantumkan nomor invoice di keterangan transfer\n• Konfirmasi pembayaran setelah transfer\n\n        🔔 Jangan sampai layanan Anda terputus. Bayar sekarang!\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'customer_code', 'invoice_number', 'total_amount', 'remaining_amount', 'due_date', 'blocking_date', 'days_until_block']),
         priority: 'high',
         is_active: true
@@ -206,7 +206,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'invoice_created',
         channel: 'whatsapp',
         title_template: 'Tagihan Baru - {invoice_number}',
-        message_template: '📄 *TAGIHAN INTERNET BARU*\n\nHalo {customer_name},\n\nTagihan internet Anda untuk periode *{period}* telah tersedia.\n\n📋 *Rincian Tagihan:*\n• No. Invoice: {invoice_number}\n• Nominal: Rp {amount}\n• Jatuh Tempo: {due_date}\n\n💳 *Metode Pembayaran:*\n{bank_list}\n\n💡 *Catatan:*\n• Abaikan jika sudah membayar\n• Konfirmasi jika melakukan transfer bank\n• Layanan otomatis diperpanjang setelah lunas\n\nTerima kasih,\nTim Support',
+        message_template: '📄 *TAGIHAN INTERNET BARU*\n\nHalo {customer_name},\n\nTagihan internet Anda untuk periode *{period}* telah tersedia.\n\n📋 *Rincian Tagihan:*\n• No. Invoice: {invoice_number}\n• Nominal: {amount}\n• Jatuh Tempo: {due_date}\n\n💳 *Metode Pembayaran:*\n{bank_list}\n\n💡 *Catatan:*\n• Abaikan jika sudah membayar\n• Konfirmasi jika melakukan transfer bank\n• Layanan otomatis diperpanjang setelah lunas\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'due_date', 'period', 'bank_list']),
         priority: 'normal',
         is_active: true
@@ -217,7 +217,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'invoice_overdue',
         channel: 'whatsapp',
         title_template: '⚠️ Peringatan: Tagihan Menunggak',
-        message_template: '⚠️ *PERINGATAN TAGIHAN MENUNGGAK*\n\nHalo {customer_name},\n\nKami menginformasikan bahwa tagihan Anda telah melewati jatuh tempo.\n\n📋 *Rincian:*\n• No. Invoice: {invoice_number}\n• Total Tunggakan: Rp {amount}\n• Jatuh Tempo: {due_date}\n• Terlambat: {days_overdue} hari\n\n💳 *Segera lakukan pembayaran ke:*\n{bank_list}\n\n🚨 *PENTING:*\nHindari isolir layanan otomatis dengan segera melunasi tagihan.\n\nTerima kasih,\nTim Support',
+        message_template: '⚠️ *PERINGATAN TAGIHAN MENUNGGAK*\n\nHalo {customer_name},\n\nKami menginformasikan bahwa tagihan Anda telah melewati jatuh tempo.\n\n📋 *Rincian:*\n• No. Invoice: {invoice_number}\n• Total Tunggakan: {amount}\n• Jatuh Tempo: {due_date}\n• Terlambat: {days_overdue} hari\n\n💳 *Segera lakukan pembayaran ke:*\n{bank_list}\n\n🚨 *PENTING:*\nHindari isolir layanan otomatis dengan segera melunasi tagihan.\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'due_date', 'days_overdue', 'bank_list']),
         priority: 'high',
         is_active: true
@@ -228,7 +228,7 @@ export async function ensureNotificationTemplates(): Promise<void> {
         notification_type: 'invoice_reminder',
         channel: 'whatsapp',
         title_template: 'Reminder: Tagihan Bulanan',
-        message_template: '🔔 *PENGINGAT TAGIHAN INTERNET*\n\nHalo {customer_name},\n\nJangan lupa, tagihan periode *{period}* sebentar lagi jatuh tempo.\n\n📋 *Rincian:*\n• No. Invoice: {invoice_number}\n• Nominal: Rp {amount}\n• Jatuh Tempo: {due_date}\n\n💳 *Pembayaran via:*\n{bank_list}\n\nNikmati terus internet lancar tanpa kendala!\n\nTerima kasih,\nTim Support',
+        message_template: '🔔 *PENGINGAT TAGIHAN INTERNET*\n\nHalo {customer_name},\n\nJangan lupa, tagihan periode *{period}* sebentar lagi jatuh tempo.\n\n📋 *Rincian:*\n• No. Invoice: {invoice_number}\n• Nominal: {amount}\n• Jatuh Tempo: {due_date}\n\n💳 *Pembayaran via:*\n{bank_list}\n\nNikmati terus internet lancar tanpa kendala!\n\nTerima kasih,\nTim Support',
         variables: JSON.stringify(['customer_name', 'invoice_number', 'amount', 'due_date', 'period', 'bank_list']),
         priority: 'normal',
         is_active: true

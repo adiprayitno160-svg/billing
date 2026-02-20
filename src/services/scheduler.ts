@@ -80,6 +80,20 @@ export class SchedulerService {
             this.scheduleOverdueNotifications(true);
         });
 
+        // processAutoBlocking at 01:00 AM daily (Requested by User)
+        cron.schedule('0 1 * * *', async () => {
+            console.log('[Scheduler] Running 01:00 AM auto blocking check...');
+            try {
+                const { pppoeActivationService } = await import('./pppoe/pppoeActivationService');
+                await pppoeActivationService.processAutoBlocking();
+            } catch (error) {
+                console.error('[Scheduler] Error in 01:00 AM auto blocking:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
         // Send isolation warnings 3 days before isolation - daily at 09:00
         // ALSO send warnings from 25th-31st of each month (before blocking on 1st)
         // ALSO send H-1 warnings (1 day before mass isolation date)
@@ -90,8 +104,8 @@ export class SchedulerService {
             console.log('Running daily PPPoE maintenance tasks...');
             try {
                 const { pppoeActivationService } = await import('./pppoe/pppoeActivationService');
-                // Process auto blocking based on next_block_date ("Kesepakatan Final" Point 2)
-                await pppoeActivationService.processAutoBlocking();
+                // Send H-7 reminders
+                await pppoeActivationService.sendH7Reminders();
                 // Send reminders 3 days before block date ("Kesepakatan Final" Point 3)
                 await pppoeActivationService.sendReminders();
             } catch (pppoeError) {

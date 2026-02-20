@@ -58,160 +58,18 @@ export class CustomerNotificationService {
         eventType: 'offline' | 'timeout' | 'error' | 'recovered' | 'degraded',
         details?: any
     ): Promise<boolean> {
-        try {
-            if (!customer.phone) {
-                console.log(`[Notification] Skipping ${customer.name} - no phone number`);
-                return false;
-            }
-
-            // Check if customer has notification preferences
-            const shouldNotify = await this.shouldSendNotification(customer.id, eventType);
-            if (!shouldNotify) {
-                console.log(`[Notification] Suppressed notification for customer ${customer.id}`);
-                return false;
-            }
-
-            let message = '';
-            let severity: 'low' | 'medium' | 'high' | 'critical' = 'medium';
-
-            switch (eventType) {
-                case 'offline':
-                    message = `⚠️ *PEMBERITAHUAN GANGGUAN KONEKSI*\n\n` +
-                        `Pelanggan Yth,\n` +
-                        `Koneksi internet Anda saat ini terdeteksi *OFFLINE*.\n\n` +
-                        `📋 Informasi:\n` +
-                        `• Nama: ${customer.name}\n` +
-                        `• ID: ${customer.customer_code}\n` +
-                        `• Jenis: ${customer.connection_type.toUpperCase()}\n\n` +
-                        `Tim teknis kami sedang memeriksa kendala ini.\n` +
-                        `Mohon maaf atas ketidaknyamanannya.`;
-                    severity = 'high';
-                    break;
-
-                case 'timeout':
-                    // message = `⏰ *PERINGATAN TIMEOUT KONEKSI*\n\n` +
-                    //     `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
-                    //     `Koneksi Anda mengalami *TIMEOUT* berkepanjangan.\n\n` +
-                    //     `Tim kami sedang mengecek penyebabnya.`;
-                    // severity = 'medium';
-                    console.log(`[Notification] Timeout notification disabled for ${customer.name}`);
-                    return false;
-                // break;
-
-                case 'error':
-                    message = `🔧 *DETEKSI ERROR KONEKSI*\n\n` +
-                        `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
-                        `Terjadi error pada koneksi Anda: ${details?.error || 'Unknown error'}\n\n` +
-                        `Sedang dalam penanganan teknis.`;
-                    severity = 'high';
-                    break;
-
-                case 'degraded':
-                    // message = `📉 *PERINGATAN KUALITAS KONEKSI*\n\n` +
-                    //     `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
-                    //     `Kualitas koneksi Anda sedang *DEGRADED* (lambat).\n\n` +
-                    //     `Latency: ${details?.latency || '-'}ms\n` +
-                    //     `Packet Loss: ${details?.packetLoss || '-'}%\n\n` +
-                    //     `Tim kami memantau situasi ini.`;
-                    // severity = 'low';
-                    console.log(`[Notification] Degraded quality notification disabled for ${customer.name}`);
-                    return false;
-                // break;
-
-                case 'recovered':
-                    message = `✅ *KONEKSI TELAH PULIH*\n\n` +
-                        `Pelanggan ${customer.name} (${customer.customer_code}),\n` +
-                        `Koneksi internet Anda telah *NORMAL KEMBALI*.\n\n` +
-                        `Terima kasih atas kesabarannya.`;
-                    severity = 'low';
-                    break;
-            }
-
-            // Send WhatsApp notification
-            await this.waClient.sendMessage(customer.phone, message);
-
-            // Log notification event
-            await this.logNotificationEvent({
-                customer_id: customer.id,
-                event_type: eventType,
-                severity,
-                message,
-                details,
-                notified_at: new Date()
-            });
-
-            console.log(`[Notification] Sent ${eventType} notification to ${customer.name} (${customer.phone})`);
-            return true;
-
-        } catch (error) {
-            console.error(`[Notification] Failed to send notification to ${customer.name}:`, error);
-            return false;
-        }
+        // DISABLED: Monitoring notifications disabled per user request to reduce spam
+        console.log(`[Notification] SKIPPED ${eventType} notification for ${customer.name} (Service Disabled)`);
+        return false;
     }
 
     /**
      * Send AI-Generated Automated Troubleshooting Notification
      */
     async sendAIAutomatedTroubleshooting(customer: CustomerInfo, eventType: string): Promise<boolean> {
-        try {
-            if (!customer.phone) return false;
-
-            // Check cooldown to prevent spamming the customer
-            const shouldNotify = await this.shouldSendNotification(customer.id, `ai_troubleshoot_${eventType}`);
-            if (!shouldNotify) return false;
-
-            console.log(`[AI-Notification] Generating AI troubleshooting for ${customer.name}...`);
-
-            // AI Prompt Construction
-            const prompt = `
-                Pelanggan ISP kami atas nama: ${customer.name}
-                Status: Terdeteksi Terputus (Offline/Timeout)
-                Layanan: ${customer.connection_type.toUpperCase()}
-                
-                Instruksi:
-                Pesan ini harus ramah, empati, dan profesional seperti assisten AI ISP.
-                1. Ucapkan salam dan informasikan bahwa sistem monitoring kami mendeteksi masalah koneksi di lokasi pelanggan.
-                2. Berikan langkah penanggulangan awal:
-                   - Periksa lampu indikator pada modem/router (ONT).
-                   - Cek apakah kabel terpasang dengan kuat.
-                   - Langkah Penting: Matikan modem selama 30 detik, lalu nyalakan kembali (Restart).
-                3. Informasikan bahwa tim teknis akan memantau koneksi dalam 5-10 menit.
-                4. Jika masih mati, informasikan bahwa tiket perbaikan akan otomatis diteruskan ke tim lapangan.
-                5. Gunakan format WhatsApp yang bagus (Bold, Emoji).
-                6. Bahasa: Indonesia yang sopan.
-            `.trim();
-
-            let aiMessage = '';
-            try {
-                aiMessage = await ChatBotService.ask(prompt, { status: 'automated_alert' });
-            } catch (error) {
-                // Fallback if AI fails
-                aiMessage = `⚠️ *DETEKSI GANGGUAN KONEKSI*\n\n` +
-                    `Halo Kak ${customer.name},\n` +
-                    `Sistem monitoring kami mendeteksi koneksi Anda sedang offline.\n\n` +
-                    `*Penanggulangan Awal:*\n` +
-                    `1. Pastikan kabel power modem terpasang.\n` +
-                    `2. Coba matikan modem selama 30 detik lalu nyalakan kembali.\n\n` +
-                    `Tim teknik kami sedang memantau. Jika dalam 10 menit masih terkendala, teknisi akan segera meluncur ke lokasi.`;
-            }
-
-            // Send via WhatsApp
-            await this.waClient.sendMessage(customer.phone, aiMessage);
-
-            // Log event
-            await this.logNotificationEvent({
-                customer_id: customer.id,
-                event_type: `ai_troubleshoot_${eventType}`,
-                severity: 'high',
-                message: aiMessage,
-                notified_at: new Date()
-            });
-
-            return true;
-        } catch (error) {
-            console.error('[AI-Notification] Failed to send AI advice:', error);
-            return false;
-        }
+        // DISABLED: AI Troubleshooting notifications disabled per user request
+        console.log(`[AI-Notification] SKIPPED AI troubleshooting for ${customer.name} (Service Disabled)`);
+        return false;
     }
 
     /**
@@ -236,7 +94,6 @@ export class CustomerNotificationService {
 
             // Check cooldown period (prevent spam)
             const cooldownHours = customerPref.notification_cooldown_hours || 1;
-            const cooldownMs = cooldownHours * 60 * 60 * 1000;
 
             const [recentNotifications] = await databasePool.query<RowDataPacket[]>(
                 `SELECT id FROM customer_notification_events 
@@ -334,39 +191,9 @@ export class CustomerNotificationService {
         affectedCustomers: number,
         details?: any
     ): Promise<void> {
-        try {
-            // Get admin/technician contacts
-            const [admins] = await databasePool.query<RowDataPacket[]>(
-                `SELECT phone FROM users 
-                 WHERE role IN ('admin', 'technician') 
-                 AND phone IS NOT NULL 
-                 AND phone != ''`
-            );
-
-            if (admins.length === 0) {
-                console.log('[Notification] No admin contacts found for escalation');
-                return;
-            }
-
-            const message = `🚨 *ESCALATION ALERT*\n\n` +
-                `Mass issue detected!\n\n` +
-                `Event: ${eventType.toUpperCase()}\n` +
-                `Affected Customers: ${affectedCustomers}\n` +
-                `Time: ${new Date().toLocaleString('id-ID')}\n\n` +
-                `Details: ${JSON.stringify(details || {}, null, 2)}`;
-
-            for (const admin of admins) {
-                try {
-                    await this.waClient.sendMessage(admin.phone as string, message);
-                } catch (err) {
-                    console.error(`[Notification] Failed to escalate to ${admin.phone}:`, err);
-                }
-            }
-
-            console.log(`[Notification] Escalation sent to ${admins.length} admins`);
-        } catch (error) {
-            console.error('[Notification] Error sending escalation:', error);
-        }
+        // DISABLED: Escalation notifications disabled per user request
+        console.log(`[Notification] SKIPPED escalation for ${eventType} (${affectedCustomers} affected) (Service Disabled)`);
+        return;
     }
 
     /**
@@ -376,54 +203,9 @@ export class CustomerNotificationService {
         customer: CustomerInfo,
         status: 'offline' | 'online'
     ): Promise<void> {
-        try {
-            // Cooldown logic to prevent spamming admins (e.g., max once per 15 minutes for the same change)
-            const cooldownKey = `${customer.id}_${status}`;
-            const lastSent = this.adminBroadcastCooldowns.get(cooldownKey) || 0;
-            const now = Date.now();
-            const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-
-            if (now - lastSent < COOLDOWN_MS) {
-                console.log(`[Notification] Admin broadcast suppressed for ${customer.name} (cooldown)`);
-                return;
-            }
-
-            // Get admins/operators with phone numbers
-            const [users] = await databasePool.query<RowDataPacket[]>(
-                `SELECT phone, full_name, role FROM users 
-                 WHERE role IN ('superadmin', 'admin', 'operator', 'teknisi') 
-                 AND phone IS NOT NULL AND phone != ''`
-            );
-
-            if (users.length === 0) return;
-
-            const icon = status === 'offline' ? '🔴' : '🟢';
-            const title = status === 'offline' ? 'ALERT: PELANGGAN OFFLINE' : 'INFO: PELANGGAN ONLINE';
-
-            const message = `${icon} *${title}*\n\n` +
-                `👤 Nama: *${customer.name}*\n` +
-                `🏠 Alamat: ${customer.address || '-'}\n` +
-                `📦 ODP: ${customer.odp_name || '-'}\n` +
-                `🆔 ID: ${customer.customer_code}\n` +
-                `📡 Layanan: ${customer.connection_type.toUpperCase()}\n` +
-                `⏰ Waktu: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
-
-            console.log(`[Notification] Broadcasting ${status} alert for ${customer.name} to ${users.length} admins`);
-
-            for (const user of users) {
-                try {
-                    await this.waClient.sendMessage(user.phone, message);
-                } catch (e) {
-                    console.error(`Failed to send to admin ${user.full_name}:`, e);
-                }
-            }
-
-            // Update cooldown timestamp
-            this.adminBroadcastCooldowns.set(cooldownKey, now);
-
-        } catch (error) {
-            console.error('[Notification] Error broadcasting to admins:', error);
-        }
+        // DISABLED: Admin broadcasts disabled per user request
+        console.log(`[Notification] SKIPPED admin broadcast for ${customer.name} status ${status} (Service Disabled)`);
+        return;
     }
 
     /**
@@ -436,39 +218,9 @@ export class CustomerNotificationService {
         status: 'offline' | 'online',
         affectedCount: number
     ): Promise<void> {
-        try {
-            const [users] = await databasePool.query<RowDataPacket[]>(
-                `SELECT phone, full_name FROM users 
-                 WHERE role IN ('superadmin', 'admin', 'operator', 'teknisi') 
-                 AND phone IS NOT NULL AND phone != ''`
-            );
-
-            if (users.length === 0) return;
-
-            const isOffline = status === 'offline';
-            const icon = isOffline ? '\ud83d\udea8' : '\u2705';
-            const title = isOffline ? `GANGGUAN MASAL: ${type} DOWN` : `${type} PULIH KEMBALI`;
-
-            const message = `${icon} *${title}*\\n\\n` +
-                `\ud83d\udccd ${type}: *${locationName}*\\n` +
-                `\ud83d\udcc9 Status: ${isOffline ? 'TERPUTUS / DOWN' : 'NORMAL KEMBALI'}\\n` +
-                `\ud83d\udc65 Pelanggan Terdampak: ${affectedCount} orang\\n` +
-                `\u23f0 Waktu: ${new Date().toLocaleString('id-ID')}\\n\\n` +
-                `${isOffline ? '\u26a0\ufe0f Mohon segera dicek oleh tim teknis di lokasi.' : '\ud83c\udf89 Koneksi telah stabil kembali.'}`;
-
-            console.log(`[Notification] Broadcasting ${type} ${status} alert for ${locationName} (${affectedCount} affected)`);
-
-            for (const user of users) {
-                try {
-                    await this.waClient.sendMessage(user.phone, message);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                } catch (e) {
-                    console.error(`[Notification] Failed to send infra alert to ${user.full_name}`);
-                }
-            }
-        } catch (error) {
-            console.error('[Notification] Error broadcasting infrastructure alert:', error);
-        }
+        // DISABLED: Infrastructure issue broadcasts disabled per user request
+        console.log(`[Notification] SKIPPED infra alert for ${locationName} status ${status} (Service Disabled)`);
+        return;
     }
 }
 

@@ -68,6 +68,42 @@ router.get('/whatsapp/verification/:id', WhatsAppSettingsController.getVerificat
 router.get('/whatsapp/customer-invoices/:customerId', WhatsAppSettingsController.getCustomerInvoices);
 router.post('/whatsapp/verify-payment', WhatsAppSettingsController.processVerification);
 
+// Clear all WhatsApp notification queue
+router.post('/whatsapp/clear-queue', async (req, res) => {
+  try {
+    const pool = require('../db/pool').default;
+
+    // Count pending before delete
+    const [countRows]: any = await pool.query(
+      "SELECT COUNT(*) as cnt FROM unified_notifications_queue WHERE status IN ('pending', 'processing', 'failed')"
+    );
+    const pendingCount = countRows[0]?.cnt || 0;
+
+    // Delete all pending/processing/failed notifications
+    await pool.query(
+      "DELETE FROM unified_notifications_queue WHERE status IN ('pending', 'processing', 'failed')"
+    );
+
+    // Also clear in-memory message queue in WhatsApp service
+    try {
+      const { WhatsAppService } = require('../services/whatsapp/WhatsAppService');
+      const waService = WhatsAppService.getInstance();
+      // Access the private queue and clear it
+      if ((waService as any).messageQueue) {
+        const queueLen = (waService as any).messageQueue.length;
+        (waService as any).messageQueue = [];
+        console.log(`[WhatsApp] Cleared ${queueLen} messages from in-memory queue`);
+      }
+    } catch (e) { }
+
+    console.log(`[Settings] Cleared ${pendingCount} notifications from queue`);
+    res.json({ success: true, message: `Berhasil menghapus ${pendingCount} antrian notifikasi WhatsApp` });
+  } catch (error: any) {
+    console.error('[Settings] Error clearing queue:', error);
+    res.status(500).json({ success: false, message: error.message || 'Gagal menghapus antrian' });
+  }
+});
+
 // Routes untuk Backup & Restore
 import { BackupController } from '../controllers/backupController';
 router.get('/backup', BackupController.index);

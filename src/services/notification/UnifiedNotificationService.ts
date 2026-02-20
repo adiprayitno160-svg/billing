@@ -668,6 +668,9 @@ export class UnifiedNotificationService {
         variables: {
           invoice_number: invoice.invoice_number,
           amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
+          nominal: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
+          total_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
+          remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount || invoice.total_amount)),
           subtotal: NotificationTemplateService.formatCurrency(parseFloat(invoice.subtotal || 0)),
           discount_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.discount_amount || 0)),
           billing_summary: `Subtotal: ${NotificationTemplateService.formatCurrency(parseFloat(invoice.subtotal || 0))}\n` +
@@ -692,7 +695,7 @@ export class UnifiedNotificationService {
   /**
    * Helper to generate invoice PDF
    */
-  private static async generateInvoicePdf(invoiceId: number): Promise<string | undefined> {
+  public static async generateInvoicePdf(invoiceId: number): Promise<string | undefined> {
     try {
       const { InvoicePdfService } = await import('../invoice/InvoicePdfService');
       const attachmentPath = await InvoicePdfService.generateInvoicePdf(invoiceId);
@@ -736,9 +739,9 @@ export class UnifiedNotificationService {
         priority: 'high',
         variables: {
           invoice_number: invoice.invoice_number,
-          amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
           total_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
           remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+          amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
           subtotal: NotificationTemplateService.formatCurrency(parseFloat(invoice.subtotal || 0)),
           discount_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.discount_amount || 0)),
           billing_summary: `Total Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount))}\n` +
@@ -751,7 +754,8 @@ export class UnifiedNotificationService {
           bank_account_name: bank.accountName,
           bank_list: bank.bankListText,
           notes: invoice.notes || ''
-        }
+        },
+        attachment_path: await this.generateInvoicePdf(invoiceId)
       });
     } finally {
       connection.release();
@@ -785,7 +789,9 @@ export class UnifiedNotificationService {
         priority: 'normal',
         variables: {
           invoice_number: invoice.invoice_number,
-          amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+          total_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
+          remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+          amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
           due_date: NotificationTemplateService.formatDate(dueDate),
           period: invoice.period || '-',
           bank_name: bank.bankName,
@@ -793,7 +799,8 @@ export class UnifiedNotificationService {
           bank_account_name: bank.accountName,
           bank_list: bank.bankListText,
           notes: invoice.notes || ''
-        }
+        },
+        attachment_path: await this.generateInvoicePdf(invoiceId)
       });
     } finally {
       connection.release();
@@ -894,17 +901,14 @@ export class UnifiedNotificationService {
 
       console.log(`[UnifiedNotification] Payment ${paymentId}: isPaid=${isPaid}, NotificationType=${notificationType}`);
 
-      // Generate PDF if full payment
+      // Generate PDF for payment receipt/invoice
       let attachmentPath = undefined;
-      if (isPaid) {
-        try {
-          const { InvoicePdfService } = await import('../invoice/InvoicePdfService');
-          attachmentPath = await InvoicePdfService.generateInvoicePdf(payment.invoice_id);
-          console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
-        } catch (pdfError) {
-          console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
-          // Continue without attachment
-        }
+      try {
+        attachmentPath = await this.generateInvoicePdf(payment.invoice_id);
+        console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
+      } catch (pdfError) {
+        console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
+        // Continue without attachment
       }
 
       // Format billing month
@@ -923,15 +927,16 @@ export class UnifiedNotificationService {
             invoice_number: payment.invoice_number,
             billing_month: billingMonth,
             amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
+            nominal: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
             paid_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.amount)),
+            total_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount)),
+            remaining_amount: NotificationTemplateService.formatCurrency(isPaid ? 0 : parseFloat(payment.remaining_amount)),
             subtotal: NotificationTemplateService.formatCurrency(parseFloat(payment.subtotal || 0)),
             discount_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0)),
             billing_summary: `Total Tagihan: ${NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount))}\n` +
               (parseFloat(payment.discount_amount || 0) > 0 ? `Potongan: -${NotificationTemplateService.formatCurrency(parseFloat(payment.discount_amount || 0))}\n` : '') +
               `Jumlah Bayar: ${NotificationTemplateService.formatCurrency(parseFloat(payment.amount))}\n` +
               `Sisa Tagihan: ${NotificationTemplateService.formatCurrency(isPaid ? 0 : parseFloat(payment.remaining_amount))}`,
-            total_amount: NotificationTemplateService.formatCurrency(parseFloat(payment.total_amount)),
-            remaining_amount: NotificationTemplateService.formatCurrency(isPaid ? 0 : remainingAmount),
             payment_method: (payment.payment_method || 'Tunai') + (payment.notes ? `\n📝 ${payment.notes}` : ''),
             payment_date: NotificationTemplateService.formatDate(paymentDate),
             due_date: payment.due_date ? NotificationTemplateService.formatDate(new Date(payment.due_date)) : '-',

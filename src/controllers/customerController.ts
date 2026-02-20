@@ -29,9 +29,9 @@ export const getCustomerList = async (req: Request, res: Response) => {
         let queryParams: any[] = [];
 
         if (search) {
-            whereConditions.push(`(c.name LIKE ? OR c.phone LIKE ? OR c.customer_code LIKE ? OR c.pppoe_username LIKE ?)`);
+            whereConditions.push(`(c.name LIKE ? OR c.phone LIKE ? OR c.pppoe_username LIKE ?)`);
             const searchPattern = `%${search}%`;
-            queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+            queryParams.push(searchPattern, searchPattern, searchPattern);
         }
 
         if (status) {
@@ -46,21 +46,45 @@ export const getCustomerList = async (req: Request, res: Response) => {
 
         const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-        // Query all customers with their subscriptions and packages
+        // Check which tables exist to build safe query
+        let hasSubscriptions = false;
+        let hasStaticIpClients = false;
+        let hasStaticIpPackages = false;
+        try {
+            await databasePool.query('SELECT 1 FROM subscriptions LIMIT 0');
+            hasSubscriptions = true;
+        } catch (e) { /* table doesn't exist */ }
+        try {
+            await databasePool.query('SELECT 1 FROM static_ip_clients LIMIT 0');
+            hasStaticIpClients = true;
+        } catch (e) { /* table doesn't exist */ }
+        try {
+            await databasePool.query('SELECT 1 FROM static_ip_packages LIMIT 0');
+            hasStaticIpPackages = true;
+        } catch (e) { /* table doesn't exist */ }
+
+        // Build query dynamically based on available tables
+        let selectExtra = '';
+        let joinExtra = '';
+
+        if (hasSubscriptions) {
+            selectExtra += ', s.package_name as postpaid_package_name, s.price as subscription_price';
+            joinExtra += " LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'";
+        }
+        if (hasStaticIpClients && hasStaticIpPackages) {
+            selectExtra += ', sip.name as static_ip_package_name';
+            joinExtra += ' LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id';
+            joinExtra += ' LEFT JOIN static_ip_packages sip ON sic.package_id = sip.id';
+        }
+
         const query = `
             SELECT 
-                c.*,
-                s.package_name as postpaid_package_name,
-                s.price as subscription_price,
-                sip.name as static_ip_package_name
+                c.*${selectExtra}
             FROM customers c
-            LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
-            LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id
-            LEFT JOIN static_ip_packages sip ON sic.package_id = sip.id
+            ${joinExtra}
             ${whereClause}
             ORDER BY c.created_at DESC
             LIMIT ? OFFSET ?
-
         `;
 
         queryParams.push(limit, offset);
@@ -76,9 +100,9 @@ export const getCustomerList = async (req: Request, res: Response) => {
         const customersWithPackages = customers.map((customer: any) => {
             let pkgName = null;
             if (customer.connection_type === 'pppoe') {
-                pkgName = customer.postpaid_package_name;
+                pkgName = customer.postpaid_package_name || null;
             } else if (customer.connection_type === 'static_ip') {
-                pkgName = customer.static_ip_package_name;
+                pkgName = customer.static_ip_package_name || null;
             }
 
             return {
@@ -98,13 +122,23 @@ export const getCustomerList = async (req: Request, res: Response) => {
             "SELECT COUNT(*) as total FROM customers WHERE status = 'inactive'"
         );
 
+        // Count isolated (isolir) customers
+        let isolirCount = 0;
+        try {
+            const [isolirResult] = await databasePool.query<RowDataPacket[]>(
+                "SELECT COUNT(*) as total FROM customers WHERE status = 'isolated'"
+            );
+            isolirCount = isolirResult[0]?.total || 0;
+        } catch (e) { /* ignore */ }
+
         res.render('customers/list', {
             title: 'Data Pelanggan',
             customers: customersWithPackages,
             stats: {
                 total: totalCount[0]?.total || 0,
                 active: activeCount[0]?.total || 0,
-                inactive: inactiveCount[0]?.total || 0
+                inactive: inactiveCount[0]?.total || 0,
+                isolir: isolirCount
             },
             pagination: {
                 page: page,
@@ -128,7 +162,10 @@ export const getCustomerList = async (req: Request, res: Response) => {
         res.status(500).render('customers/list', {
             title: 'Data Pelanggan',
             customers: [],
-            stats: { total: 0, active: 0, inactive: 0 },
+            stats: { total: 0, active: 0, inactive: 0, isolir: 0 },
+            pagination: { page: 1, limit: 50, total: 0, pages: 0 },
+            filters: { search: '', status: '', connection_type: '' },
+            success: null,
             error: errorMessage,
             currentPath: '/customers/list'
         });
@@ -724,7 +761,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
             rental_mode,
             rental_cost,
             ignore_monitoring_start,
-            ignore_monitoring_end
+            ignore_monitoring_end,
+            enable_billing
         } = req.body;
 
         console.log('[DEBUG UPDATE] ODP ID from body:', odp_id);
@@ -802,8 +840,19 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateFields.push('status = ?');
                 updateValues.push(status);
                 newStatus = status;
-
-
+            }
+            if (req.body.activation_date !== undefined) {
+                updateFields.push('activation_date = ?');
+                updateValues.push(req.body.activation_date || null);
+            }
+            if (req.body.expiry_date !== undefined) {
+                updateFields.push('expiry_date = ?');
+                // HTML datetime-local yields YYYY-MM-DDTHH:mm, which MySQL likes if we replace T with space or just pass it
+                updateValues.push(req.body.expiry_date ? req.body.expiry_date.replace('T', ' ') : null);
+            }
+            if (req.body.grace_period !== undefined) {
+                updateFields.push('grace_period = ?');
+                updateValues.push(parseInt(req.body.grace_period) || 0);
             }
             if (connection_type !== undefined) {
                 updateFields.push('connection_type = ?');
@@ -1079,6 +1128,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             [customerId]
                         );
 
+                        // USER REQUEST: If expiry date is set, automatically enable billing
+                        const forceEnableBilling = (req.body.expiry_date && req.body.expiry_date !== '') || (enable_billing === '1' || enable_billing === 'on');
+
                         if (existingSubs && existingSubs.length > 0) {
                             // Update existing subscription
                             await conn.query(
@@ -1091,7 +1143,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         } else {
                             // Create new subscription
                             // For PPPoE activation flow: If customer is inactive, create subscription as inactive
-                            const targetSubStatus = (newStatus || oldCustomer.status) === 'inactive' ? 'inactive' : 'active';
+                            // UNLESS forceEnableBilling is true
+                            const targetSubStatus = (forceEnableBilling || (newStatus || oldCustomer.status) !== 'inactive') ? 'active' : 'inactive';
 
                             await conn.query(
                                 `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at)

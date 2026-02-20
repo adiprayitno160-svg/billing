@@ -1028,18 +1028,8 @@ export class NetworkMonitoringService {
                 return;
             }
 
-            console.log(`  📢 Sending mass outage notification to ${affectedCustomers.length} customers...`);
-
-            // Send notifications
-            const waClient = whatsappService;
-
-            const message = `⚠️ *PEMBERITAHUAN GANGGUAN JARINGAN*\n\n` +
-                `Pelanggan Yth,\n` +
-                `Saat ini terdeteksi gangguan pada perangkat jaringan kami di area Anda (${deviceName}).\n\n` +
-                `Tim teknis kami sedang menangani masalah ini agar koneksi internet Anda dapat segera kembali normal.\n\n` +
-                `Mohon maaf atas ketidaknyamanan ini.\n` +
-                `Terima kasih.`;
-
+            console.log(`  📢 Mass outage notification to ${affectedCustomers.length} customers SKIPPED (Service Disabled).`);
+            /*
             let sentCount = 0;
             for (const customer of affectedCustomers) {
                 try {
@@ -1051,6 +1041,7 @@ export class NetworkMonitoringService {
             }
 
             console.log(`  ✅ Notification sent to ${sentCount}/${affectedCustomers.length} customers.`);
+            */
 
             // ============================================
             // Auto-create Technician Job

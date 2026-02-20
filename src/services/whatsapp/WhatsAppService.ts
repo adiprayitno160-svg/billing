@@ -94,7 +94,7 @@ export class WhatsAppService extends EventEmitter {
 
   // Reconnection
   private reconnectAttempts: number = 0;
-  private readonly MAX_RECONNECT_ATTEMPTS = 10;
+  private readonly MAX_RECONNECT_ATTEMPTS = 50;
   private reconnectTimeout: NodeJS.Timeout | null = null;
 
   // Initialization promise for concurrency handling
@@ -513,8 +513,15 @@ export class WhatsAppService extends EventEmitter {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-      this.log('error', '❌ Max reconnection attempts reached. Manual restart required.');
+      this.log('error', '❌ Max reconnection attempts reached. Will auto-retry in 5 minutes...');
       this.emit('max-reconnect-reached');
+      // Auto-reset after 5 minutes and try again
+      setTimeout(() => {
+        this.log('info', '🔄 Auto-resetting reconnect counter and retrying...');
+        this.reconnectAttempts = 0;
+        this.initPromise = null;
+        this.initialize().catch(e => this.log('error', 'Auto-reconnect failed:', e.message));
+      }, 5 * 60 * 1000);
       return;
     }
 
@@ -528,6 +535,7 @@ export class WhatsAppService extends EventEmitter {
     this.log('info', `🔄 Reconnecting in ${delay / 1000}s... (Attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
 
     this.reconnectTimeout = setTimeout(() => {
+      this.initPromise = null;
       this.initialize();
     }, delay);
   }

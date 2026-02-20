@@ -14,9 +14,10 @@
                 <p class="text-xs text-blue-100 font-medium">System (v2.5)</p>
             </div>
         </div>
-        <!-- Mobile Close Button (Absolute Positioned for safety) -->
-        <button type="button" onclick="window.forceCloseSidebar(event); return false;"
-            class="md:hidden absolute top-4 right-4 p-2 rounded-full bg-red-600 text-white shadow-lg z-[9999] cursor-pointer hover:bg-red-700 active:scale-95 transition-transform"
+        <!-- Close Button (Works on both mobile and desktop) -->
+        <button type="button" id="sidebarCloseBtn"
+            onclick="if(window.innerWidth >= 768) { window.toggleSidebar(event); } else { window.forceCloseSidebar(event); } return false;"
+            class="absolute top-4 right-4 p-2 rounded-full bg-white/20 text-white shadow-lg z-[9999] cursor-pointer hover:bg-white/30 active:scale-95 transition-all duration-200 ring-1 ring-white/30 backdrop-blur-sm"
             style="pointer-events: auto !important; display: flex !important; align-items: center; justify-content: center;">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>

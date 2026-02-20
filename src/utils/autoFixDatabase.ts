@@ -397,7 +397,9 @@ export async function autoFixCustomerColumns(): Promise<void> {
       { name: 'last_ping_check', def: 'DATETIME DEFAULT NULL' },
       { name: 'balance', def: 'DECIMAL(15,2) DEFAULT 0.00' },
       { name: 'notification_enabled', def: 'TINYINT(1) DEFAULT 1' },
-      { name: 'notification_cooldown_hours', def: 'INT DEFAULT 1' }
+      { name: 'notification_cooldown_hours', def: 'INT DEFAULT 1' },
+      { name: 'activation_date', def: 'DATE DEFAULT NULL' },
+      { name: 'grace_period', def: 'INT DEFAULT 0' }
     ];
 
     for (const col of monitoringColumns) {

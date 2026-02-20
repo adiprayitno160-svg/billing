@@ -92,7 +92,29 @@
                                     </option>
                                     <option value="inactive" <%=customer.status==='inactive' ? 'selected' : '' %>>❌
                                         Non-Aktif (Isolir)</option>
+                                    <option value="isolated" <%=customer.status==='isolated' ? 'selected' : '' %>>🚫
+                                        Terisolir (Otomatis)</option>
                                 </select>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Tanggal
+                                    Aktivasi</label>
+                                <input type="date" name="activation_date"
+                                    value="<%= customer.activation_date ? new Date(customer.activation_date).toISOString().split('T')[0] : '' %>"
+                                    class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all font-bold text-slate-800 outline-none text-sm" />
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Grace
+                                    Period (Hari)</label>
+                                <input type="number" name="grace_period" value="<%= customer.grace_period || 0 %>"
+                                    min="0" max="30"
+                                    class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all font-bold text-slate-800 outline-none text-sm" />
+                                <p class="text-[10px] text-slate-400 mt-1 font-medium italic">Tambahan hari sebelum
+                                    isolir otomatis.</p>
                             </div>
 
                             <div class="md:col-span-2">
@@ -324,25 +346,17 @@
                                 </select>
                             </div>
 
-                            <% if (customer.billing_mode==='prepaid' && customer.expiry_date) { %>
+                            <% if (customer.billing_mode==='prepaid' ) { %>
                                 <div>
                                     <label
                                         class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Masa
-                                        Aktif</label>
-                                    <div
-                                        class="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex justify-between items-center">
-                                        <span class="font-bold text-slate-700 text-sm">
-                                            <%= new Date(customer.expiry_date).toLocaleString('id-ID', {
-                                                dateStyle: 'medium' , timeStyle: 'short' }) %>
-                                        </span>
-                                        <% if (new Date(customer.expiry_date) <=new Date()) { %>
-                                            <span
-                                                class="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] rounded-full font-bold">EXPIRED</span>
-                                            <% } else { %>
-                                                <span
-                                                    class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full font-bold">ACTIVE</span>
-                                                <% } %>
-                                    </div>
+                                        Aktif (Prepaid)</label>
+                                    <input type="datetime-local" name="expiry_date"
+                                        value="<%= customer.expiry_date ? new Date(new Date(customer.expiry_date).getTime() + (7 * 60 * 60 * 1000)).toISOString().slice(0, 16) : '' %>"
+                                        class="w-full rounded-2xl border border-slate-200 px-5 py-3.5 focus:border-amber-500 focus:ring-4 focus:ring-amber-50 transition-all font-bold text-slate-800 outline-none text-sm" />
+                                    <% if (customer.expiry_date && new Date(customer.expiry_date) <=new Date()) { %>
+                                        <p class="text-[10px] text-red-500 mt-1 font-bold uppercase">⚠️ EXPIRED</p>
+                                        <% } %>
                                 </div>
                                 <% } %>
                         </div>

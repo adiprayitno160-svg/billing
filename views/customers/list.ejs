@@ -44,11 +44,26 @@
 	</div>
 
 	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-		<% let totalVal=0; let activeVal=0; let inactiveVal=0; let isolirVal=0; if (typeof pagination !=='undefined' &&
-			pagination) { totalVal=pagination.total; } else if (typeof stats !=='undefined' && stats) {
-			totalVal=stats.total; } else if (typeof customers !=='undefined' && customers) { totalVal=customers.length;
-			} if (typeof stats !=='undefined' && stats) { activeVal=stats.active; inactiveVal=stats.inactive;
-			isolirVal=stats.isolir; } %>
+		<% 
+    let totalVal = 0; 
+    let activeVal = 0; 
+    let inactiveVal = 0; 
+    let isolirVal = 0; 
+    
+    if (typeof pagination !== 'undefined' && pagination) { 
+        totalVal = pagination.total; 
+    } else if (typeof stats !== 'undefined' && stats) {
+        totalVal = stats.total; 
+    } else if (typeof customers !== 'undefined' && customers) { 
+        totalVal = customers.length;
+    } 
+    
+    if (typeof stats !== 'undefined' && stats) { 
+        activeVal = stats.active; 
+        inactiveVal = stats.inactive;
+        isolirVal = stats.isolir; 
+    } 
+%>
 			<div class="bg-white/70 backdrop-blur-sm p-5 rounded-3xl border border-white/50 shadow-sm group">
 				<div class="flex items-center gap-4">
 					<div
@@ -121,9 +136,9 @@
 				<select name="connection_type" id="connectionTypeFilter"
 					class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-[10px] font-black uppercase tracking-tight text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-100 appearance-none cursor-pointer">
 					<option value="">Semua Koneksi</option>
-					<option value="pppoe" <%=typeof filters !=='undefined' && filters &&
+					<option value="pppoe" <%=typeof filters !== 'undefined' && filters &&
 						filters.connection_type==='pppoe' ? 'selected' : '' %>>PPPoE</option>
-					<option value="static_ip" <%=typeof filters !=='undefined' && filters &&
+					<option value="static_ip" <%=typeof filters !== 'undefined' && filters &&
 						filters.connection_type==='static_ip' ? 'selected' : '' %>>IP Statis</option>
 				</select>
 			</div>
@@ -131,9 +146,9 @@
 				<select name="status" id="statusFilter"
 					class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-[10px] font-black uppercase tracking-tight text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-100 appearance-none cursor-pointer">
 					<option value="">Semua Status</option>
-					<option value="active" <%=typeof filters !=='undefined' && filters && filters.status==='active'
+					<option value="active" <%=typeof filters !== 'undefined' && filters && filters.status==='active'
 						? 'selected' : '' %>>Aktif</option>
-					<option value="inactive" <%=typeof filters !=='undefined' && filters && filters.status==='inactive'
+					<option value="inactive" <%=typeof filters !== 'undefined' && filters && filters.status==='inactive'
 						? 'selected' : '' %>>Nonaktif</option>
 				</select>
 			</div>
@@ -142,7 +157,7 @@
 					class="flex-1 bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl py-2.5 hover:bg-slate-900 transition-all active:scale-95 shadow-lg shadow-slate-200">
 					<i class="fas fa-filter mr-1"></i> Saring
 				</button>
-				<% if (typeof filters !=='undefined' && filters && (filters.search || filters.status ||
+				<% if (typeof filters !== 'undefined' && filters && (filters.search || filters.status ||
 					filters.connection_type)) { %>
 					<a href="/customers/list"
 						class="flex-1 bg-white border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-2xl py-2.5 text-center hover:bg-slate-50 transition-all active:scale-95">
@@ -291,15 +306,15 @@
 											<button
 												class="migrateToPrepaidBtn w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-purple-50 hover:text-purple-600 transition-all"
 												data-id="<%= customer.id %>"
-												data-name="<%= customer.name.replace(/'/g, " \\'") %>" title="Migrasi ke
-												Prepaid">
+												data-name="<%= (customer.name || '').replace(/'/g, "\'") %>"
+												title="Migrasi ke Prepaid">
 												<i class="fas fa-exchange-alt text-[10px]"></i>
 											</button>
 											<% } else { %>
 												<button
 													class="migrateToPostpaidBtn w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-orange-50 hover:text-orange-600 transition-all"
 													data-id="<%= customer.id %>"
-													data-name="<%= customer.name.replace(/'/g, " \\'") %>"
+													data-name="<%= (customer.name || '').replace(/'/g, "\'") %>"
 													title="Migrasi ke Postpaid">
 													<i class="fas fa-undo text-[10px]"></i>
 												</button>
@@ -318,7 +333,7 @@
 													<button
 														class="deleteCustomerBtn w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all"
 														data-id="<%= customer.id %>"
-														data-name="<%= customer.name.replace(/'/g, " \\'") %>"
+														data-name="<%= (customer.name || '').replace(/'/g, "\'") %>"
 														title="Hapus">
 														<i class="fas fa-trash-alt text-xs"></i>
 													</button>
@@ -417,15 +432,15 @@
 								<% if (customer.billing_mode==='postpaid' || !customer.billing_mode) { %>
 									<button
 										class="migrateToPrepaidBtn text-[10px] font-black text-purple-600 uppercase underline decoration-purple-200"
-										data-id="<%= customer.id %>" data-name="<%= customer.name.replace(/'/g, " \\'")
-										%>">
+										data-id="<%= customer.id %>"
+										data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
 										Prepaid
 									</button>
 									<% } else { %>
 										<button
 											class="migrateToPostpaidBtn text-[10px] font-black text-orange-600 uppercase underline decoration-orange-200"
-											data-id="<%= customer.id %>" data-name="<%= customer.name.replace(/'/g, "
-											\\'") %>">
+											data-id="<%= customer.id %>"
+											data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
 											Postpaid
 										</button>
 										<% } %>
@@ -441,7 +456,7 @@
 											<button
 												class="deleteCustomerBtn w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 active:bg-rose-600 active:text-white transition-all"
 												data-id="<%= customer.id %>"
-												data-name="<%= customer.name.replace(/'/g, " \\'") %>">
+												data-name="<%= customer.name.replace(/'/g, "\'") %>">
 												<i class="fas fa-trash-alt"></i>
 											</button>
 							</div>
@@ -458,7 +473,7 @@
 	</div>
 
 	<!-- Pagination -->
-	<% if (typeof pagination !=='undefined' && pagination && pagination.pages> 1) { %>
+	<% if (typeof pagination !== 'undefined' && pagination && pagination.pages> 1) { %>
 		<div
 			class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/70 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm">
 			<p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">

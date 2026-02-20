@@ -382,10 +382,13 @@ export class IsolationService {
                         variables: {
                             customer_name: customer.name,
                             invoice_number: customer.invoice_number,
-                            remaining_amount: parseFloat(customer.remaining_amount).toLocaleString('id-ID'),
-                            due_date: new Date(customer.due_date).toLocaleDateString('id-ID'),
+                            amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
+                            total_amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
+                            remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
+                            due_date: NotificationTemplateService.formatDate(new Date(customer.due_date)),
                             days_remaining: daysBefore.toString()
                         },
+                        attachment_path: await UnifiedNotificationService.generateInvoicePdf(customer.invoice_id),
                         priority: 'high'
                     });
                     warned++;
@@ -446,10 +449,13 @@ export class IsolationService {
                         variables: {
                             customer_name: customer.name,
                             customer_code: customer.customer_code,
-                            remaining_amount: parseFloat(customer.remaining_amount).toLocaleString('id-ID'),
+                            amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
+                            total_amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
+                            remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
                             blocking_date: blockingDate,
                             days_until_block: daysUntilBlock.toString()
                         },
+                        attachment_path: await UnifiedNotificationService.generateInvoicePdf(customer.invoice_id),
                         priority: 'high'
                     });
                     warned++;
@@ -529,9 +535,12 @@ export class IsolationService {
                         variables: {
                             customer_name: customer.name,
                             customer_code: customer.customer_code,
-                            remaining_amount: parseFloat(customer.remaining_amount).toLocaleString('id-ID'),
+                            amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
+                            total_amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
+                            remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
                             isolir_date: isolirDateDisplay
                         },
+                        attachment_path: await UnifiedNotificationService.generateInvoicePdf(customer.invoice_id),
                         priority: 'high'
                     });
                     warned++;

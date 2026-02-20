@@ -6,6 +6,7 @@
 import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
+import { NotificationTemplateService } from '../notification/NotificationTemplateService';
 
 export class PaymentShortageService {
     /**
@@ -80,9 +81,11 @@ export class PaymentShortageService {
                         variables: {
                             customer_name: invoice.customer_name || 'Pelanggan',
                             invoice_number: invoice.invoice_number || '',
-                            total_amount: parseFloat(invoice.total_amount || 0).toLocaleString('id-ID'),
-                            paid_amount: parseFloat(invoice.paid_amount || 0).toLocaleString('id-ID'),
-                            remaining_amount: parseFloat(invoice.remaining_amount || 0).toLocaleString('id-ID'),
+                            amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount || 0)),
+                            nominal: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount || 0)),
+                            total_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount || 0)),
+                            paid_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.paid_amount || 0)),
+                            remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount || 0)),
                             due_date: invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID') : '-',
                             days_overdue: daysOverdue.toString()
                         },
