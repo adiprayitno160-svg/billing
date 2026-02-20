@@ -187,6 +187,9 @@ export class TwoHourNotificationService {
 
             const hoursOffline = Math.floor((Date.now() - customer.offline_since.getTime()) / (1000 * 60 * 60));
 
+            // DISABLED: Customer notification for ongoing outage disabled per user request
+            // WhatsApp notifications are now handled by admin/operator manually to technicians
+            /*
             const message = `🚨 *PEMBERITAHUAN GANGGUAN BERLANJUT*\n\n` +
                 `Pelanggan Yth. *${customer.name}*,\n` +
                 `Koneksi internet Anda masih *OFFLINE* selama lebih dari *${hoursOffline} jam*.\n\n` +
@@ -201,6 +204,8 @@ export class TwoHourNotificationService {
                 `Terima kasih atas kesabarannya.`;
 
             await this.waClient.sendMessage(customer.phone, message);
+            */
+            console.log(`[TwoHourNotification] Customer notification SKIPPED for ${customer.name} (Service Disabled)`);
             return true;
         } catch (error) {
             console.error(`[TwoHourNotification] Failed to send offline notification to ${customer.name}:`, error);
@@ -226,6 +231,8 @@ export class TwoHourNotificationService {
 
             const offlineDuration = Math.floor((Date.now() - customer.offline_since.getTime()) / (1000 * 60 * 60));
 
+            // DISABLED: Customer notification for connection recovery disabled per user request
+            /*
             const message = `✅ *KONEKSI TELAH PULIH*\n\n` +
                 `Pelanggan Yth. *${customer.name}*,\n` +
                 `Koneksi internet Anda telah *NORMAL KEMBALI* setelah *${offlineDuration} jam*.\n\n` +
@@ -238,6 +245,8 @@ export class TwoHourNotificationService {
                 `Terima kasih atas kesabarannya.`;
 
             await this.waClient.sendMessage(customer.phone, message);
+            */
+            console.log(`[TwoHourNotification] Recovery notification SKIPPED for ${customer.name} (Service Disabled)`);
 
             // Log the recovery notification
             await this.logNotificationEvent({
