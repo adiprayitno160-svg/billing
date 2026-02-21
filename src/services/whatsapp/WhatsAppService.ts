@@ -113,10 +113,41 @@ export class WhatsAppService extends EventEmitter {
   private readonly AUTH_DIR = path.join(process.cwd(), 'whatsapp_auth_v3');
   private readonly LOG_DIR = path.join(process.cwd(), 'logs', 'whatsapp');
 
+  // Watchdog
+  private watchdogInterval: NodeJS.Timeout | null = null;
+  private lastInitializationTime: number = 0;
+
   private constructor() {
     super();
     this.ensureDirectories();
     this.log('info', '🚀 WhatsApp Service instantiated');
+    this.startWatchdog();
+  }
+
+  /**
+   * Watchdog to monitor service health and auto-restart if stuck
+   */
+  private startWatchdog(): void {
+    if (this.watchdogInterval) clearInterval(this.watchdogInterval);
+
+    this.watchdogInterval = setInterval(async () => {
+      const instanceId = process.env.NODE_APP_INSTANCE || '0';
+      if (instanceId !== '0') return;
+
+      // Logic: If not connected, not in QR mode, and not already connecting
+      // OR if stuck in 'isConnecting' for more than 5 minutes
+      const now = Date.now();
+      const isStuckInitializing = this.isConnecting && (now - this.lastInitializationTime > 300000); // 5 mins
+
+      if ((!this.isConnected && !this.isConnecting && !this.qrCode) || isStuckInitializing) {
+        this.log('warn', `🐕 Watchdog: Service seems stuck or disconnected (Stuck: ${isStuckInitializing}). Triggering auto-restart...`);
+        try {
+          await this.restart();
+        } catch (e: any) {
+          this.log('error', 'Watchdog restart failed:', e.message);
+        }
+      }
+    }, 60000); // Check every minute
   }
 
   /**
@@ -204,6 +235,7 @@ export class WhatsAppService extends EventEmitter {
 
       try {
         this.log('info', `🔄 Initializing WhatsApp connection... Path: ${this.AUTH_DIR}`);
+        this.lastInitializationTime = Date.now();
 
         // Load auth state
         const { state, saveCreds } = await useMultiFileAuthState(this.AUTH_DIR);

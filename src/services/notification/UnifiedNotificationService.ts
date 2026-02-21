@@ -171,6 +171,15 @@ export class UnifiedNotificationService {
           allVariables
         );
 
+        // Inject isolation info if it's an invoice_created notification
+        const vars = allVariables as any;
+        if (data.notification_type === 'invoice_created' && vars.isolation_date) {
+          const isolationInfo = `\n\n*PENTING:* Pembayaran paling lambat diterima tanggal *${vars.due_date}*. Apabila sampai tanggal tersebut belum ada pembayaran, maka layanan akan diisolir otomatis pada tanggal *${vars.isolation_date}*.\n\n_Abaikan pesan ini jika sudah melakukan pembayaran._`;
+          if (!message.includes('diisolir')) {
+            message += isolationInfo;
+          }
+        }
+
         // Insert into queue
         const [result] = await connection.query<ResultSetHeader>(
           `INSERT INTO unified_notifications_queue 
@@ -236,13 +245,14 @@ export class UnifiedNotificationService {
     failed: number;
     skipped: number;
   }> {
+    const instanceId = process.env.NODE_APP_INSTANCE || '0';
+    if (instanceId !== '0') {
+      return { sent: 0, failed: 0, skipped: 0 };
+    }
+
     console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit}, specific: ${specificIds?.length || 0})...`);
 
     const connection = await databasePool.getConnection();
-
-    // WhatsApp status check removed to allow per-item handling
-    // This prevents the entire queue from being blocked if WA is reconnecting
-    // Individual sendNotification calls will handle the wait/retry logic
 
     let sent = 0;
     let failed = 0;
@@ -659,6 +669,11 @@ export class UnifiedNotificationService {
 
       const invoice = invoiceRows[0]!;
       const dueDate = new Date(invoice.due_date);
+
+      // Hitung tanggal isolir (H+1 dari due_date)
+      const isolationDate = new Date(dueDate);
+      isolationDate.setDate(isolationDate.getDate() + 1);
+
       const bank = await this.getBankSettings();
 
       await this.queueNotification({
@@ -677,6 +692,8 @@ export class UnifiedNotificationService {
             (parseFloat(invoice.discount_amount || 0) > 0 ? `Potongan: -${NotificationTemplateService.formatCurrency(parseFloat(invoice.discount_amount || 0))}\n` : '') +
             `Total: ${NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount))}`,
           due_date: NotificationTemplateService.formatDate(dueDate),
+          isolation_date: NotificationTemplateService.formatDate(isolationDate),
+          isolation_day: isolationDate.getDate(),
           period: invoice.period,
           bank_name: bank.bankName,
           bank_account_number: bank.accountNumber,
