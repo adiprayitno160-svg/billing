@@ -270,15 +270,15 @@ export class UnifiedNotificationService {
       // Generate a unique ID for this worker run
       const runId = `worker_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-      // 1. First, cleanup any stuck processing notifications (those that have been in processing status for > 15 mins)
+      // 1. First, cleanup any stuck processing notifications (those that have been in processing status for > 5 mins)
       await connection.query(
         `UPDATE unified_notifications_queue 
          SET status = 'pending', 
-             error_message = 'Process timed out or worker restarted',
+             error_message = 'Process timed out or worker restarted (Auto-recovered)',
              worker_id = NULL,
              updated_at = NOW() 
          WHERE status = 'processing' 
-         AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)`
+         AND updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)`
       );
 
       // 1b. Cleanup very old pending notifications (expired)
