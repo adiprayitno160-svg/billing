@@ -268,7 +268,8 @@ Balas dengan bahasa yang membantu dan ramah ala Customer Service ISP.
                     `Mohon cek dashboard & Approve jika valid.`;
 
                 // Send to Admin Numbers
-                await UnifiedNotificationService.broadcastToAdmins(msg);
+                // DISABLED: Monitoring notifications disabled per user request
+                // await UnifiedNotificationService.broadcastToAdmins(msg);
             }
 
         } catch (error) {

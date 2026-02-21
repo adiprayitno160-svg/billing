@@ -39,10 +39,12 @@ export class MonitoringScheduler {
             this.startBandwidthCollection();
 
             // 3. SLA Monitoring & Incident Detection - Every 5 minutes
-            this.startSLAMonitoring();
+            // DISABLED: Sends downtime alerts
+            // this.startSLAMonitoring();
 
             // 4. Daily Summary Report - Every day at 8:00 AM
-            this.startDailySummaryReport();
+            // DISABLED: Sends daily summary reports
+            // this.startDailySummaryReport();
 
             // 5. Monthly SLA Calculation - 1st day of month at 2:00 AM
             this.startMonthlySLACalculation();
@@ -51,13 +53,16 @@ export class MonitoringScheduler {
             this.startPrepaidCheck();
 
             // 7. Prepaid Expiry Warnings (H-3, H-1) - Every day at 9:00 AM
-            this.startPrepaidExpiryWarnings();
+            // DISABLED: Sends expiry warnings via WhatsApp
+            // this.startPrepaidExpiryWarnings();
 
             // 8. Enhanced Customer Monitoring (Timeout/Recovery Detection) - Every 15 minutes
-            this.startEnhancedCustomerMonitoring();
+            // DISABLED: Sends timeout/recovery notifications
+            // this.startEnhancedCustomerMonitoring();
 
             // 9. Two Hour Notification Service - Every 2 hours
-            this.startTwoHourNotificationService();
+            // DISABLED: Sends 2-hour offline notifications
+            // this.startTwoHourNotificationService();
 
             // 10. GenieACS Device Sync - Every 1 hour
             this.startGenieacsSync();
