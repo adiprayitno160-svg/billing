@@ -4,7 +4,7 @@
 
 import { databasePool } from '../../db/pool';
 import { Pool, PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
-import { whatsappService } from '../whatsappService';
+import { whatsappService } from '../whatsapp/WhatsAppService';
 
 export class PrepaidService {
     /**
