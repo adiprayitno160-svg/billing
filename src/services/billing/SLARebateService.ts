@@ -97,20 +97,36 @@ export class SLARebateService {
             const rebate = await this.calculateRebate(invoice.customer_id, invoice.period);
 
             if (rebate.isEligible && rebate.rebateAmount > 0) {
-                // Apply discount to invoice
-                await databasePool.query(
-                    "UPDATE invoices SET discount_amount = discount_amount + ?, remaining_amount = remaining_amount - ?, tax_amount = (total_amount - discount_amount - ?) * 0.11 WHERE id = ?",
-                    [rebate.rebateAmount, rebate.rebateAmount, rebate.rebateAmount, invoiceId]
-                );
+                const { DiscountService } = await import('./discountService');
+                const connection = await databasePool.getConnection();
 
-                // Log the discount
-                await databasePool.query(
-                    "INSERT INTO customer_discounts (customer_id, discount_amount, reason, created_at) VALUES (?, ?, ?, NOW())",
-                    [invoice.customer_id, rebate.rebateAmount, rebate.reason]
-                );
+                try {
+                    await connection.beginTransaction();
 
-                console.log(`[SLARebate] Applied Rp ${rebate.rebateAmount} rebate to Invoice #${invoiceId} for ${invoice.period}`);
-                return true;
+                    // 1. Log to discounts table (invoice-level)
+                    await connection.query(
+                        "INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, created_at) VALUES (?, 'sla', ?, ?, NOW())",
+                        [invoiceId, rebate.rebateAmount, rebate.reason]
+                    );
+
+                    // 2. Also log to customer_discounts for history
+                    await connection.query(
+                        "INSERT INTO customer_discounts (customer_id, discount_amount, reason, created_at) VALUES (?, ?, ?, NOW())",
+                        [invoice.customer_id, rebate.rebateAmount, rebate.reason]
+                    );
+
+                    // 3. Update invoice totals correctly
+                    await DiscountService.updateInvoiceTotals(invoiceId, connection);
+
+                    await connection.commit();
+                    console.log(`[SLARebate] Applied Rp ${rebate.rebateAmount} rebate to Invoice #${invoiceId} for ${invoice.period}`);
+                    return true;
+                } catch (err) {
+                    await connection.rollback();
+                    throw err;
+                } finally {
+                    connection.release();
+                }
             }
 
             return false;

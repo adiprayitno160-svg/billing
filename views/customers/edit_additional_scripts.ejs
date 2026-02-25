@@ -56,10 +56,10 @@
 
                             return `
                                 <div class="p-3 hover:bg-blue-50 cursor-pointer rounded-xl border border-transparent hover:border-blue-100 transition-all flex justify-between items-center group ${item.isRegistered ? 'opacity-75' : ''}"
-                                     onclick="selectQueue('${item.ipAddress}', '${item.maxLimit}', '${item.name}')">
+                                     onclick="selectQueue('${item.ipAddress}', '${item.maxLimit}', '${item.queueName}')">
                                     <div>
                                         <div class="flex items-center gap-2">
-                                            <span class="font-bold text-gray-800">${item.name}</span>
+                                            <span class="font-bold text-gray-800">${item.queueName}</span>
                                             ${registeredBadge}
                                         </div>
                                         <div class="flex gap-3 text-xs text-gray-500 mt-1">
@@ -81,7 +81,7 @@
                     searchInput.addEventListener('input', (e) => {
                         const q = e.target.value.toLowerCase();
                         const filtered = data.data.filter(item =>
-                            item.name.toLowerCase().includes(q) ||
+                            item.queueName.toLowerCase().includes(q) ||
                             item.ipAddress.includes(q)
                         );
                         renderList(filtered);
@@ -102,22 +102,22 @@
                             setTimeout(() => ipInput.classList.remove('ring-4', 'ring-blue-200'), 500);
                         }
 
-                        // Try to auto-select package based on limit
-                        // Limit format: "10M/10M" (Upload/Download) or just "10M"
-                        // This is tricky because packages might not match exactly or formatting differs.
-                        // We will try simple matching if possible, otherwise user selects manually.
-                        // But finding the package select
-                        const pkgSelect = document.querySelector('select[name="static_ip_package"]');
-                        if (pkgSelect && limit) {
-                            // clean limit string (e.g. remove all non-alphanumeric except /)
-                            // Logic: iterate options, see if option text contains the limit values
-                            // This is fuzzy. Better to just let user know.
-                            // Or we can try to find simple match
+                        // Also set the name field
+                        const nameInput = document.querySelector('input[name="name"]');
+                        if (nameInput) {
+                            nameInput.value = name;
+                            nameInput.classList.add('ring-4', 'ring-blue-200');
+                            setTimeout(() => nameInput.classList.remove('ring-4', 'ring-blue-200'), 500);
                         }
 
-                        // Also hint the name if name input is empty? No, this is edit mode.
+                        // Try to auto-select package based on limit
+                        // Limit format: "10M/10M" (Upload/Download) or just "10M"
+                        const pkgSelect = document.querySelector('select[name="static_ip_package"]');
+                        if (pkgSelect && limit) {
+                            // Basic fuzzy matching could be added here if needed
+                        }
 
-                        alert(`Data Queue dipilih:\n\nIP: ${ip}\nName: ${name}\nLimit: ${limit}\n\nSilakan sesuaikan Paket Layanan jika diperlukan.`);
+                        alert(`Data Queue dipilih:\n\nNama: ${name}\nIP: ${ip}\nLimit: ${limit}\n\nSilakan sesuaikan Paket Layanan jika diperlukan.`);
                         close();
                     };
 

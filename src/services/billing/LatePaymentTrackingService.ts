@@ -85,7 +85,7 @@ export class LatePaymentTrackingService {
       // Update customer stats
       if (isLate) {
         // Increment consecutive late payments will be handled by calculateLatePaymentCount
-        await this.calculateLatePaymentCount(invoice.customer_id);
+        await this.calculateLatePaymentCount(invoice.customer_id, undefined, connection);
 
         // Update last late payment date
         await connection.query(
@@ -105,7 +105,7 @@ export class LatePaymentTrackingService {
         );
 
         // Check if should reset counter
-        await this.checkAndResetCounter(invoice.customer_id);
+        await this.checkAndResetCounter(invoice.customer_id, connection);
       }
 
       await connection.commit();
@@ -126,8 +126,8 @@ export class LatePaymentTrackingService {
   /**
    * Calculate rolling count of late payments for customer
    */
-  static async calculateLatePaymentCount(customerId: number, months?: number): Promise<number> {
-    const connection = await pool.getConnection();
+  static async calculateLatePaymentCount(customerId: number, months?: number, existingConnection?: any): Promise<number> {
+    const connection = existingConnection || await pool.getConnection();
 
     try {
       // Check if late_payment_count column exists
@@ -251,8 +251,8 @@ export class LatePaymentTrackingService {
   /**
    * Check and reset counter if customer has consecutive on-time payments
    */
-  static async checkAndResetCounter(customerId: number): Promise<void> {
-    const connection = await pool.getConnection();
+  static async checkAndResetCounter(customerId: number, existingConnection?: any): Promise<void> {
+    const connection = existingConnection || await pool.getConnection();
 
     try {
       // Get reset threshold from settings
@@ -298,7 +298,8 @@ export class LatePaymentTrackingService {
           customerId,
           0,
           `Auto-reset: ${consecutiveOnTime} consecutive on-time payments`,
-          '0'
+          '0',
+          connection
         );
 
         // Reset consecutive counter
@@ -467,9 +468,10 @@ Terima kasih.`;
     customerId: number,
     adminId: number = 0,
     reason: string = 'Manual reset',
-    adminName?: string
+    adminName?: string,
+    existingConnection?: any
   ): Promise<void> {
-    const connection = await pool.getConnection();
+    const connection = existingConnection || await pool.getConnection();
 
     try {
       await connection.beginTransaction();

@@ -265,6 +265,11 @@ export class UnifiedNotificationService {
         if (cols.length === 0) {
           await connection.query("ALTER TABLE unified_notifications_queue ADD COLUMN worker_id VARCHAR(50) DEFAULT NULL AFTER status");
         }
+
+        const [updateCols]: any = await connection.query("SHOW COLUMNS FROM unified_notifications_queue LIKE 'updated_at'");
+        if (updateCols.length === 0) {
+          await connection.query("ALTER TABLE unified_notifications_queue ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
+        }
       } catch (e) { /* ignore */ }
 
       // Generate a unique ID for this worker run
@@ -278,7 +283,7 @@ export class UnifiedNotificationService {
              worker_id = NULL,
              updated_at = NOW() 
          WHERE status = 'processing' 
-         AND updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)`
+         AND (updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE) OR (updated_at IS NULL AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)))`
       );
 
       // 1b. Cleanup very old pending notifications (expired)

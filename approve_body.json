@@ -1,0 +1,7 @@
+{
+    "verificationId": 10,
+    "invoiceId": 488,
+    "amount": 110000,
+    "notes": "Approved via script",
+    "action": "approve"
+}

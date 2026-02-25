@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { databasePool } from '../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import * as XLSX from 'xlsx';
+import { formatPeriodToMonth } from '../utils/periodHelper';
 
 export class KasirController {
     private userService: UserService;
@@ -120,7 +121,7 @@ export class KasirController {
                 }
 
                 // Clear cookie
-                res.clearCookie('connect.sid');
+                res.clearCookie('billing_sid');
 
                 // Redirect ke login dengan pesan sukses
                 res.redirect('/kasir/login?success=Anda telah berhasil logout');
@@ -603,6 +604,11 @@ export class KasirController {
                 }
 
                 const payment = payments[0];
+
+                // Format period
+                if (payment.period) {
+                    payment.period = formatPeriodToMonth(payment.period);
+                }
 
                 res.render('kasir/receipt', {
                     title: `Receipt #${paymentId}`,
@@ -1371,6 +1377,11 @@ export class KasirController {
                 }
 
                 const invoice = invoices[0];
+
+                // Format period
+                if (invoice.period) {
+                    invoice.period = formatPeriodToMonth(invoice.period);
+                }
 
                 // Get invoice items
                 const [items] = await conn.query<RowDataPacket[]>(`

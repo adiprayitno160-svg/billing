@@ -1289,10 +1289,8 @@
                 syncPppoeBtn.disabled = true;
 
                 try {
-                    const res = await fetch('/api/pppoe/secret/create', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                    const res = await fetch(`/api/customers/${customerId}/sync-pppoe`, {
+                        method: 'POST'
                     });
 
                     let data;

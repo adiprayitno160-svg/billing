@@ -1091,6 +1091,9 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 );
             }
 
+            // USER REQUEST: If expiry date is set, automatically enable billing
+            const forceEnableBilling = (req.body.expiry_date && req.body.expiry_date !== '') || (enable_billing === '1' || enable_billing === 'on');
+
             // ========== UPDATE SUBSCRIPTION KETIKA PAKET DIUBAH ==========
             // Handle package update for PPPoE customers
             if (connection_type === 'pppoe' && pppoe_package) {
@@ -1113,37 +1116,36 @@ export const updateCustomer = async (req: Request, res: Response) => {
                         throw new Error(`Paket PPPoE yang dipilih sudah penuh (Max Limit tercapai). Silakan buat paket baru atau upgrade kapasitas.`);
                     }
 
-                    // Get package details
+                    // Get package details with profile name for MikroTik sync
                     const [packageRows] = await conn.query<RowDataPacket[]>(
-                        'SELECT id, name, price FROM pppoe_packages WHERE id = ?',
+                        `SELECT p.id, p.name, p.price, pr.name as profile_name 
+                         FROM pppoe_packages p
+                         LEFT JOIN pppoe_profiles pr ON p.profile_id = pr.id
+                         WHERE p.id = ?`,
                         [packageId]
                     );
 
                     if (packageRows && packageRows.length > 0) {
                         const pkg = packageRows[0];
 
-                        // Check if subscription exists
+                        // Check if ANY subscription exists for this customer
                         const [existingSubs] = await conn.query<RowDataPacket[]>(
-                            'SELECT id FROM subscriptions WHERE customer_id = ? AND status = "active"',
+                            'SELECT id, status FROM subscriptions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1',
                             [customerId]
                         );
 
-                        // USER REQUEST: If expiry date is set, automatically enable billing
-                        const forceEnableBilling = (req.body.expiry_date && req.body.expiry_date !== '') || (enable_billing === '1' || enable_billing === 'on');
-
                         if (existingSubs && existingSubs.length > 0) {
                             // Update existing subscription
+                            const targetSubStatus = forceEnableBilling ? 'active' : 'inactive';
                             await conn.query(
                                 `UPDATE subscriptions 
-                                 SET package_id = ?, package_name = ?, price = ?, updated_at = NOW() 
-                                 WHERE customer_id = ? AND status = 'active'`,
-                                [pkg?.id, pkg?.name, pkg?.price, customerId]
+                                 SET package_id = ?, package_name = ?, price = ?, status = ?, updated_at = NOW() 
+                                 WHERE id = ?`,
+                                [pkg?.id, pkg?.name, pkg?.price, targetSubStatus, existingSubs[0].id]
                             );
-                            console.log(`[Edit Customer] ✅ Subscription updated to package: ${pkg?.name}`);
+                            console.log(`[Edit Customer] ✅ Subscription updated to package: ${pkg?.name} (Status: ${targetSubStatus})`);
                         } else {
                             // Create new subscription
-                            // For PPPoE activation flow: If customer is inactive, create subscription as inactive
-                            // UNLESS forceEnableBilling is true
                             const targetSubStatus = (forceEnableBilling || (newStatus || oldCustomer.status) !== 'inactive') ? 'active' : 'inactive';
 
                             await conn.query(
@@ -1153,13 +1155,41 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             );
                             console.log(`[Edit Customer] ✅ New subscription created with package: ${pkg?.name} (Status: ${targetSubStatus})`);
                         }
+
+                        // ========== SYNC PPPoE SECRET TO MIKROTIK ==========
+                        try {
+                            const config = await getMikrotikConfig();
+                            if (config) {
+                                const { findPppoeSecretIdByName, createPppoeSecret, updatePppoeSecret } = await import('../services/mikrotikService');
+                                const finalUsername = req.body.pppoe_username || oldPppoeUsername;
+                                const finalPassword = req.body.pppoe_password || oldCustomer.pppoe_password;
+
+                                if (finalUsername) {
+                                    const secretId = await findPppoeSecretIdByName(config, finalUsername);
+                                    const secretData = {
+                                        name: finalUsername,
+                                        password: finalPassword || '',
+                                        profile: pkg.profile_name || pkg.name,
+                                        comment: `[BILLING] ${name || oldName}`
+                                    };
+
+                                    if (secretId) {
+                                        await updatePppoeSecret(config, finalUsername, secretData);
+                                        console.log(`[UpdateCustomer] ✅ PPPoE Secret synced: ${finalUsername}`);
+                                    } else {
+                                        await createPppoeSecret(config, secretData);
+                                        console.log(`[UpdateCustomer] ✅ PPPoE Secret created: ${finalUsername}`);
+                                    }
+                                }
+                            }
+                        } catch (pppSyncErr: any) {
+                            console.error('[UpdateCustomer] ⚠️ PPPoE MikroTik Sync Failed:', pppSyncErr.message);
+                        }
                     } else {
                         console.log(`[Edit Customer] ⚠️ Package ID ${packageId} not found in pppoe_packages`);
                     }
                 }
             }
-
-            // ... (Middle code remains roughly same, skipping non-package blocks) ...
 
             // ========== UPDATE SUBSCRIPTION KETIKA PAKET DIUBAH (STATIC IP) ==========
             // Handle package update for Static IP customers
@@ -1193,29 +1223,31 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     if (packageRows && packageRows.length > 0) {
                         const pkg = packageRows[0];
 
-                        // Check if subscription exists
+                        // Check if ANY subscription exists
                         const [existingSubs] = await conn.query<RowDataPacket[]>(
-                            'SELECT id FROM subscriptions WHERE customer_id = ? AND status = "active"',
+                            'SELECT id, status FROM subscriptions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1',
                             [customerId]
                         );
+
+                        const targetSubStatus = forceEnableBilling ? 'active' : 'inactive';
 
                         if (existingSubs && existingSubs.length > 0) {
                             // Update existing subscription
                             await conn.query(
                                 `UPDATE subscriptions 
-                                 SET package_id = ?, package_name = ?, price = ?, updated_at = NOW() 
-                                 WHERE customer_id = ? AND status = 'active'`,
-                                [pkg?.id, pkg?.name, pkg?.price, customerId]
+                                 SET package_id = ?, package_name = ?, price = ?, status = ?, updated_at = NOW() 
+                                 WHERE id = ?`,
+                                [pkg?.id, pkg?.name, pkg?.price, targetSubStatus, existingSubs[0].id]
                             );
-                            console.log(`[Edit Customer Static IP] ✅ Subscription updated to package: ${pkg?.name}`);
+                            console.log(`[Edit Customer Static IP] ✅ Subscription updated to package: ${pkg?.name} (Status: ${targetSubStatus})`);
                         } else {
                             // Create new subscription if none exists
                             await conn.query(
                                 `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at)
-                                 VALUES (?, ?, ?, ?, 'active', NOW(), NOW(), NOW())`,
-                                [customerId, pkg?.id, pkg?.name, pkg?.price]
+                                 VALUES (?, ?, ?, ?, ?, NOW(), NOW(), NOW())`,
+                                [customerId, pkg?.id, pkg?.name, pkg?.price, targetSubStatus]
                             );
-                            console.log(`[Edit Customer Static IP] ✅ New subscription created with package: ${pkg?.name}`);
+                            console.log(`[Edit Customer Static IP] ✅ New subscription created with package: ${pkg?.name} (Status: ${targetSubStatus})`);
                         }
                     }
                 }
@@ -1297,6 +1329,52 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
             await conn.commit();
             console.log('[updateCustomer] Update successful, redirecting to:', `/customers/${customerId}?success=updated`);
+
+            // ========== MIGRATION CLEANUP (CLEAN OLD RESOURCES) ==========
+            const migrationFrom = oldCustomer.connection_type;
+            const migrationTo = connection_type || oldCustomer.connection_type;
+
+            if (migrationFrom !== migrationTo) {
+                console.log(`[Migration] Transition detected: ${migrationFrom} -> ${migrationTo}`);
+                (async () => {
+                    try {
+                        const config = await getMikrotikConfig();
+                        if (!config) return;
+
+                        if (migrationFrom === 'pppoe' && oldPppoeUsername) {
+                            const { deletePppoeSecret } = await import('../services/mikrotikService');
+                            await deletePppoeSecret(config, oldPppoeUsername);
+                            console.log(`[Migration Cleanup] Deleted old PPPoE secret: ${oldPppoeUsername}`);
+                        } else if (migrationFrom === 'static_ip') {
+                            // Cleanup Static IP resources (logic from deleteCustomer)
+                            const { removeIpAddress, removeMangleRulesForClient, deleteClientQueuesByClientName } = await import('../services/mikrotikService');
+
+                            // Re-fetch static IP data if needed, but we already have customerId
+                            // Let's use a fresh connection for background cleanup
+                            const cleanupConn = await databasePool.getConnection();
+                            try {
+                                const [sipRows] = await cleanupConn.query<RowDataPacket[]>('SELECT ip_address, client_name FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+                                if (sipRows && sipRows.length > 0) {
+                                    const sip = sipRows[0];
+                                    if (sip.ip_address) {
+                                        await removeIpAddress(config, sip.ip_address);
+                                        const cleanIp = String(sip.ip_address).split('/')[0];
+                                        await removeMangleRulesForClient(config, { peerIp: cleanIp, downloadMark: cleanIp, uploadMark: `UP-${cleanIp}` });
+                                    }
+                                    if (sip.client_name) {
+                                        await deleteClientQueuesByClientName(config, sip.client_name);
+                                    }
+                                }
+                            } finally {
+                                cleanupConn.release();
+                            }
+                            console.log(`[Migration Cleanup] Cleaned up old Static IP resources for customer ${customerId}`);
+                        }
+                    } catch (migErr) {
+                        console.warn('[Migration Cleanup] Background task error:', migErr);
+                    }
+                })();
+            }
 
             // Network map sync also disabled to be safe if requested, but let's keep it unless it crashes too. 
             // Usually internal DB sync is fine.
@@ -2125,6 +2203,29 @@ export const syncAllCustomersToGenieacs = async (req: Request, res: Response) =>
 
     } catch (error: any) {
         console.error('[Sync GenieACS] Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Sync customer PPPoE to Mikrotik
+ */
+export const syncCustomerPppoe = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const customerId = parseInt(id);
+
+        if (!customerId) {
+            return res.status(400).json({ success: false, error: 'Invalid ID' });
+        }
+
+        // Implementation fallback
+        res.json({
+            success: true,
+            message: 'Fitur sinkronisasi sedang dalam perbaikan'
+        });
+    } catch (error: any) {
+        console.error('[Sync PPPoE] Error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

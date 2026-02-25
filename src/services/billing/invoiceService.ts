@@ -29,7 +29,8 @@ export class InvoiceService {
     /**
      * Generate nomor invoice unik
      */
-    static async generateInvoiceNumber(period: string): Promise<string> {
+    static async generateInvoiceNumber(period: string, existingConnection?: any): Promise<string> {
+        const connection = existingConnection || databasePool;
         const year = period.split('-')[0];
         const month = period.split('-')[1];
 
@@ -49,14 +50,14 @@ export class InvoiceService {
     /**
      * Buat invoice baru
      */
-    static async createInvoice(invoiceData: InvoiceData, items: InvoiceItem[]): Promise<number> {
-        const connection = await databasePool.getConnection();
+    static async createInvoice(invoiceData: InvoiceData, items: InvoiceItem[], existingConnection?: any): Promise<number> {
+        const connection = existingConnection || await databasePool.getConnection();
 
         try {
             await connection.beginTransaction();
 
             // Generate nomor invoice
-            const invoiceNumber = await this.generateInvoiceNumber(invoiceData.period);
+            const invoiceNumber = await this.generateInvoiceNumber(invoiceData.period, connection);
 
             // Insert invoice
             const invoiceQuery = `
@@ -122,14 +123,14 @@ export class InvoiceService {
                     // Don't throw - notification failure shouldn't break invoice creation
                 }
             }
-
             return invoiceId;
-
         } catch (error) {
             await connection.rollback();
             throw error;
         } finally {
-            connection.release();
+            if (!existingConnection) {
+                connection.release();
+            }
         }
     }
 
@@ -140,6 +141,7 @@ export class InvoiceService {
         const connection = await databasePool.getConnection();
 
         try {
+            await connection.execute('SET innodb_lock_wait_timeout = 30');
             await connection.beginTransaction();
 
             // Get invoice details
@@ -238,12 +240,12 @@ export class InvoiceService {
     /**
      * Generate invoice otomatis untuk semua subscription aktif dengan carry over
      */
-    static async generateMonthlyInvoices(period: string, customerId?: number, forceAll: boolean = false): Promise<number[]> {
+    static async generateMonthlyInvoices(period: string, customerIds?: number | number[], forceAll: boolean = false): Promise<number[]> {
         const periodDate = new Date(period + '-01');
         const invoiceIds: number[] = [];
 
         console.log(`[InvoiceService] Starting generateMonthlyInvoices for period: ${period}`);
-        if (customerId) console.log(`[InvoiceService] Filtering for customer ID: ${customerId}`);
+        if (customerIds) console.log(`[InvoiceService] Filtering for customer IDs: ${Array.isArray(customerIds) ? customerIds.join(',') : customerIds}`);
         if (forceAll) console.log(`[InvoiceService] Force all mode enabled`);
 
         try {
@@ -300,15 +302,24 @@ export class InvoiceService {
 
             const queryParams: any[] = [];
 
-            // Jika tidak dipaksa dan tidak ada customerId spesifik, cek tanggal billing
-            if (!forceAll && !customerId) {
-                subscriptionQuery += ` AND DAY(s.start_date) = DAY(CURDATE()) `;
+            // Jika tidak dipaksa dan tidak ada customerId spesifik, cek tanggal billing H-7
+            if (!forceAll && !customerIds) {
+                // Menagih H-7 sebelum tanggal blokir (tanggal aktivasi)
+                // Contoh: Jika start_date tanggal 15, maka ditagihkan pada tanggal 8 (15 - 7)
+                subscriptionQuery += ` AND DAY(s.start_date) = DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) `;
             }
 
-            // Filter customerId jika ada
-            if (customerId) {
-                subscriptionQuery += ` AND s.customer_id = ? `;
-                queryParams.push(customerId);
+            // Filter customerId jika ada (untuk aktivasi instan atau manual selection)
+            if (customerIds) {
+                if (Array.isArray(customerIds)) {
+                    if (customerIds.length > 0) {
+                        subscriptionQuery += ` AND s.customer_id IN (?) `;
+                        queryParams.push(customerIds);
+                    }
+                } else {
+                    subscriptionQuery += ` AND s.customer_id = ? `;
+                    queryParams.push(customerIds);
+                }
             }
 
             subscriptionQuery += `
@@ -330,21 +341,22 @@ export class InvoiceService {
                     try {
                         console.log(`[InvoiceService] Processing subscription: ${subscription.subscription_id} for customer: ${subscription.customer_name}`);
 
-                        // Jatuh tempo: Dynamic based on scheduler settings
+                        // Jatuh tempo: Dynamic based on scheduler settings or activation date
                         const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
                         const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
                         let dueDate: Date;
 
-                        if (useFixedDay) {
-                            // Use fixed day (e.g. 28)
-                            const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
-                            const targetDay = Math.min(fixedDay, daysInMonth);
-                            dueDate = new Date(periodYear, periodMonth - 1, targetDay);
-                        } else {
-                            // Use offset (e.g. 1st + 7 days)
-                            dueDate = new Date(periodYear, periodMonth - 1, 1);
-                            dueDate.setDate(dueDate.getDate() + dayOffset);
-                        }
+                        // USER REQUEST: Isolation date (due date) should coincide with activation date
+                        // We use the day of s.start_date (billing_day) as the due date day
+                        const billingDay = subscription.billing_day || new Date(subscription.start_date).getDate();
+                        const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
+                        const targetDay = Math.min(billingDay, daysInMonth);
+
+                        dueDate = new Date(periodYear, periodMonth - 1, targetDay);
+
+                        // If current date is already past or equal to this target day in the current period,
+                        // and we are generating for later, we might want to keep it in this month.
+                        // But usually, generateMonthlyInvoices is called for the target period.
 
                         // Check for carry over amount
                         let carryOverAmount = 0;
@@ -471,7 +483,7 @@ export class InvoiceService {
                                 });
                             }
                         }
-
+                        // Create the invoice
                         const invoiceId = await this.createInvoice(invoiceData, items);
                         invoiceIds.push(invoiceId);
 
@@ -513,45 +525,49 @@ export class InvoiceService {
 
             const customerParams: any[] = [period];
 
-            if (!forceAll && !customerId) {
+            if (!forceAll && !customerIds) {
                 customerQuery += ` AND DAY(c.created_at) = DAY(CURDATE()) `;
             }
 
-            if (customerId) {
-                customerQuery += ` AND c.id = ? `;
-                customerParams.push(customerId);
+            if (customerIds) {
+                if (Array.isArray(customerIds)) {
+                    if (customerIds.length > 0) {
+                        customerQuery += ` AND c.id IN (?) `;
+                        customerParams.push(customerIds);
+                    }
+                } else {
+                    customerQuery += ` AND c.id = ? `;
+                    customerParams.push(customerIds);
+                }
             }
 
             const [customerResult] = await databasePool.query(customerQuery, customerParams);
             const customers = customerResult as any[];
             console.log(`[InvoiceService] Found ${customers.length} eligible customers without active subscriptions`);
 
-            if (customers.length === 0 && customerId) {
-                console.log(`[InvoiceService] ⚠️ Manual check: Customer ${customerId} was NOT found in fallback group. Checking why...`);
+            if (customers.length === 0 && customerIds && !Array.isArray(customerIds)) {
+                console.log(`[InvoiceService] ⚠️ Manual check: Customer ${customerIds} was NOT found in fallback group. Checking why...`);
                 const [check] = await databasePool.query(`
                     SELECT 
                         (SELECT COUNT(*) FROM invoices WHERE customer_id = ? AND period = ?) as existing_invoices,
                         (SELECT COUNT(*) FROM subscriptions WHERE customer_id = ? AND status = 'active') as active_subs,
                         status
                     FROM customers WHERE id = ?
-                `, [customerId, period, customerId, customerId]);
+                `, [customerIds, period, customerIds, customerIds]);
                 console.log(`[InvoiceService] Reasons for skip:`, check);
             }
 
             for (const customer of customers) {
                 try {
+                    // Jatuh tempo: Use customer creation day
                     const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
                     const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
-                    let dueDate: Date;
 
-                    if (useFixedDay) {
-                        const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
-                        const targetDay = Math.min(fixedDay, daysInMonth);
-                        dueDate = new Date(periodYear, periodMonth - 1, targetDay);
-                    } else {
-                        dueDate = new Date(periodYear, periodMonth - 1, 1);
-                        dueDate.setDate(dueDate.getDate() + dayOffset);
-                    }
+                    const creationDay = new Date(customer.created_at).getDate();
+                    const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
+                    const targetDay = Math.min(creationDay, daysInMonth);
+
+                    const dueDate = new Date(periodYear, periodMonth - 1, targetDay);
 
                     // Fallback price logic: package info is missing in fallback, using default or zero
                     let subtotal = 0;

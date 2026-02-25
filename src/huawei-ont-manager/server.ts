@@ -11,7 +11,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
 
-const PORT = 3002;
+const PORT = process.env.ONT_PORT || 3012;
 
 // OLT Credentials (Should ideally be in .env)
 const OLT_CONFIG = {

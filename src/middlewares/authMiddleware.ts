@@ -212,7 +212,24 @@ export class AuthMiddleware {
     // Middleware untuk mencegah kasir mengakses halaman non-kasir
     public requireNonKasir = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
         try {
-            if (req.user && req.user.role === 'kasir') {
+            // First, ensure the user is authenticated
+            if (!req.user) {
+                // Check if session ID exists but user not loaded yet
+                const userId = (req.session as any)?.userId;
+                if (userId) {
+                    const user = await this.userService.getUserById(userId);
+                    if (user && user.is_active) {
+                        req.user = user;
+                    }
+                }
+            }
+
+            if (!req.user) {
+                req.flash('error', 'Anda harus login terlebih dahulu');
+                return res.redirect('/login');
+            }
+
+            if (req.user.role === 'kasir') {
                 req.flash('error', 'Akses ditolak. Silakan gunakan portal kasir.');
                 res.redirect('/kasir/dashboard');
                 return;

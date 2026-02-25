@@ -6,6 +6,7 @@ import { InvoiceSchedulerService } from '../services/billing/invoiceSchedulerSer
 import LatePaymentController from '../controllers/billing/LatePaymentController';
 import { SystemLogController } from '../controllers/billing/SystemLogController';
 import { VerificationController } from '../controllers/billing/VerificationController';
+import { formatPeriodToMonth } from '../utils/periodHelper';
 
 const router = Router();
 const invoiceController = new InvoiceController();
@@ -287,6 +288,11 @@ router.get('/tagihan/print-no-odc', async (req, res) => {
 
             // Get invoice items and discount details for each invoice
             for (const invoice of invoices) {
+                // Format period
+                if (invoice.period) {
+                    invoice.period = formatPeriodToMonth(invoice.period);
+                }
+
                 const [items] = await conn.query(
                     'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
                     [invoice.id]
@@ -391,6 +397,11 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
 
             // Get invoice items and discount details for each invoice
             for (const invoice of invoices) {
+                // Format period
+                if (invoice.period) {
+                    invoice.period = formatPeriodToMonth(invoice.period);
+                }
+
                 // Get invoice items
                 const [items] = await conn.query(
                     'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
@@ -507,6 +518,11 @@ router.get('/tagihan/print-all', async (req, res) => {
 
             // FETCH ITEMS for each invoice for thermal/detailed print
             for (const invoice of invoices) {
+                // Format period
+                if (invoice.period) {
+                    invoice.period = formatPeriodToMonth(invoice.period);
+                }
+
                 const [items] = await conn.query(
                     'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
                     [invoice.id]
@@ -648,6 +664,11 @@ router.get('/tagihan/:id/print', async (req, res) => {
 
             const invoice = invoices[0];
 
+            // Format period
+            if (invoice.period) {
+                invoice.period = formatPeriodToMonth(invoice.period);
+            }
+
             // Get invoice items
             const [items] = await conn.query(
                 'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id',
@@ -694,6 +715,11 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
             }
 
             const invoice = invoices[0];
+
+            // Format period
+            if (invoice.period) {
+                invoice.period = formatPeriodToMonth(invoice.period);
+            }
 
             // Get invoice items
             const [items] = await conn.query(

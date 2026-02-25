@@ -1,34 +1,36 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print Invoice - <%= invoice.invoice_number %></title>
+    <title>Print Invoice - <%= invoice.invoice_number %>
+    </title>
     <style>
         @page {
             size: A4;
             margin: 20mm;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Arial', sans-serif;
             font-size: 11pt;
             line-height: 1.6;
             color: #333;
         }
-        
+
         .container {
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         .header {
             display: flex;
             justify-content: space-between;
@@ -37,49 +39,49 @@
             padding-bottom: 20px;
             border-bottom: 3px solid #2563eb;
         }
-        
+
         .company-info {
             flex: 1;
         }
-        
+
         .company-name {
             font-size: 24pt;
             font-weight: bold;
             color: #2563eb;
             margin-bottom: 5px;
         }
-        
+
         .company-details {
             font-size: 9pt;
             color: #666;
         }
-        
+
         .invoice-info {
             text-align: right;
         }
-        
+
         .invoice-title {
             font-size: 28pt;
             font-weight: bold;
             color: #2563eb;
             margin-bottom: 10px;
         }
-        
+
         .invoice-number {
             font-size: 11pt;
             color: #666;
             margin-bottom: 5px;
         }
-        
+
         .invoice-date {
             font-size: 9pt;
             color: #888;
         }
-        
+
         .customer-section {
             margin-bottom: 30px;
         }
-        
+
         .section-title {
             font-size: 10pt;
             font-weight: bold;
@@ -87,100 +89,100 @@
             text-transform: uppercase;
             margin-bottom: 10px;
         }
-        
+
         .customer-box {
             background: #f8f9fa;
             padding: 15px;
             border-radius: 8px;
             border-left: 4px solid #2563eb;
         }
-        
+
         .customer-name {
             font-size: 13pt;
             font-weight: bold;
             margin-bottom: 8px;
             color: #1e40af;
         }
-        
+
         .customer-details {
             font-size: 10pt;
             color: #555;
         }
-        
+
         .customer-details div {
             margin-bottom: 4px;
         }
-        
+
         .items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 30px;
         }
-        
+
         .items-table thead {
             background: #2563eb;
             color: white;
         }
-        
+
         .items-table th {
             padding: 12px;
             text-align: left;
             font-weight: 600;
             font-size: 10pt;
         }
-        
+
         .items-table tbody tr {
             border-bottom: 1px solid #e5e7eb;
         }
-        
+
         .items-table tbody tr:last-child {
             border-bottom: 2px solid #2563eb;
         }
-        
+
         .items-table td {
             padding: 12px;
             font-size: 10pt;
         }
-        
+
         .text-right {
             text-align: right;
         }
-        
+
         .text-center {
             text-align: center;
         }
-        
+
         .totals-section {
             display: flex;
             justify-content: flex-end;
             margin-bottom: 40px;
         }
-        
+
         .totals-table {
             width: 300px;
         }
-        
+
         .totals-table tr {
             border-bottom: 1px solid #e5e7eb;
         }
-        
+
         .totals-table td {
             padding: 10px;
             font-size: 10pt;
         }
-        
+
         .totals-table tr.total-row {
             background: #f3f4f6;
             font-weight: bold;
             font-size: 12pt;
             border-top: 2px solid #2563eb;
         }
-        
+
         .totals-table tr.total-row td {
             padding: 15px 10px;
             color: #1e40af;
         }
-        
+
         .payment-info {
             background: #fef3c7;
             padding: 15px;
@@ -188,23 +190,23 @@
             border-left: 4px solid #f59e0b;
             margin-bottom: 30px;
         }
-        
+
         .payment-info-title {
             font-weight: bold;
             color: #92400e;
             margin-bottom: 10px;
             font-size: 11pt;
         }
-        
+
         .payment-details {
             font-size: 10pt;
             color: #78350f;
         }
-        
+
         .payment-details div {
             margin-bottom: 5px;
         }
-        
+
         .footer {
             margin-top: 50px;
             padding-top: 20px;
@@ -213,7 +215,7 @@
             font-size: 9pt;
             color: #888;
         }
-        
+
         .status-badge {
             display: inline-block;
             padding: 6px 12px;
@@ -222,46 +224,49 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        
+
         .status-paid {
             background: #d1fae5;
             color: #065f46;
         }
-        
+
         .status-unpaid {
             background: #fef3c7;
             color: #92400e;
         }
-        
+
         .status-overdue {
             background: #fee2e2;
             color: #991b1b;
         }
-        
+
         @media print {
             body {
                 print-color-adjust: exact;
                 -webkit-print-color-adjust: exact;
             }
-            
+
             .no-print {
                 display: none !important;
             }
-            
+
             @page {
                 margin: 15mm;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Print Button -->
         <div class="no-print" style="text-align: right; margin-bottom: 20px;">
-            <button onclick="window.print()" style="background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 11pt;">
+            <button onclick="window.print()"
+                style="background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 11pt;">
                 <i class="fas fa-print"></i> Print Invoice
             </button>
-            <button onclick="window.close()" style="background: #6b7280; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 11pt; margin-left: 10px;">
+            <button onclick="window.close()"
+                style="background: #6b7280; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 11pt; margin-left: 10px;">
                 Close
             </button>
         </div>
@@ -278,23 +283,20 @@
             </div>
             <div class="invoice-info">
                 <div class="invoice-title">INVOICE</div>
-                <div class="invoice-number"><strong><%= invoice.invoice_number %></strong></div>
+                <div class="invoice-number"><strong>
+                        <%= invoice.invoice_number %>
+                    </strong></div>
                 <div class="invoice-date">
-                    Tanggal: <%= new Date(invoice.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) %>
+                    Tanggal: <%= new Date(invoice.created_at).toLocaleDateString('id-ID', { year: 'numeric' ,
+                        month: 'long' , day: 'numeric' }) %>
                 </div>
                 <div style="margin-top: 10px;">
-                    <% 
-                        let statusClass = 'status-unpaid';
-                        let statusText = 'BELUM LUNAS';
-                        if (invoice.status === 'paid') {
-                            statusClass = 'status-paid';
-                            statusText = 'LUNAS';
-                        } else if (invoice.status === 'overdue') {
-                            statusClass = 'status-overdue';
-                            statusText = 'JATUH TEMPO';
-                        }
-                    %>
-                    <span class="status-badge <%= statusClass %>"><%= statusText %></span>
+                    <% let statusClass='status-unpaid' ; let statusText='BELUM LUNAS' ; if (invoice.status==='paid' ) {
+                        statusClass='status-paid' ; statusText='LUNAS' ; } else if (invoice.status==='overdue' ) {
+                        statusClass='status-overdue' ; statusText='JATUH TEMPO' ; } %>
+                        <span class="status-badge <%= statusClass %>">
+                            <%= statusText %>
+                        </span>
                 </div>
             </div>
         </div>
@@ -303,20 +305,30 @@
         <div class="customer-section">
             <div class="section-title">Tagihan Kepada:</div>
             <div class="customer-box">
-                <div class="customer-name"><%= invoice.customer_name %></div>
+                <div class="customer-name">
+                    <%= invoice.customer_name %>
+                </div>
                 <div class="customer-details">
                     <% if (invoice.customer_code) { %>
-                        <div><strong>Kode Pelanggan:</strong> <%= invoice.customer_code %></div>
-                    <% } %>
-                    <% if (invoice.customer_phone) { %>
-                        <div><strong>Telepon:</strong> <%= invoice.customer_phone %></div>
-                    <% } %>
-                    <% if (invoice.customer_email) { %>
-                        <div><strong>Email:</strong> <%= invoice.customer_email %></div>
-                    <% } %>
-                    <% if (invoice.customer_address) { %>
-                        <div><strong>Alamat:</strong> <%= invoice.customer_address %></div>
-                    <% } %>
+                        <div><strong>Kode Pelanggan:</strong>
+                            <%= invoice.customer_code %>
+                        </div>
+                        <% } %>
+                            <% if (invoice.customer_phone) { %>
+                                <div><strong>Telepon:</strong>
+                                    <%= invoice.customer_phone %>
+                                </div>
+                                <% } %>
+                                    <% if (invoice.customer_email) { %>
+                                        <div><strong>Email:</strong>
+                                            <%= invoice.customer_email %>
+                                        </div>
+                                        <% } %>
+                                            <% if (invoice.customer_address) { %>
+                                                <div><strong>Alamat:</strong>
+                                                    <%= invoice.customer_address %>
+                                                </div>
+                                                <% } %>
                 </div>
             </div>
         </div>
@@ -333,23 +345,31 @@
                 </tr>
             </thead>
             <tbody>
-                <% if (items && items.length > 0) { %>
-                    <% items.forEach((item, index) => { %>
+                <% if (items && items.length> 0) { %>
+                    <% items.forEach((item, index)=> { %>
                         <tr>
-                            <td class="text-center"><%= index + 1 %></td>
-                            <td><%= item.description %></td>
-                            <td class="text-center"><%= item.quantity || 1 %></td>
-                            <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %></td>
-                            <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %></td>
+                            <td class="text-center">
+                                <%= index + 1 %>
+                            </td>
+                            <td>
+                                <%= item.description %>
+                            </td>
+                            <td class="text-center">
+                                <%= item.quantity || 1 %>
+                            </td>
+                            <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %>
+                            </td>
+                            <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
+                            </td>
                         </tr>
-                    <% }); %>
-                <% } else { %>
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 20px; color: #888;">
-                            Tidak ada item tagihan
-                        </td>
-                    </tr>
-                <% } %>
+                        <% }); %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 20px; color: #888;">
+                                        Tidak ada item tagihan
+                                    </td>
+                                </tr>
+                                <% } %>
             </tbody>
         </table>
 
@@ -358,40 +378,50 @@
             <table class="totals-table">
                 <tr>
                     <td>Subtotal</td>
-                    <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.subtotal || invoice.total_amount) %></td>
+                    <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.subtotal ||
+                            invoice.total_amount) %>
+                    </td>
                 </tr>
-                <% if (invoice.discount_amount && invoice.discount_amount > 0) { %>
+                <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
                     <tr>
                         <td>Diskon</td>
-                        <td class="text-right">- Rp <%= new Intl.NumberFormat('id-ID').format(invoice.discount_amount) %></td>
+                        <td class="text-right">- Rp <%= new Intl.NumberFormat('id-ID').format(invoice.discount_amount)
+                                %>
+                        </td>
                     </tr>
-                <% } %>
-                <tr class="total-row">
-                    <td>TOTAL</td>
-                    <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></td>
-                </tr>
-                <% if (invoice.paid_amount && invoice.paid_amount > 0) { %>
-                    <tr>
-                        <td>Terbayar</td>
-                        <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.paid_amount) %></td>
-                    </tr>
-                    <tr style="background: #fee2e2;">
-                        <td><strong>Sisa</strong></td>
-                        <td class="text-right"><strong>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.remaining_amount || (invoice.total_amount - invoice.paid_amount)) %></strong></td>
-                    </tr>
-                <% } %>
+                    <% } %>
+                        <tr class="total-row">
+                            <td>TOTAL</td>
+                            <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
+                            </td>
+                        </tr>
+                        <% if (invoice.paid_amount && invoice.paid_amount> 0) { %>
+                            <tr>
+                                <td>Terbayar</td>
+                                <td class="text-right">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.paid_amount)
+                                        %>
+                                </td>
+                            </tr>
+                            <tr style="background: #fee2e2;">
+                                <td><strong>Sisa</strong></td>
+                                <td class="text-right"><strong>Rp <%= new
+                                            Intl.NumberFormat('id-ID').format(invoice.remaining_amount ||
+                                            (invoice.total_amount - invoice.paid_amount)) %></strong></td>
+                            </tr>
+                            <% } %>
             </table>
         </div>
 
         <!-- PAID STAMP - Only show if invoice is paid -->
-        <% if (invoice.status === 'paid' || (invoice.paid_amount && parseFloat(invoice.paid_amount) >= parseFloat(invoice.total_amount))) { %>
-        <div style="
+        <% if (invoice.status==='paid' || (invoice.paid_amount && parseFloat(invoice.paid_amount)>=
+            parseFloat(invoice.total_amount))) { %>
+            <div style="
             position: relative; 
             margin: 20px 0; 
             text-align: center;
             min-height: 80px;
         ">
-            <div style="
+                <div style="
                 position: absolute;
                 top: 50%;
                 left: 50%;
@@ -411,31 +441,37 @@
                 letter-spacing: 4px;
                 text-transform: uppercase;
             ">
-                LUNAS
+                    LUNAS
+                    <div style="font-size: 10pt; margin-top: 5px;">ADMIN FINANCE</div>
+                </div>
             </div>
-        </div>
-        <% } %>
+            <% } %>
 
-        <!-- Payment Info -->
-        <div class="payment-info">
-            <div class="payment-info-title">📅 Informasi Pembayaran</div>
-            <div class="payment-details">
-                <div><strong>Periode:</strong> <%= invoice.period %></div>
-                <div><strong>Jatuh Tempo:</strong> <%= new Date(invoice.due_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) %></div>
-                <% if (invoice.notes) { %>
-                    <div style="margin-top: 10px;"><strong>Catatan:</strong> <%= invoice.notes %></div>
-                <% } %>
-            </div>
-        </div>
+                <!-- Payment Info -->
+                <div class="payment-info">
+                    <div class="payment-info-title">📅 Informasi Pembayaran</div>
+                    <div class="payment-details">
+                        <div><strong>Periode:</strong>
+                            <%= invoice.period %>
+                        </div>
+                        <div><strong>Jatuh Tempo:</strong>
+                            <%= new Date(invoice.due_date).toLocaleDateString('id-ID', { year: 'numeric' , month: 'long'
+                                , day: 'numeric' }) %>
+                        </div>
+                        <% if (invoice.notes) { %>
+                            <div style="margin-top: 10px;"><strong>Catatan:</strong>
+                                <%= invoice.notes %>
+                            </div>
+                            <% } %>
+                    </div>
+                </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            Terima kasih atas kepercayaan Anda menggunakan layanan kami.<br>
-            Invoice ini dicetak oleh kasir pada <%= new Date().toLocaleString('id-ID') %>
-        </div>
+                <!-- Footer -->
+                <div class="footer">
+                    Terima kasih atas kepercayaan Anda menggunakan layanan kami.<br>
+                    Invoice ini dicetak oleh kasir pada <%= new Date().toLocaleString('id-ID') %>
+                </div>
     </div>
 </body>
+
 </html>
-
-
-

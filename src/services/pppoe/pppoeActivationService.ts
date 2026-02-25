@@ -124,7 +124,7 @@ export class PPPoEActivationService {
      * @param userId 
      * @returns 
      */
-    async activateSubscription(subscriptionId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    async activateSubscription(subscriptionId: number, userId: number, customActivationDate?: string): Promise<{ success: boolean; message: string }> {
         const connection = await databasePool.getConnection();
         try {
             await connection.beginTransaction();
@@ -195,7 +195,7 @@ export class PPPoEActivationService {
             }
 
             // Set activation date and next block date
-            const activationDate = new Date();
+            const activationDate = customActivationDate ? new Date(customActivationDate) : new Date();
             const nextBlockDate = new Date(activationDate);
             nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
 
@@ -240,8 +240,26 @@ export class PPPoEActivationService {
                  VALUES (?, ?, 'activate', 'Manual activation by admin', ?, ?, NOW())`,
                 [subscription.customer_id, subscriptionId, userId, JSON.stringify(mikrotikResult)]
             );
-
             await connection.commit();
+            console.log(`[PPPoEActivationService] ✅ Transaction committed for subscription ${subscriptionId}`);
+
+            // Generate invoice immediately after activation
+            try {
+                const { InvoiceService } = await import('../billing/invoiceService');
+                const currentDate = new Date();
+                const period = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+
+                console.log(`[PPPoEActivationService] 🧾 Generating immediate invoice for customer ${subscription.customer_id} period ${period}`);
+                const invoiceIds = await InvoiceService.generateMonthlyInvoices(period, subscription.customer_id);
+
+                if (invoiceIds && invoiceIds.length > 0) {
+                    console.log(`[PPPoEActivationService] ✅ Immediate invoice created: ${invoiceIds[0]}`);
+                    // Send notification for the newly created invoice
+                    await UnifiedNotificationService.notifyInvoiceCreated(invoiceIds[0], true);
+                }
+            } catch (invErr) {
+                console.error('[PPPoEActivationService] ❌ Failed to generate immediate invoice:', invErr);
+            }
 
             // Send notification to customer (Account creation info)
             await UnifiedNotificationService.queueNotification({

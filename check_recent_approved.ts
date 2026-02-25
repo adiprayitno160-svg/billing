@@ -1,0 +1,22 @@
+
+import { databasePool } from './src/db/pool';
+
+async function checkRecentApproved() {
+    try {
+        const query = `
+            SELECT v.id, v.customer_id, c.name as customer_name, v.extracted_amount, v.status, v.reason, v.created_at
+            FROM manual_payment_verifications v
+            LEFT JOIN customers c ON v.customer_id = c.id
+            WHERE v.status = 'approved'
+            AND v.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            ORDER BY v.created_at DESC
+        `;
+        const [rows] = await databasePool.query(query) as any;
+        console.log(JSON.stringify(rows, null, 2));
+        process.exit(0);
+    } catch (error) {
+        console.error('Error:', error);
+        process.exit(1);
+    }
+}
+checkRecentApproved();

@@ -39,10 +39,10 @@
         /* Lunas Stamp */
         .stamp-lunas {
             position: absolute;
-            top: 150px;
-            right: 50px;
-            width: 150px;
-            height: 150px;
+            bottom: 40px;
+            right: 80px;
+            width: 120px;
+            height: 120px;
             border: 5px solid var(--success-color);
             border-radius: 50%;
             display: flex;
@@ -51,12 +51,13 @@
             justify-content: center;
             color: var(--success-color);
             font-weight: 900;
-            font-size: 24px;
+            font-size: 20px;
             text-transform: uppercase;
             transform: rotate(-15deg);
-            opacity: 0.2;
+            opacity: 0.6;
             z-index: 100;
             pointer-events: none;
+            background-color: rgba(255, 255, 255, 0.4);
         }
 
         .stamp-lunas .date {
@@ -221,6 +222,7 @@
                     <%= invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('id-ID', {day: 'numeric' ,
                         month: 'long' , year: 'numeric' }) : '' %>
                 </div>
+                <div style="font-size: 8px; margin-top: 2px;">ADMIN FINANCE</div>
             </div>
             <% } %>
 

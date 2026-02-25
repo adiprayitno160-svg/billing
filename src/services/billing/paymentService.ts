@@ -41,7 +41,7 @@ export class PaymentService {
             const paymentId = (paymentResult as any).insertId;
 
             // Update invoice payment status
-            await this.updateInvoicePaymentStatus(paymentData.invoice_id);
+            await this.updateInvoicePaymentStatus(paymentData.invoice_id, connection);
 
             await connection.commit();
 
@@ -63,7 +63,8 @@ export class PaymentService {
     /**
      * Update status pembayaran invoice
      */
-    static async updateInvoicePaymentStatus(invoiceId: number): Promise<void> {
+    static async updateInvoicePaymentStatus(invoiceId: number, existingConnection?: any): Promise<void> {
+        const connection = existingConnection || databasePool;
         // Hitung total pembayaran
         const paymentQuery = `
             SELECT COALESCE(SUM(amount), 0) as total_paid
@@ -71,7 +72,7 @@ export class PaymentService {
             WHERE invoice_id = ?
         `;
 
-        const [paymentResult] = await databasePool.execute(paymentQuery, [invoiceId]);
+        const [paymentResult] = await connection.execute(paymentQuery, [invoiceId]);
         const totalPaid = parseFloat(((paymentResult as any[])[0] as any).total_paid);
 
         // Get invoice details
@@ -81,7 +82,7 @@ export class PaymentService {
             WHERE id = ?
         `;
 
-        const [invoiceResult] = await databasePool.execute(invoiceQuery, [invoiceId]);
+        const [invoiceResult] = await connection.execute(invoiceQuery, [invoiceId]);
         const invoice = (invoiceResult as any[])[0];
 
         const totalAmount = parseFloat(invoice.total_amount || 0);
@@ -113,7 +114,7 @@ export class PaymentService {
             WHERE id = ?
         `;
 
-        await databasePool.execute(updateQuery, [totalPaid, remainingAmount, newStatus, newStatus, invoiceId]);
+        await connection.execute(updateQuery, [totalPaid, remainingAmount, newStatus, newStatus, invoiceId]);
 
         // Handle Overpayment (Excess balance)
         if (totalPaid > totalAmount) {
@@ -121,7 +122,7 @@ export class PaymentService {
             const customerId = invoice.customer_id;
 
             // Add excess to customer balance
-            await databasePool.execute(
+            await connection.execute(
                 "UPDATE customers SET balance = balance + ? WHERE id = ?",
                 [excess, customerId]
             );

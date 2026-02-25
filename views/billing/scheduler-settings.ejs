@@ -145,11 +145,22 @@
                         </label>
                     </div>
 
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <div class="flex items-start space-x-3">
+                            <i class="fas fa-info-circle text-blue-600 mt-1"></i>
+                            <div class="text-sm text-blue-800">
+                                <strong>Situs Penagihan Harian Aktif:</strong> Sistem sekarang men-generate tagihan
+                                secara otomatis tepat pada <strong>Hari Aktivasi</strong> masing-masing pelanggan.
+                                Tanggal generate di bawah berfungsi sebagai nilai cadangan.
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Generation Date & Time -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                <i class="fas fa-calendar-day text-blue-600 mr-2"></i>Tanggal Generate
+                                <i class="fas fa-calendar-day text-blue-600 mr-2"></i>Tanggal Default
                             </label>
                             <select name="generation_date" id="generation_date"
                                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
@@ -163,7 +174,7 @@
 
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                <i class="fas fa-clock text-blue-600 mr-2"></i>Waktu Generate
+                                <i class="fas fa-clock text-blue-600 mr-2"></i>Waktu Eksekusi
                             </label>
                             <input type="time" name="generation_time" id="generation_time"
                                 value="<%= settings.generation_time || '01:00' %>"

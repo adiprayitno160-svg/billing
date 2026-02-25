@@ -104,6 +104,7 @@ export class PPPoEActivationController {
     async activateSubscription(req: Request, res: Response): Promise<void> {
         try {
             const { subscriptionId } = req.params;
+            const { activationDate } = req.body;
             const userId = (req as any).user?.id;
 
             if (!userId) {
@@ -116,7 +117,8 @@ export class PPPoEActivationController {
 
             const result = await pppoeActivationService.activateSubscription(
                 Number(subscriptionId),
-                userId
+                userId,
+                activationDate
             );
 
             if (result.success) {

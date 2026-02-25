@@ -292,7 +292,10 @@
                             <!-- PAID STAMP -->
                             <% if (invoice.status==='paid' || (invoice.paid_amount && parseFloat(invoice.paid_amount)>=
                                 parseFloat(invoice.total_amount))) { %>
-                                <div class="paid-stamp">★ LUNAS / PAID ★</div>
+                                <div class="paid-stamp">
+                                    ★ LUNAS / PAID ★<br>
+                                    <span style="font-size: 7pt;">ADMIN FINANCE</span>
+                                </div>
                                 <% } %>
 
                                     <!-- Header -->
@@ -465,7 +468,8 @@
                                                                     <span style="font-weight: bold; color: #2e7d32;">Rp
                                                                         <%= new
                                                                             Intl.NumberFormat('id-ID').format(invoice.paid_amount)
-                                                                            %></span>
+                                                                            %>
+                                                                    </span>
                                                                 </div>
                                                                 <div class="total-row">
                                                                     <span style="font-weight: bold;">Sisa Piutang</span>
@@ -473,7 +477,8 @@
                                                                         <%= new
                                                                             Intl.NumberFormat('id-ID').format(invoice.remaining_amount
                                                                             || (invoice.total_amount -
-                                                                            invoice.paid_amount)) %></span>
+                                                                            invoice.paid_amount)) %>
+                                                                    </span>
                                                                 </div>
                                                                 <% } %>
 

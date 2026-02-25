@@ -26,6 +26,7 @@ export class CompensationService {
         const connection = await databasePool.getConnection();
 
         try {
+            await connection.execute('SET innodb_lock_wait_timeout = 30');
             await connection.beginTransaction();
 
             // 1. Get active subscription to calculate daily rate
@@ -71,7 +72,8 @@ export class CompensationService {
                 const [invoiceRows] = await connection.query<RowDataPacket[]>(
                     `SELECT id, total_amount, remaining_amount, status 
                      FROM invoices 
-                     WHERE customer_id = ? AND period = ? AND status IN ('sent', 'partial', 'draft')`,
+                     WHERE customer_id = ? AND period = ? AND status IN ('sent', 'partial', 'draft')
+                     FOR UPDATE`,
                     [request.customerId, currentPeriod]
                 );
 
@@ -123,7 +125,15 @@ export class CompensationService {
         // Format description with dates if available
         let description = `Kompensasi Gangguan (${days} Hari)`;
         if (startDate && endDate) {
-            description += ` [${new Date(startDate).toLocaleDateString('id-ID')} - ${new Date(endDate).toLocaleDateString('id-ID')}]`;
+            try {
+                const s = new Date(startDate);
+                const e = new Date(endDate);
+                if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+                    description += ` [${s.toLocaleDateString('id-ID')} - ${e.toLocaleDateString('id-ID')}]`;
+                }
+            } catch (err) {
+                console.error('Error formatting dates in compensation description:', err);
+            }
         }
         description += ` - ${reason}`;
 
@@ -139,17 +149,21 @@ export class CompensationService {
             ]
         );
 
-        // Update Invoice Totals
-        // Reduce remaining_amount and total_amount
+        // Update Invoice Totals (Recalculate subtotal)
+        const [items] = await connection.query('SELECT SUM(total_price) as new_subtotal FROM invoice_items WHERE invoice_id = ?', [invoiceId]);
+        const newSubtotal = parseFloat(items[0].new_subtotal || 0);
+
+        // Update invoice and recalculate based on new subtotal
         await connection.query(
             `UPDATE invoices 
-             SET total_amount = total_amount - ?,
-                 remaining_amount = GREATEST(0, remaining_amount - ?)
+             SET subtotal = ?,
+                 total_amount = GREATEST(0, (? + ppn_amount + device_fee) - discount_amount),
+                 remaining_amount = GREATEST(0, total_amount - paid_amount)
              WHERE id = ?`,
-            [amount, amount, invoiceId]
+            [newSubtotal, newSubtotal, invoiceId]
         );
 
-        // Check if fully paid after reduction (if remaining became 0)
+        // Final sync for remaining_amount logic
         await connection.query(
             `UPDATE invoices 
              SET status = CASE WHEN remaining_amount <= 0 THEN 'paid' ELSE status END

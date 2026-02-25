@@ -384,15 +384,24 @@
 								<div
 									class="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md mt-8">
 									<div
-										class="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center gap-3">
-										<div
-											class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-													d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-											</svg>
+										class="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+										<div class="flex items-center gap-3">
+											<div
+												class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+												<svg class="w-4 h-4" fill="none" stroke="currentColor"
+													viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+												</svg>
+											</div>
+											<h3 class="font-bold text-slate-800 text-sm">Riwayat Restitusi / Kompensasi
+											</h3>
 										</div>
-										<h3 class="font-bold text-slate-800 text-sm">Riwayat Restitusi / Kompensasi</h3>
+										<button onclick="showCompensationModal()"
+											class="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold transition-all shadow-lg shadow-indigo-100 flex items-center gap-1.5">
+											<span>➕</span> Dapatkan Kompensasi
+										</button>
 									</div>
 									<div class="overflow-x-auto">
 										<table class="w-full text-sm text-left">
@@ -927,6 +936,121 @@
 		} finally {
 			btn.disabled = false;
 			btn.innerHTML = originalText;
+		}
+	}
+
+	/**
+	 * Compensation Modal Trigger
+	 */
+	async function showCompensationModal() {
+		const { value: formValues } = await Swal.fire({
+			title: '<h3 class="text-xl font-bold text-slate-800">Daftarkan Kompensasi</h3>',
+			html: `
+                <div class="space-y-4 text-left px-2">
+                    <div class="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl mb-4">
+                        <p class="text-[11px] text-indigo-700 leading-relaxed font-medium">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Kompensasi akan dihitung berdasarkan (Biaya Paket / 30 hari) x Jumlah hari gangguan. 
+                            Jika periode tagihan bulan ini belum lewat tgl 10, kompensasi akan langsung memotong tagihan bulan ini.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Mulai</label>
+                            <input id="comp-input-start" type="date" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-700">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Selesai</label>
+                            <input id="comp-input-end" type="date" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-700">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Durasi (Hari)</label>
+                        <input id="comp-input-days" type="number" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-black text-slate-700 text-lg" placeholder="Hari" min="1" max="31">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Alasan / Keterangan</label>
+                        <textarea id="comp-input-reason" rows="2" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-700 leading-relaxed" placeholder="Contoh: Gangguan FO putus di tiang nomor..."></textarea>
+                    </div>
+                </div>
+            `,
+			didOpen: () => {
+				const start = document.getElementById('comp-input-start');
+				const end = document.getElementById('comp-input-end');
+				const days = document.getElementById('comp-input-days');
+
+				const updateDays = () => {
+					if (start.value && end.value) {
+						const diff = new Date(end.value) - new Date(start.value);
+						const d = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+						days.value = d > 0 ? d : '';
+					}
+				};
+
+				start.addEventListener('change', updateDays);
+				end.addEventListener('change', updateDays);
+			},
+			showCancelButton: true,
+			confirmButtonText: 'Daftarkan',
+			cancelButtonText: 'Batal',
+			confirmButtonColor: '#4f46e5',
+			preConfirm: () => {
+				const days = document.getElementById('comp-input-days').value;
+				const reason = document.getElementById('comp-input-reason').value;
+				const start = document.getElementById('comp-input-start').value;
+				const end = document.getElementById('comp-input-end').value;
+
+				if (!days || parseInt(days) <= 0) {
+					Swal.showValidationMessage('Durasi harus valid');
+					return false;
+				}
+				if (!reason) {
+					Swal.showValidationMessage('Alasan harus diisi');
+					return false;
+				}
+
+				return { days, reason, start_date: start, end_date: end };
+			}
+		});
+
+		if (formValues) {
+			Swal.fire({
+				title: 'Mendaftarkan...',
+				didOpen: () => Swal.showLoading(),
+				allowOutsideClick: false
+			});
+
+			try {
+				const response = await fetch('/customers/<%= customer.id %>/compensation', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(formValues)
+				});
+
+				// Wait, the controller used REDIRECT earlier.
+				// If I use fetch, I should handle it.
+				// But let's check if the controller can handle JSON.
+				// Actually, I should probably update the controller to handle JSON or use a form submit.
+
+				// Let's use a standard form submit for simplicity with current controller
+				const form = document.createElement('form');
+				form.method = 'POST';
+				form.action = `/customers/<%= customer.id %>/compensation`;
+
+				for (const key in formValues) {
+					const input = document.createElement('input');
+					input.type = 'hidden';
+					input.name = key;
+					input.value = formValues[key];
+					form.appendChild(input);
+				}
+
+				document.body.appendChild(form);
+				form.submit();
+			} catch (error) {
+				console.error('Error:', error);
+				Swal.fire('Error!', 'Terjadi kesalahan sistem.', 'error');
+			}
 		}
 	}
 </script>

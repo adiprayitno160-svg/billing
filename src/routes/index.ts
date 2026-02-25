@@ -113,12 +113,11 @@ import {
     updateCustomer,
     sendWelcomeNotificationManual,
     syncAllCustomersToGenieacs,
-    // quickCheckCustomer, // TEMPORARILY COMMENTED OUT - not exported from customerController
-    // quickFixCustomerByName, // TEMPORARILY COMMENTED OUT - not exported from customerController
     testMikrotikAddressLists,
     getActivePppoeConnections,
     viewRegistrationRequests,
-    addCompensation
+    addCompensation,
+    syncCustomerPppoe
 } from '../controllers/customerController';
 import { GenieacsService } from '../services/genieacs/GenieacsService';
 import {
@@ -1888,6 +1887,7 @@ router.get('/debug-queue-test', async (req, res) => {
 router.post('/api/customers/sync-genieacs', syncAllCustomersToGenieacs);
 router.get('/customers/list', getCustomerList);
 router.get('/customers/', getCustomerList);
+router.post('/api/customers/:id/sync-pppoe', isAuthenticated, syncCustomerPppoe);
 router.get('/customers', getCustomerList);
 router.get('/customers/export', exportCustomersToExcel);
 router.get('/customers/template', getImportTemplate);
@@ -2773,40 +2773,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
                         // Create invoice
                         const autoGenFirstInvoice = await SettingsService.getBoolean('auto_generate_first_invoice');
                         if (autoGenFirstInvoice) {
-                            console.log('🔄 Auto generating first invoice...');
-                            const InvoiceService = (await import('../services/billing/invoiceService')).InvoiceService;
-
-                            // Calculate pro-rated amount if enabled
-                            // ... (simplified logic for brevity, assuming standard full month for now)
-
-                            const invoiceData = {
-                                customer_id: customerId,
-                                subscription_id: sub.id,
-                                period: currentPeriod,
-                                // Due date: 30 days after registration (1-month deadline)
-                                due_date: new Date(Date.now() + (30 * 86400000)).toISOString().slice(0, 10),
-                                subtotal: subPrice,
-                                device_fee: deviceFee,
-                                discount_amount: 0,
-                                ppn_rate: ppnRateUsing,
-                                ppn_amount: ppnAmount,
-                                total_amount: totalAmount,
-                                status: 'sent', // Mark as sent so it shows up as unpaid/due
-                                notes: 'Tagihan otomatis untuk pelanggan baru'
-                            };
-
-                            const items = [{
-                                description: `Paket ${sub.package_name} - ${currentPeriod}`,
-                                quantity: 1,
-                                unit_price: subPrice,
-                                total_price: subPrice
-                            }];
-
+                            console.log('🔄 Auto generating first invoice using InvoiceService...');
                             try {
-                                const invoiceId = await InvoiceService.createInvoice(invoiceData, items);
-                                console.log(`✅ First invoice generated successfully: ${invoiceId}`);
-                            } catch (invError) {
-                                console.error('❌ Failed to generate first invoice:', invError);
+                                const { InvoiceService } = await import('../services/billing/invoiceService');
+                                await InvoiceService.generateMonthlyInvoices(currentPeriod, customerId, true);
+                            } catch (invErr) {
+                                console.error('❌ Failed to auto-generate smart invoice:', invErr);
                             }
                         }
                     }

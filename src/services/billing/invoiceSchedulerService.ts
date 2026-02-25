@@ -22,8 +22,8 @@ export class InvoiceSchedulerService {
                 return;
             }
 
-            // Schedule: Run on 1st day of every month at 01:00 AM
-            const schedule = settings.cron_schedule || '0 1 1 * *';
+            // Schedule: Run daily at 01:00 AM to check for anniversaries (H-7)
+            const schedule = settings.cron_schedule || '0 1 * * *';
 
             if (this.cronJob) {
                 this.cronJob.stop();

@@ -573,6 +573,34 @@ export async function ensureInitialSchema(): Promise<void> {
 			CONSTRAINT fk_invoice_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
+		// Create discounts table for invoice-level discounts
+		await conn.query(`CREATE TABLE IF NOT EXISTS discounts (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			invoice_id INT NOT NULL,
+			discount_type ENUM('sla', 'manual', 'other', 'disturbance') DEFAULT 'manual',
+			discount_value DECIMAL(12,2) NOT NULL,
+			reason TEXT,
+			applied_by INT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_invoice_id (invoice_id),
+			CONSTRAINT fk_discount_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Ensure discounts table has correct columns (for existing installations)
+		try {
+			// Check if 'amount' column exists and rename it to 'discount_value'
+			const [cols] = await conn.query("SHOW COLUMNS FROM discounts LIKE 'amount'");
+			if (Array.isArray(cols) && cols.length > 0) {
+				await conn.query(`ALTER TABLE discounts CHANGE COLUMN amount discount_value DECIMAL(12,2) NOT NULL`);
+			}
+			await addCol(`ALTER TABLE discounts ADD COLUMN applied_by INT NULL AFTER reason`);
+
+			// Ensure discount_type enum includes 'disturbance'
+			await conn.query(`ALTER TABLE discounts MODIFY COLUMN discount_type ENUM('sla', 'manual', 'other', 'disturbance') DEFAULT 'manual'`);
+		} catch (e) {
+			console.log('[DB] Note: Error updating discounts table structure (might already be correct)');
+		}
+
 		// Create subscriptions table for PPPoE and Static IP packages
 		await conn.query(`CREATE TABLE IF NOT EXISTS subscriptions (
 			id INT AUTO_INCREMENT PRIMARY KEY,

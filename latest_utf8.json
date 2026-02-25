@@ -1,0 +1,159 @@
+﻿[dotenv@17.2.3] injecting env (10) from .env -- tip: ≡ƒæÑ sync secrets across teammates & machines: https://dotenvx.com/ops
+--- Latest Verifications (Local) ---
+[
+  {
+    "id": 8,
+    "customer_id": 9991,
+    "customer_name": "Makprih",
+    "extracted_amount": "0.00",
+    "status": "pending",
+    "reason": "Gagal mengekstrak data dari bukti transfer. Pastikan foto jelas.",
+    "created_at": "2026-01-27T11:05:37.000Z"
+  },
+  {
+    "id": 7,
+    "customer_id": 9991,
+    "customer_name": "Makprih",
+    "extracted_amount": "192168239118.00",
+    "status": "pending",
+    "reason": "Tidak ada tagihan yang belum dibayar",
+    "created_at": "2026-01-26T15:06:12.000Z"
+  },
+  {
+    "id": 6,
+    "customer_id": 9991,
+    "customer_name": "Makprih",
+    "extracted_amount": "72000.00",
+    "status": "pending",
+    "reason": "Tidak ada tagihan yang belum dibayar",
+    "created_at": "2026-01-26T12:50:23.000Z"
+  },
+  {
+    "id": 5,
+    "customer_id": 9991,
+    "customer_name": "Makprih",
+    "extracted_amount": "72000.00",
+    "status": "pending",
+    "reason": "Tidak ada tagihan yang belum dibayar",
+    "created_at": "2026-01-26T12:49:30.000Z"
+  },
+  {
+    "id": 4,
+    "customer_id": 9991,
+    "customer_name": "Makprih",
+    "extracted_amount": "72000.00",
+    "status": "pending",
+    "reason": "Tidak ada tagihan yang belum dibayar",
+    "created_at": "2026-01-26T12:49:23.000Z"
+  },
+  {
+    "id": 3,
+    "customer_id": 60,
+    "customer_name": null,
+    "extracted_amount": null,
+    "status": "pending",
+    "reason": "Bukti pembayaran dikirim tapi tidak ada tagihan aktif",
+    "created_at": "2026-01-13T23:41:54.000Z"
+  },
+  {
+    "id": 2,
+    "customer_id": 60,
+    "customer_name": null,
+    "extracted_amount": null,
+    "status": "pending",
+    "reason": "Gagal mengekstrak data dari bukti transfer. Pastikan foto jelas.",
+    "created_at": "2026-01-13T23:21:24.000Z"
+  },
+  {
+    "id": 1,
+    "customer_id": 60,
+    "customer_name": null,
+    "extracted_amount": null,
+    "status": "pending",
+    "reason": "/uploads/whatsapp/1768316747129_1833.jpeg",
+    "created_at": "2026-01-13T15:05:48.000Z"
+  }
+]
+--- Latest Notifications (Local) ---
+[
+  {
+    "id": 109,
+    "customer_id": 10004,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-21T01:00:01.000Z"
+  },
+  {
+    "id": 110,
+    "customer_id": 9994,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-21T01:00:01.000Z"
+  },
+  {
+    "id": 107,
+    "customer_id": 90,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-21T01:00:00.000Z"
+  },
+  {
+    "id": 106,
+    "customer_id": 86,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-21T01:00:00.000Z"
+  },
+  {
+    "id": 108,
+    "customer_id": 87,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-21T01:00:00.000Z"
+  },
+  {
+    "id": 104,
+    "customer_id": 9994,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-20T13:15:37.000Z"
+  },
+  {
+    "id": 105,
+    "customer_id": 10004,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-20T13:15:37.000Z"
+  },
+  {
+    "id": 103,
+    "customer_id": 86,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-20T13:15:36.000Z"
+  },
+  {
+    "id": 102,
+    "customer_id": null,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-17T16:45:34.000Z"
+  },
+  {
+    "id": 101,
+    "customer_id": null,
+    "channel": "whatsapp",
+    "status": "pending",
+    "error_message": null,
+    "created_at": "2026-02-16T00:28:33.000Z"
+  }
+]

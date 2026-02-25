@@ -39,7 +39,7 @@ export class DiscountService {
             const discountId = (discountResult as any).insertId;
 
             // Update invoice totals
-            await this.updateInvoiceTotals(discountData.invoice_id);
+            await this.updateInvoiceTotals(discountData.invoice_id, connection);
 
             await connection.commit();
             return discountId;
@@ -112,7 +112,7 @@ export class DiscountService {
             const discountId = (discountResult as any).insertId;
 
             // Update invoice totals
-            await this.updateInvoiceTotals(invoice.id);
+            await this.updateInvoiceTotals(invoice.id, connection);
 
             await connection.commit();
             return discountId;
@@ -133,28 +133,38 @@ export class DiscountService {
         const connection = await databasePool.getConnection();
 
         try {
+            await connection.execute('SET innodb_lock_wait_timeout = 30');
             await connection.beginTransaction();
 
-            // Get invoice subtotal
+            // Get invoice subtotal - Use FOR UPDATE to ensure we have a lock on the row
             const [invoiceRows] = await connection.execute(
-                'SELECT subtotal, customer_id FROM invoices WHERE id = ?',
+                'SELECT subtotal, customer_id FROM invoices WHERE id = ? FOR UPDATE',
                 [invoiceId]
             );
             const invoice = (invoiceRows as any)[0];
 
             if (!invoice) {
-                throw new Error('Invoice not found');
+                throw new Error('Invoice tidak ditemukan');
             }
 
             // Formula: (Subtotal / 30) * downtimeDays
-            const dailyRate = invoice.subtotal / 30;
+            const subtotal = parseFloat(invoice.subtotal || 0);
+            const dailyRate = subtotal / 30;
             const discountAmount = Math.round(dailyRate * downtimeDays);
 
             let reason = `Kompensasi gangguan selama ${downtimeDays} hari`;
             if (startDate && endDate) {
-                const d1 = new Date(startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-                const d2 = new Date(endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-                reason += ` [${d1} - ${d2}]`;
+                try {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                        const d1 = start.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                        const d2 = end.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                        reason += ` [${d1} - ${d2}]`;
+                    }
+                } catch (e) {
+                    console.error('Error formatting dates in discount reason:', e);
+                }
             }
 
             // Insert discount record
@@ -162,19 +172,20 @@ export class DiscountService {
                 INSERT INTO discounts (
                     invoice_id, discount_type, discount_value, 
                     reason, applied_by, created_at
-                ) VALUES (?, 'sla', ?, ?, ?, NOW())
+                ) VALUES (?, 'disturbance', ?, ?, ?, NOW())
             `, [invoiceId, discountAmount, reason, appliedBy]);
 
             const discountId = (discountResult as any).insertId;
 
-            // Update invoice totals
-            await this.updateInvoiceTotals(invoiceId);
+            // Update invoice totals using the current connection
+            await this.updateInvoiceTotals(invoiceId, connection);
 
             await connection.commit();
             return discountId;
 
-        } catch (error) {
+        } catch (error: any) {
             await connection.rollback();
+            console.error('[DiscountService] Error in applyDowntimeDiscount:', error);
             throw error;
         } finally {
             connection.release();
@@ -184,8 +195,8 @@ export class DiscountService {
     /**
      * Update invoice totals after discount
      */
-    private static async updateInvoiceTotals(invoiceId: number): Promise<void> {
-        const connection = await databasePool.getConnection();
+    static async updateInvoiceTotals(invoiceId: number, existingConnection?: any): Promise<void> {
+        const connection = existingConnection || await databasePool.getConnection();
 
         try {
             // Get total discount amount
@@ -199,9 +210,11 @@ export class DiscountService {
             const totalDiscount = parseFloat((discountResult as any)[0].total_discount);
 
             // Get invoice details
-            const invoiceQuery = `SELECT subtotal, paid_amount, ppn_amount, device_fee FROM invoices WHERE id = ?`;
+            const invoiceQuery = `SELECT subtotal, paid_amount, ppn_amount, device_fee FROM invoices WHERE id = ? FOR UPDATE`;
             const [invoiceResult] = await connection.execute(invoiceQuery, [invoiceId]);
             const invoice = (invoiceResult as any)[0];
+
+            if (!invoice) return;
 
             const subtotal = parseFloat(invoice.subtotal || 0);
             const ppn = parseFloat(invoice.ppn_amount || 0);
@@ -222,7 +235,9 @@ export class DiscountService {
             await connection.execute(updateQuery, [totalDiscount, newTotalAmount, newRemainingAmount, invoiceId]);
 
         } finally {
-            connection.release();
+            if (!existingConnection) {
+                connection.release();
+            }
         }
     }
 
@@ -265,9 +280,10 @@ export class DiscountService {
             await connection.execute(deleteQuery, [discountId]);
 
             // Update invoice totals
-            await this.updateInvoiceTotals(discount.invoice_id);
+            await this.updateInvoiceTotals(discount.invoice_id, connection);
 
             await connection.commit();
+            return;
 
         } catch (error) {
             await connection.rollback();

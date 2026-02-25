@@ -477,7 +477,7 @@ Terima kasih atas pengertiannya! 🙏`;
                 }
 
                 // Create the invoice
-                const invoiceId = await InvoiceService.createInvoice(invoiceData as any, invoiceItems);
+                const invoiceId = await InvoiceService.createInvoice(invoiceData as any, invoiceItems, conn);
 
                 // Link invoice back to transaction
                 await conn.query(
