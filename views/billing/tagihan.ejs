@@ -107,7 +107,21 @@
         animation: slideUp 0.35s ease-out;
     }
 
-    /* Consistent table layout */
+    /* Critical Utility Classes for Responsive Layout */
+    .hidden {
+        display: none !important;
+    }
+
+    @media (min-width: 768px) {
+        .md\:hidden {
+            display: none !important;
+        }
+
+        .md\:block {
+            display: block !important;
+        }
+    }
+
     .tagihan-table th,
     .tagihan-table td {
         vertical-align: middle;
