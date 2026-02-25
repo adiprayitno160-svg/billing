@@ -150,6 +150,7 @@ app.use((req, res, next) => {
 	// Expose authenticated user (if any) to views
 	try {
 		(res.locals as any).user = (req as any).user || null;
+		(res.locals as any).userId = (req.session as any)?.userId || null;
 	} catch { }
 	// Feature flags / UI toggles
 	(res.locals as any).hideBillingCustomersMenu = String(process.env.HIDE_BILLING_CUSTOMERS_MENU).toLowerCase() === 'true';
@@ -262,30 +263,48 @@ async function start() {
 		console.log(`[Startup] Target Port: ${port}`);
 		console.log(`[Startup] Database config: host=${process.env.DB_HOST ?? 'localhost'}, port=${process.env.DB_PORT ?? 3306}, user=${process.env.DB_USER ?? 'root'}, db=${process.env.DB_NAME ?? 'billing'}`);
 
-		console.log('[Startup] Step 1: Ensuring initial schema...');
-		await ensureInitialSchema();
-		console.log('[Startup] ✅ Schema ensured.');
+		const isMainInstanceEarly = process.env.NODE_APP_INSTANCE === '0' || !process.env.NODE_APP_INSTANCE;
 
-		// Ensure AI settings table exists
-		try {
-			console.log('[Startup] Step 2: Ensuring AI settings table...');
-			const { AISettingsService } = await import('./services/payment/AISettingsService');
-			await AISettingsService.ensureAISettingsTable();
-			console.log('✅ AI settings table ensured');
-		} catch (error) {
-			console.error('⚠️ Error ensuring AI settings table (non-critical):', error);
-			// Non-critical, continue startup
-		}
+		if (isMainInstanceEarly) {
+			console.log('[Startup] 🚀 Main instance detected (Instance 0). Performing database initialization...');
 
-		// Ensure notification templates exist
-		try {
-			console.log('Ensuring notification templates...');
-			const { ensureNotificationTemplates } = await import('./utils/ensureNotificationTemplates');
-			await ensureNotificationTemplates();
-			console.log('[Startup] ✅ Notification templates ensured');
-		} catch (error) {
-			console.error('[Startup] ⚠️ Error ensuring notification templates (non-critical):', error);
-			// Non-critical, continue startup
+			console.log('[Startup] Step 1: Ensuring initial schema...');
+			await ensureInitialSchema();
+			console.log('[Startup] ✅ Schema ensured.');
+
+			// Ensure AI settings table exists
+			try {
+				console.log('[Startup] Step 2: Ensuring AI settings table...');
+				const { AISettingsService } = await import('./services/payment/AISettingsService');
+				await AISettingsService.ensureAISettingsTable();
+				console.log('✅ AI settings table ensured');
+			} catch (error) {
+				console.error('⚠️ Error ensuring AI settings table (non-critical):', error);
+			}
+
+			// Ensure notification templates exist
+			try {
+				console.log('Ensuring notification templates...');
+				const { ensureNotificationTemplates } = await import('./utils/ensureNotificationTemplates');
+				await ensureNotificationTemplates();
+				console.log('[Startup] ✅ Notification templates ensured');
+			} catch (error) {
+				console.error('[Startup] ⚠️ Error ensuring notification templates (non-critical):', error);
+			}
+
+			// Ensure invoices and payments tables exist (CRITICAL for bookkeeping)
+			try {
+				console.log('[Startup] Step 3: Checking invoices/payments/whatsapp tables...');
+				await autoFixInvoicesAndPaymentsTables();
+				await autoFixWhatsAppTables();
+				await autoFixCustomerColumns();
+				await autoFixPPPoEActivationTables();
+				console.log('[Startup] ✅ Invoices, payments, WhatsApp, Customer and PPPoE tables ensured');
+			} catch (error) {
+				console.error('⚠️ Error ensuring bookkeeping/whatsapp tables (non-critical):', error);
+			}
+		} else {
+			console.log(`[Startup] ⏭️ Skipping database initialization on cluster instance ${process.env.NODE_APP_INSTANCE}`);
 		}
 
 		console.log('[Startup] Step 4: Checking database connection...');
@@ -297,29 +316,13 @@ async function start() {
 		await BillingLogService.initialize();
 		const anomalyDetector = new AIAnomalyDetectionService();
 		await anomalyDetector.initialize();
-		const isMainInstanceEarly = process.env.NODE_APP_INSTANCE === '0' || !process.env.NODE_APP_INSTANCE;
+
 		if (isMainInstanceEarly) {
 			console.log('[Startup] 🚀 Starting Monitoring Scheduler (Prioritized)...');
 			const { monitoringScheduler } = await import('./schedulers/monitoringScheduler');
 			monitoringScheduler.start();
 		} else {
 			console.log('[Startup] Skipping Monitoring Scheduler on non-main instance');
-		}
-
-
-
-
-
-		// Ensure invoices and payments tables exist (CRITICAL for bookkeeping)
-		try {
-			console.log('[Startup] Step 10: Checking invoices/payments/whatsapp tables...');
-			await autoFixInvoicesAndPaymentsTables();
-			await autoFixWhatsAppTables();
-			await autoFixCustomerColumns();
-			await autoFixPPPoEActivationTables();
-			console.log('[Startup] ✅ Invoices, payments, WhatsApp, Customer and PPPoE tables ensured');
-		} catch (error) {
-			console.error('⚠️ Error ensuring bookkeeping/whatsapp tables (non-critical):', error);
 		}
 
 

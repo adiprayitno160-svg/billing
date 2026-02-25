@@ -41,14 +41,14 @@ export class SchedulerService {
             this.schedulePaymentReminders(true);
         });
 
-        // Auto isolate - tanggal 1 jam 00:00 (blokir yang belum bayar tagihan bulan sebelumnya)
-        this.applyAutoIsolationScheduleFromDb().catch((err) => {
+        // Auto isolate - DISABLED (Handled by processAutoBlocking individually)
+        /* this.applyAutoIsolationScheduleFromDb().catch((err) => {
             console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
             this.scheduleAutoIsolation([1], 0, 0); // Tanggal 1 jam 00:00
-        });
+        }); */
 
-        // Auto restore paid customers - setiap hari jam 06:00
-        cron.schedule('0 6 * * *', async () => {
+        // Auto restore paid customers - DISABLED (Payments now trigger real-time restore)
+        /* cron.schedule('0 6 * * *', async () => {
             console.log('Running auto restore for paid customers...');
             try {
                 const result = await IsolationService.autoRestorePaidCustomers();
@@ -59,7 +59,7 @@ export class SchedulerService {
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
-        });
+        }); */
 
         // Calculate SLA and apply discounts - setiap tanggal 1 jam 06:00
         cron.schedule('0 6 1 * *', async () => {
@@ -68,6 +68,20 @@ export class SchedulerService {
                 await this.calculateSlaAndApplyDiscounts();
             } catch (error) {
                 console.error('Error calculating SLA and applying discounts:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
+        // Send monthly finance report to Head of Finance - setiap tanggal 1 jam 08:30
+        cron.schedule('30 8 1 * *', async () => {
+            console.log('[Scheduler] Running Monthly Finance Report for Head of Finance...');
+            try {
+                const { MonthlyReportService } = await import('./billing/MonthlyReportService');
+                await MonthlyReportService.generateAndSendMonthlyReport();
+            } catch (error) {
+                console.error('[Scheduler] Error sending monthly finance report:', error);
             }
         }, {
             scheduled: true,
@@ -303,28 +317,28 @@ export class SchedulerService {
         });
 
         // Smart PPPoE Monitoring for Prepaid Customers - Every 2 minutes
-        cron.schedule('*/2 * * * *', async () => {
-            console.log('[Scheduler] 🚀 Running Smart PPPoE Monitoring for Prepaid Customers...');
-            try {
-                const { SmartPPPoEMonitoringService } = await import('./notification/SmartPPPoEMonitoringService');
-                const smartMonitoringService = new SmartPPPoEMonitoringService();
-                await smartMonitoringService.runSmartMonitoring();
-            } catch (error) {
-                console.error('[Scheduler] ❌ Error in Smart PPPoE Monitoring:', error);
-            }
-        });
+        // cron.schedule('*/2 * * * *', async () => {
+        //     console.log('[Scheduler] 🚀 Running Smart PPPoE Monitoring for Prepaid Customers...');
+        //     try {
+        //         const { SmartPPPoEMonitoringService } = await import('./notification/SmartPPPoEMonitoringService');
+        //         const smartMonitoringService = new SmartPPPoEMonitoringService();
+        //         await smartMonitoringService.runSmartMonitoring();
+        //     } catch (error) {
+        //         console.error('[Scheduler] ❌ Error in Smart PPPoE Monitoring:', error);
+        //     }
+        // });
 
         // Smart Static IP Monitoring for Prepaid Customers - Every 15 minutes (for normal ping)
-        cron.schedule('*/15 * * * *', async () => {
-            console.log('[Scheduler] 🚀 Running Smart Static IP Monitoring for Prepaid Customers...');
-            try {
-                const { SmartStaticIPMonitoringService } = await import('./notification/SmartStaticIPMonitoringService');
-                const smartStaticIPService = new SmartStaticIPMonitoringService();
-                await smartStaticIPService.runSmartMonitoring();
-            } catch (error) {
-                console.error('[Scheduler] ❌ Error in Smart Static IP Monitoring:', error);
-            }
-        });
+        // cron.schedule('*/15 * * * *', async () => {
+        //     console.log('[Scheduler] 🚀 Running Smart Static IP Monitoring for Prepaid Customers...');
+        //     try {
+        //         const { SmartStaticIPMonitoringService } = await import('./notification/SmartStaticIPMonitoringService');
+        //         const smartStaticIPService = new SmartStaticIPMonitoringService();
+        //         await smartStaticIPService.runSmartMonitoring();
+        //     } catch (error) {
+        //         console.error('[Scheduler] ❌ Error in Smart Static IP Monitoring:', error);
+        //     }
+        // });
 
         this.isInitialized = true;
         console.log('Billing scheduler initialized successfully');
@@ -496,34 +510,34 @@ export class SchedulerService {
 
     // =============== INVOICE GENERATION SCHEDULING ===============
     private static scheduleInvoiceGeneration(daysOfMonth: number[], hour: number = 0, minute: number = 10): void {
+        // Clear previous jobs
         for (const job of this.invoiceGenerationJobs) {
             try { job.stop(); } catch { }
         }
         this.invoiceGenerationJobs = [];
 
-        const uniqueDays = Array.from(new Set(daysOfMonth.filter(d => Number.isInteger(d) && d >= 1 && d <= 31)));
-        if (uniqueDays.length === 0) uniqueDays.push(1);
-
         const h = Math.max(0, Math.min(23, Number(hour)));
         const m = Math.max(0, Math.min(59, Number(minute)));
 
-        for (const day of uniqueDays) {
-            const expression = `${m} ${h} ${day} * *`;
-            const task = cron.schedule(expression, async () => {
-                console.log(`[Invoice Generation] Running for day ${day} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-                try {
-                    const currentDate = new Date();
-                    const period = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
-                    const invoiceIds = await InvoiceService.generateMonthlyInvoices(period);
-                    console.log(`Generated ${invoiceIds.length} invoices for period ${period}`);
-                    await this.sendInvoiceNotifications(invoiceIds);
-                } catch (error) {
-                    console.error('Error generating monthly invoices:', error);
-                }
-            }, { scheduled: true, timezone: 'Asia/Jakarta' });
-            this.invoiceGenerationJobs.push(task);
-        }
-        console.log(`[Invoice Generation] Scheduled for days: ${uniqueDays.join(', ')} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        // USER REQUEST: Always run daily to check for per-customer activation dates
+        const expression = `${m} ${h} * * *`;
+        const task = cron.schedule(expression, async () => {
+            console.log(`[Invoice Generation] Running daily at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+            try {
+                const currentDate = new Date();
+                const period = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+
+                // IMPORTANT: generateMonthlyInvoices internally filters by DAY(start_date) = DAY(CURDATE())
+                const invoiceIds = await InvoiceService.generateMonthlyInvoices(period);
+                console.log(`Generated ${invoiceIds.length} invoices for period ${period}`);
+                await this.sendInvoiceNotifications(invoiceIds);
+            } catch (error) {
+                console.error('Error generating monthly invoices:', error);
+            }
+        }, { scheduled: true, timezone: 'Asia/Jakarta' });
+
+        this.invoiceGenerationJobs.push(task);
+        console.log(`[Invoice Generation] Scheduled DAILY at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     }
 
     private static async applyInvoiceScheduleFromDb(): Promise<void> {

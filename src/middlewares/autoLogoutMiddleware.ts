@@ -45,6 +45,9 @@ export async function autoLogoutMiddleware(req: Request, res: Response, next: Ne
                 await pool.query("INSERT INTO system_settings (setting_key, setting_value) VALUES ('auto_logout_timeout', '7200')");
             }
 
+            // Add timeout to locals (in minutes for client side)
+            res.locals.autoLogoutTimeout = Math.ceil(timeoutSec / 60);
+
             const now = Date.now();
             const last = (req.session as any).lastActivity as number | undefined;
 
@@ -54,7 +57,12 @@ export async function autoLogoutMiddleware(req: Request, res: Response, next: Ne
                 req.session.destroy(err => {
                     if (err) console.error('Error destroying session:', err);
                     res.clearCookie('billing_sid');
-                    return res.redirect('/login?timeout=1');
+
+                    let redirectUrl = '/login?timeout=1';
+                    if (req.path.startsWith('/kasir')) {
+                        redirectUrl = '/kasir/login?timeout=1';
+                    }
+                    return res.redirect(redirectUrl);
                 });
                 return;
             }

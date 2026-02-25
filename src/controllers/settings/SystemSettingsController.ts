@@ -309,6 +309,25 @@ export class SystemSettingsController {
   }
 
   /**
+   * Send test monthly finance report
+   */
+  static async sendTestMonthlyReport(req: Request, res: Response) {
+    try {
+      const { MonthlyReportService } = await import('../../services/billing/MonthlyReportService');
+      const result = await MonthlyReportService.generateAndSendMonthlyReport();
+
+      if (result.success) {
+        res.json({ success: true, message: 'Laporan berhasil dikirim ke Kepala Finance' });
+      } else {
+        res.status(400).json({ success: false, message: result.message });
+      }
+    } catch (error: any) {
+      console.error('Test report error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
    * Perform application update
    */
   static async performUpdate(req: Request, res: Response) {
@@ -447,7 +466,8 @@ export class SystemSettingsController {
           ('bank_account_number', '1234567890', 'Nomor Rekening Bank', 'billing'),
           ('bank_account_name', 'Atas Nama Rekening', 'Atas Nama Rekening', 'billing'),
           ('multiple_banks_enabled', 'true', 'Gunakan beberapa bank untuk pembayaran', 'billing'),
-          ('payment_banks', '[]', 'Daftar bank pembayaran (JSON)', 'billing')
+          ('payment_banks', '[]', 'Daftar bank pembayaran (JSON)', 'billing'),
+          ('head_finance_phone', '', 'Nomor WhatsApp Kepala Finance untuk laporan bulanan', 'general')
         `);
       } else {
         // Insert without category column (backward compatible)

@@ -55,7 +55,8 @@
                         'bank_account_number': 'Nomor Rekening',
                         'bank_account_name': 'Atas Nama Rekening',
                         'multiple_banks_enabled': 'Aktifkan Banyak Bank',
-                        'payment_banks': 'Daftar Bank Pembayaran'
+                        'payment_banks': 'Daftar Bank Pembayaran',
+                        'head_finance_phone': 'Nomor WhatsApp Kepala Finance'
                         };
                         return labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         }
@@ -191,12 +192,30 @@
                                                                                     ? 'Aktif' : 'Nonaktif' %>
                                                                             </span>
                                                                         </label>
-                                                                        <% } else { %>
-                                                                            <input type="text"
-                                                                                name="<%= setting.setting_key %>"
-                                                                                value="<%= setting.setting_value || '' %>"
-                                                                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
-                                                                            <% } %>
+                                                                        <% } else if
+                                                                            (setting.setting_key==='head_finance_phone'
+                                                                            ) { %>
+                                                                            <div class="flex gap-2">
+                                                                                <input type="text"
+                                                                                    name="<%= setting.setting_key %>"
+                                                                                    id="head_finance_phone"
+                                                                                    value="<%= setting.setting_value || '' %>"
+                                                                                    class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm"
+                                                                                    placeholder="Contoh: 08123456789">
+                                                                                <button type="button"
+                                                                                    onclick="sendTestFinanceReport()"
+                                                                                    class="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold hover:bg-indigo-200 transition-all border border-indigo-200 whitespace-nowrap">
+                                                                                    <i
+                                                                                        class="fas fa-paper-plane mr-1"></i>
+                                                                                    Test Kirim
+                                                                                </button>
+                                                                            </div>
+                                                                            <% } else { %>
+                                                                                <input type="text"
+                                                                                    name="<%= setting.setting_key %>"
+                                                                                    value="<%= setting.setting_value || '' %>"
+                                                                                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+                                                                                <% } %>
                                                                 </td>
                                                             </tr>
                                                             <% }); %>
@@ -1043,4 +1062,51 @@
     document.addEventListener('DOMContentLoaded', function () {
         setTimeout(checkUpdate, 1000); // Small delay to let page load
     });
+
+    function sendTestFinanceReport() {
+        const phone = document.getElementById('head_finance_phone').value;
+        if (!phone) {
+            Swal.fire('Error', 'Silakan isi nomor WhatsApp Kepala Finance terlebih dahulu dan simpan.', 'error');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Kirim Laporan Sekarang?',
+            text: "Sistem akan membuat PDF laporan keuangan bulan lalu dan mengirimkannya ke WhatsApp Kepala Finance.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#4f46e5',
+            cancelButtonColor: '#9ca3af',
+            confirmButtonText: 'Ya, Kirim Sekarang',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Memproses Laporan...',
+                    html: 'Mohon tunggu, sedang membuat PDF dan mengirim...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                fetch('/settings/system/send-finance-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Berhasil!', data.message, 'success');
+                        } else {
+                            Swal.fire('Gagal!', data.message || 'Terjadi kesalahan saat mengirim laporan.', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        Swal.fire('Error', 'Gagal menghubungi server.', 'error');
+                    });
+            }
+        });
+    }
 </script>

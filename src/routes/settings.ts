@@ -37,6 +37,7 @@ router.get('/system', SystemSettingsController.index);
 router.post('/system', SystemSettingsController.updateSettings);
 router.post('/system/check-update', SystemSettingsController.checkUpdate);
 router.post('/system/perform-update', SystemSettingsController.performUpdate);
+router.post('/system/send-finance-report', SystemSettingsController.sendTestMonthlyReport);
 
 // Routes untuk System Update (Git-based)
 import { getSystemUpdatePage } from '../controllers/settings/SystemUpdatePageController';

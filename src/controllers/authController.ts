@@ -137,8 +137,8 @@ export class AuthController {
                     return res.redirect('/login?error=Gagal logout, silakan coba lagi');
                 }
 
-                // Clear cookie
-                res.clearCookie('connect.sid');
+                // Clear cookie - must match the name in server.ts
+                res.clearCookie('billing_sid');
 
                 // Redirect ke login dengan pesan sukses
                 res.redirect('/login?success=Anda telah berhasil logout');

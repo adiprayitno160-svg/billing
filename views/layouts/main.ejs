@@ -550,7 +550,9 @@
 </head>
 
 <body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 antialiased"
-	data-auto-logout="<%= (typeof autoLogoutEnabled !== 'undefined' ? autoLogoutEnabled : false) %>">
+	data-auto-logout="<%= (typeof autoLogoutEnabled !== 'undefined' ? autoLogoutEnabled : false) %>"
+	data-auto-logout-timeout="<%= (typeof autoLogoutTimeout !== 'undefined' ? autoLogoutTimeout : 30) %>"
+	data-logged-in="<%= ((typeof user !== 'undefined' && user !== null) || (typeof userId !== 'undefined' && userId !== null)) ? 'true' : 'false' %>">
 	<!-- CRITICAL: Remove all onclick attributes before sidebar is rendered -->
 	<script>
 		// Intercept and remove onclick before DOM is fully parsed
@@ -1102,42 +1104,40 @@
 		})();
 	</script>
 
-	<!-- Auto logout after 10 minutes of inactivity -->
+	<!-- Auto logout based on system settings -->
 	<script>
 		(function () {
 			// Check if auto logout is enabled from body data attribute
 			const autoLogoutEnabled = document.body.getAttribute('data-auto-logout') === 'true';
+			const timeoutMinutes = parseInt(document.body.getAttribute('data-auto-logout-timeout') || '30');
+			const isLoggedIn = document.body.getAttribute('data-logged-in') === 'true';
 
-			// If auto logout is disabled, don't run the script
-			if (!autoLogoutEnabled) {
-				console.log('Auto logout is disabled in system settings');
+			console.log('[AutoLogout] Config:', { enabled: autoLogoutEnabled, timeout: timeoutMinutes, loggedIn: isLoggedIn });
+
+			// If auto logout is disabled or user not logged in, don't run
+			if (!autoLogoutEnabled || !isLoggedIn) {
 				return;
 			}
 
-			let idleTime = 0;
-			const IDLE_TIMEOUT = 30; // 30 minutes
-			const WARNING_TIME = 25; // Show warning at 25 minutes
-			const LOGOUT_URL = '/logout';
+			let idleSeconds = 0;
+			const IDLE_TIMEOUT_SEC = timeoutMinutes * 60;
+			const WARNING_THRESHOLD_SEC = Math.max(IDLE_TIMEOUT_SEC - 300, IDLE_TIMEOUT_SEC * 0.8); // 5 mins before or 80% mark
 
-			// Don't log out if already on login page
+			// Don't log out if on public pages (though isLoggedIn should handle this)
 			const currentPath = window.location.pathname;
-			if (currentPath === '/login' || currentPath === '/auth/login' || currentPath === '/kasir/login') {
-				return;
-			}
-
-			// Track if user is logged in (for admin pages)
-			const isLoggedIn = document.body.getAttribute('data-logged-in') === 'true' ||
-				(window.location.pathname !== '/login' &&
-					!window.location.pathname.startsWith('/kasir') &&
-					!window.location.pathname.startsWith('/portal'));
-
-			if (!isLoggedIn) {
+			const publicPaths = ['/login', '/logout', '/auth', '/kasir/login'];
+			if (publicPaths.some(path => currentPath.startsWith(path))) {
 				return;
 			}
 
 			// Reset idle time on user activity
 			function resetIdleTime() {
-				idleTime = 0;
+				if (idleSeconds >= WARNING_THRESHOLD_SEC) {
+					console.log('[AutoLogout] Activity detected, resetting idle timer');
+					// Ping server to keep session alive
+					fetch('/api/server-time').catch(err => console.log('Ping failed', err));
+				}
+				idleSeconds = 0;
 				// Remove warning if exists
 				const warning = document.getElementById('idleWarning');
 				if (warning) {
@@ -1146,61 +1146,73 @@
 			}
 
 			// Listen for user activity
-			document.addEventListener('mousemove', resetIdleTime);
-			document.addEventListener('keypress', resetIdleTime);
-			document.addEventListener('click', resetIdleTime);
-			document.addEventListener('scroll', resetIdleTime);
-			document.addEventListener('touchstart', resetIdleTime);
-			document.addEventListener('mousedown', resetIdleTime);
-			document.addEventListener('keydown', resetIdleTime);
+			const events = ['mousemove', 'keypress', 'click', 'scroll', 'touchstart', 'mousedown', 'keydown'];
+			events.forEach(evt => document.addEventListener(evt, resetIdleTime, { passive: true }));
 
-			// Check idle time every 1 minute
-			setInterval(function () {
-				idleTime += 1; // Increment by 1 minute
+			// Check idle time every 10 seconds for better responsiveness
+			const checkInterval = setInterval(function () {
+				idleSeconds += 10;
 
-				// Show warning at 25 minutes
-				if (idleTime >= WARNING_TIME && idleTime < IDLE_TIMEOUT) {
-					// Only show if warning doesn't already exist
+				// Show warning
+				if (idleSeconds >= WARNING_THRESHOLD_SEC && idleSeconds < IDLE_TIMEOUT_SEC) {
 					if (!document.getElementById('idleWarning')) {
-						const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
 						const warningDiv = document.createElement('div');
 						warningDiv.id = 'idleWarning';
-						warningDiv.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-bounce border border-white/70';
-						warningDiv.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <div class="font-bold text-base">Tidak Ada Aktivitas</div>
-                            <div class="text-sm opacity-90 mt-0.5">Anda akan logout otomatis dalam ${remainingMinutes} menit...</div>
-                        </div>
-                        <button onclick="document.getElementById('idleWarning').remove(); idleTime = 0;" class="px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
-                            Tetap Login
-                        </button>
-                    </div>
-                `;
+						warningDiv.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-4 rounded-2xl shadow-2xl z-[9999] animate-bounce border border-white/20 backdrop-blur-md';
+						warningDiv.style.minWidth = '300px';
 						document.body.appendChild(warningDiv);
-					} else {
-						// Update remaining time in existing warning
-						const remainingMinutes = Math.ceil(IDLE_TIMEOUT - idleTime);
-						const warningText = document.querySelector('#idleWarning .text-sm');
-						if (warningText) {
-							warningText.textContent = `Anda akan logout otomatis dalam ${remainingMinutes} menit...`;
-						}
 					}
+
+					const remainingSec = IDLE_TIMEOUT_SEC - idleSeconds;
+					const min = Math.floor(remainingSec / 60);
+					const sec = remainingSec % 60;
+					const timeStr = min > 0 ? `${min} menit ${sec} detik` : `${sec} detik`;
+
+					const warningDiv = document.getElementById('idleWarning');
+					warningDiv.innerHTML = `
+						<div class="flex items-center gap-4">
+							<div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+								<i class="fas fa-clock text-xl text-white"></i>
+							</div>
+							<div class="flex-1">
+								<div class="font-black text-sm uppercase tracking-wider">Sesi Akan Berakhir</div>
+								<div class="text-xs opacity-90 font-bold">Logout otomatis dalam <span class="text-yellow-300 font-black">${timeStr}</span></div>
+							</div>
+							<button onclick="resetIdleTime()" class="px-4 py-2 bg-white text-orange-600 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-orange-50 transition-all shadow-lg active:scale-95">
+								Lanjut
+							</button>
+						</div>
+					`;
+					// Make the resetIdleTime available from the button
+					window.resetIdleTime = resetIdleTime;
 				}
 
-				// Logout after 30 minutes
-				if (idleTime >= IDLE_TIMEOUT) {
-					console.log('Auto-logout due to inactivity (30 minutes)...');
-					// Force logout - redirect to admin login page with timeout parameter
-					// Session will be destroyed on login page when timeout=1 is detected
-					window.location.href = '/login?timeout=1';
+				// Logout
+				if (idleSeconds >= IDLE_TIMEOUT_SEC) {
+					console.log('[AutoLogout] Timeout reached. Logging out...');
+					clearInterval(checkInterval);
+
+					// Final warning before redirect
+					const warningDiv = document.getElementById('idleWarning');
+					if (warningDiv) {
+						warningDiv.innerHTML = `
+							<div class="flex items-center gap-4">
+								<div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center animate-ping"></div>
+								<div class="font-black text-xs uppercase tracking-widest">Sesi Berakhir, Mengalihkan...</div>
+							</div>
+						`;
+					}
+
+					// Small delay to let the user see the "Redirecting" message
+					setTimeout(() => {
+						let logoutUrl = '/logout';
+						if (currentPath.startsWith('/kasir')) {
+							logoutUrl = '/kasir/logout';
+						}
+						window.location.href = logoutUrl + '?timeout=1';
+					}, 1500);
 				}
-			}, 60000); // Check every 1 minute
+			}, 10000);
 		})();
 	</script>
 
