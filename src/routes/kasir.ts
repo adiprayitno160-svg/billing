@@ -211,9 +211,12 @@ router.get('/print-all', async (req, res) => {
 
             const queryParams: any[] = [];
 
-            if (status) {
+            if (status && status !== 'paid') {
                 query = query.replace("WHERE i.status IN ('sent', 'partial', 'overdue')", 'WHERE i.status = ?');
                 queryParams.push(status);
+            } else if (status === 'paid') {
+                // Return empty if specifically asking for paid in bulk print
+                query = query.replace("WHERE i.status IN ('sent', 'partial', 'overdue')", 'WHERE 1=0');
             }
 
             if (odc_id) {

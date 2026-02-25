@@ -362,9 +362,9 @@ export class PaymentController {
                 if (slaDiscountAmount > 0) {
                     await conn.execute(`
                         INSERT INTO discounts (
-                            invoice_id, discount_type, amount, percentage, reason, created_at
-                        ) VALUES (?, 'sla', ?, ?, 'Kompensasi SLA', NOW())
-                    `, [invoice_id, slaDiscountAmount, req.body.sla_discount_percentage || 0]);
+                            invoice_id, discount_type, discount_value, reason, created_at
+                        ) VALUES (?, 'sla', ?, 'Kompensasi SLA', NOW())
+                    `, [invoice_id, slaDiscountAmount]);
                 }
 
                 // Manual Discount
@@ -377,7 +377,7 @@ export class PaymentController {
 
                     await conn.execute(`
                         INSERT INTO discounts (
-                            invoice_id, discount_type, amount, reason, created_at
+                            invoice_id, discount_type, discount_value, reason, created_at
                         ) VALUES (?, ?, ?, ?, NOW())
                     `, [invoice_id, discountType, manualDiscountAmount, discountReason || 'Diskon Manual']);
                 }
@@ -583,9 +583,9 @@ export class PaymentController {
                 if (slaDiscountAmount > 0) {
                     await conn.execute(`
                         INSERT INTO discounts (
-                            invoice_id, discount_type, amount, percentage, reason, created_at
-                        ) VALUES (?, 'sla', ?, ?, 'Kompensasi SLA', NOW())
-                    `, [invoice_id, slaDiscountAmount, req.body.sla_discount_percentage || 0]);
+                            invoice_id, discount_type, discount_value, reason, created_at
+                        ) VALUES (?, 'sla', ?, 'Kompensasi SLA', NOW())
+                    `, [invoice_id, slaDiscountAmount]);
                 }
 
                 // Manual Discount
@@ -596,7 +596,7 @@ export class PaymentController {
 
                     await conn.execute(`
                         INSERT INTO discounts (
-                            invoice_id, discount_type, amount, reason, created_at
+                            invoice_id, discount_type, discount_value, reason, created_at
                         ) VALUES (?, ?, ?, ?, NOW())
                     `, [invoice_id, discountType, manualDiscountAmount, discountReason || 'Diskon Manual']);
                 }

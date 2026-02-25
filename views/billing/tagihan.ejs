@@ -394,11 +394,13 @@
                                             <span
                                                 class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">TAGIHAN:
                                                 <%= new Date(invoice.created_at).toLocaleDateString('id-ID',
-                                                    {day: '2-digit' , month: 'short' }) %></span>
+                                                    {day: '2-digit' , month: 'short' }) %>
+                                            </span>
                                             <span
                                                 class="text-[10px] font-black <%= new Date(invoice.due_date) < new Date() && invoice.status !== 'paid' ? 'text-red-500' : 'text-slate-400' %> uppercase tracking-tighter">TEMPO:
                                                 <%= new Date(invoice.due_date).toLocaleDateString('id-ID',
-                                                    {day: '2-digit' , month: 'short' , year: 'numeric' }) %></span>
+                                                    {day: '2-digit' , month: 'short' , year: 'numeric' }) %>
+                                            </span>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 text-right pr-6">
@@ -407,33 +409,37 @@
                                             <button data-action="detail" data-invoice-id="<%= invoice.id %>"
                                                 class="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                                                 title="View"><i class="fas fa-eye text-xs"></i></button>
-                                            <button data-action="print" data-invoice-id="<%= invoice.id %>"
-                                                class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-all shadow-sm"
-                                                title="Print"><i class="fas fa-print text-xs"></i></button>
                                             <% if (invoice.status !=='paid' ) { %>
-                                                <button data-action="pay" data-invoice-id="<%= invoice.id %>"
-                                                    class="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                                                    title="Pay"><i class="fas fa-wallet text-xs"></i></button>
-                                                <% if (invoice.customer_is_isolated) { %>
-                                                    <button data-action="restore"
-                                                        data-customer-id="<%= invoice.customer_id %>"
-                                                        data-customer-name="<%= invoice.customer_name %>"
-                                                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all shadow-sm"
-                                                        title="Unisolate"><i class="fas fa-unlock text-xs"></i></button>
-                                                    <% } else { %>
-                                                        <button data-action="isolate"
-                                                            data-customer-id="<%= invoice.customer_id %>"
-                                                            data-customer-name="<%= invoice.customer_name %>"
-                                                            class="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                                                            title="Isolate"><i class="fas fa-lock text-xs"></i></button>
-                                                        <% } %>
-                                                            <% } %>
-                                                                <button data-action="delete"
-                                                                    data-invoice-id="<%= invoice.id %>"
-                                                                    data-invoice-number="<%= invoice.invoice_number %>"
-                                                                    class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                                                    title="Delete"><i
-                                                                        class="fas fa-trash-alt text-xs"></i></button>
+                                                <button data-action="print" data-invoice-id="<%= invoice.id %>"
+                                                    class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-all shadow-sm"
+                                                    title="Print"><i class="fas fa-print text-xs"></i></button>
+                                                <% } %>
+                                                    <% if (invoice.status !=='paid' ) { %>
+                                                        <button data-action="pay" data-invoice-id="<%= invoice.id %>"
+                                                            class="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                            title="Pay"><i class="fas fa-wallet text-xs"></i></button>
+                                                        <% if (invoice.customer_is_isolated) { %>
+                                                            <button data-action="restore"
+                                                                data-customer-id="<%= invoice.customer_id %>"
+                                                                data-customer-name="<%= invoice.customer_name %>"
+                                                                class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                                                                title="Unisolate"><i
+                                                                    class="fas fa-unlock text-xs"></i></button>
+                                                            <% } else { %>
+                                                                <button data-action="isolate"
+                                                                    data-customer-id="<%= invoice.customer_id %>"
+                                                                    data-customer-name="<%= invoice.customer_name %>"
+                                                                    class="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                                                                    title="Isolate"><i
+                                                                        class="fas fa-lock text-xs"></i></button>
+                                                                <% } %>
+                                                                    <% } %>
+                                                                        <button data-action="delete"
+                                                                            data-invoice-id="<%= invoice.id %>"
+                                                                            data-invoice-number="<%= invoice.invoice_number %>"
+                                                                            class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                                            title="Delete"><i
+                                                                                class="fas fa-trash-alt text-xs"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -538,39 +544,42 @@
                                         class="text-[9px] font-bold">Bayar</span>
                                 </button>
                                 <% } %>
-                                    <button onclick="handleTagihanAction(this, 'print', '<%= invoice.id %>')"
-                                        class="flex-1 min-w-[70px] h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
-                                        <i class="fas fa-print text-[10px]"></i><span
-                                            class="text-[9px] font-bold">Print</span>
-                                    </button>
-                                    <button onclick="handleTagihanAction(this, 'send-wanew', '<%= invoice.id %>')"
-                                        class="flex-1 min-w-[70px] h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
-                                        <i class="fab fa-whatsapp text-[10px]"></i><span
-                                            class="text-[9px] font-bold">WA</span>
-                                    </button>
-                                    <% if (invoice.customer_is_isolated) { %>
-                                        <button data-cid="<%= invoice.customer_id %>"
-                                            data-cname="<%= invoice.customer_name %>"
-                                            onclick="handleTagihanAction(this, 'restore', null, this.dataset.cid, this.dataset.cname)"
-                                            class="flex-1 min-w-[70px] h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
-                                            <i class="fas fa-unlock text-[10px]"></i><span
-                                                class="text-[9px] font-bold">Buka</span>
+                                    <% if (invoice.status !=='paid' ) { %>
+                                        <button onclick="handleTagihanAction(this, 'print', '<%= invoice.id %>')"
+                                            class="flex-1 min-w-[70px] h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                            <i class="fas fa-print text-[10px]"></i><span
+                                                class="text-[9px] font-bold">Print</span>
                                         </button>
-                                        <% } else { %>
-                                            <button data-cid="<%= invoice.customer_id %>"
-                                                data-cname="<%= invoice.customer_name %>"
-                                                onclick="handleTagihanAction(this, 'isolate', null, this.dataset.cid, this.dataset.cname)"
-                                                class="flex-1 min-w-[70px] h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
-                                                <i class="fas fa-lock text-[10px]"></i><span
-                                                    class="text-[9px] font-bold">Isolir</span>
+                                        <% } %>
+                                            <button
+                                                onclick="handleTagihanAction(this, 'send-wanew', '<%= invoice.id %>')"
+                                                class="flex-1 min-w-[70px] h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                                <i class="fab fa-whatsapp text-[10px]"></i><span
+                                                    class="text-[9px] font-bold">WA</span>
                                             </button>
-                                            <% } %>
-                                                <button
-                                                    onclick="handleTagihanAction(this, 'delete', '<%= invoice.id %>')"
-                                                    class="flex-1 min-w-[70px] h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
-                                                    <i class="fas fa-trash text-[10px]"></i><span
-                                                        class="text-[9px] font-bold">Hapus</span>
+                                            <% if (invoice.customer_is_isolated) { %>
+                                                <button data-cid="<%= invoice.customer_id %>"
+                                                    data-cname="<%= invoice.customer_name %>"
+                                                    onclick="handleTagihanAction(this, 'restore', null, this.dataset.cid, this.dataset.cname)"
+                                                    class="flex-1 min-w-[70px] h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                                    <i class="fas fa-unlock text-[10px]"></i><span
+                                                        class="text-[9px] font-bold">Buka</span>
                                                 </button>
+                                                <% } else { %>
+                                                    <button data-cid="<%= invoice.customer_id %>"
+                                                        data-cname="<%= invoice.customer_name %>"
+                                                        onclick="handleTagihanAction(this, 'isolate', null, this.dataset.cid, this.dataset.cname)"
+                                                        class="flex-1 min-w-[70px] h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                                        <i class="fas fa-lock text-[10px]"></i><span
+                                                            class="text-[9px] font-bold">Isolir</span>
+                                                    </button>
+                                                    <% } %>
+                                                        <button
+                                                            onclick="handleTagihanAction(this, 'delete', '<%= invoice.id %>')"
+                                                            class="flex-1 min-w-[70px] h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
+                                                            <i class="fas fa-trash text-[10px]"></i><span
+                                                                class="text-[9px] font-bold">Hapus</span>
+                                                        </button>
                         </div>
                     </div>
                     <% }); %>

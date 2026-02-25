@@ -30,7 +30,7 @@ export class DiscountService {
 
             // Insert discount record
             const [result] = await connection.execute<ResultSetHeader>(
-                `INSERT INTO discounts (invoice_id, discount_type, amount, reason, approved_by, created_at)
+                `INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, approved_by, created_at)
                  VALUES (?, ?, ?, ?, ?, NOW())`,
                 [
                     discount.invoice_id,
@@ -51,7 +51,7 @@ export class DiscountService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -82,7 +82,7 @@ export class DiscountService {
 
             // Insert discount
             await connection.execute(
-                `INSERT INTO discounts (invoice_id, discount_type, amount, reason, created_at)
+                `INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, created_at)
                  VALUES (?, 'downtime', ?, ?, NOW())`,
                 [invoiceId, discountAmount, `Kompensasi Gangguan: ${days} hari. ${reason}`]
             );
@@ -96,7 +96,7 @@ export class DiscountService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -126,7 +126,7 @@ export class DiscountService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -147,7 +147,7 @@ export class DiscountService {
 
             // Get total from discounts
             const [discountRows] = await connection.query<RowDataPacket[]>(
-                'SELECT SUM(amount) as discount_total FROM discounts WHERE invoice_id = ?',
+                'SELECT SUM(discount_value) as discount_total FROM discounts WHERE invoice_id = ?',
                 [invoiceId]
             );
             const discountTotal = parseFloat(discountRows[0].discount_total || 0);
@@ -191,7 +191,7 @@ export class DiscountService {
 
             // If we are on connection pool (not in transaction), no need to commit
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 

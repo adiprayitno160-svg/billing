@@ -382,6 +382,7 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                 INNER JOIN customers c ON i.customer_id = c.id
                 WHERE c.odc_id = ?
                 AND i.status IN ('sent', 'partial', 'overdue')
+                AND i.status != 'paid'
             `;
 
             const queryParams: any[] = [odc_id];
@@ -482,13 +483,17 @@ router.get('/tagihan/print-all', async (req, res) => {
 
             // If specific IDs are provided, prioritized them
             if (ids && Array.isArray(ids) && ids.length > 0) {
-                query += ' AND i.id IN (?)';
+                query += " AND i.id IN (?) AND i.status != 'paid'";
                 queryParams.push(ids);
             } else {
                 // Default status filter if no IDs provided
-                if (status) {
+                if (status && status !== 'paid') {
                     query += ' AND i.status = ?';
                     queryParams.push(status);
+                } else if (status === 'paid') {
+                    // If user specifically requested 'paid', return empty or filter to nothing
+                    // Based on "bila sudah lunas tidak perlu di print kembali"
+                    query += " AND 1=0";
                 } else {
                     query += " AND i.status IN ('sent', 'partial', 'overdue')";
                 }
