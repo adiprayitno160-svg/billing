@@ -83,7 +83,7 @@ export class DiscountService {
             // Insert discount
             await connection.execute(
                 `INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, created_at)
-                 VALUES (?, 'downtime', ?, ?, NOW())`,
+                 VALUES (?, 'disturbance', ?, ?, NOW())`,
                 [invoiceId, discountAmount, `Kompensasi Gangguan: ${days} hari. ${reason}`]
             );
 
