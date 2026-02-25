@@ -1,4 +1,5 @@
 import { databasePool } from '../../db/pool';
+import { Pool, PoolConnection } from 'mysql2/promise';
 
 export interface PaymentData {
     invoice_id: number;
@@ -14,11 +15,12 @@ export class PaymentService {
     /**
      * Catat pembayaran
      */
-    static async recordPayment(paymentData: PaymentData): Promise<number> {
-        const connection = await databasePool.getConnection();
+    static async recordPayment(paymentData: PaymentData, existingConnection?: PoolConnection | Pool): Promise<number> {
+        const connection = existingConnection || await databasePool.getConnection();
+        const isNewConnection = !existingConnection;
 
         try {
-            await connection.beginTransaction();
+            if (isNewConnection) await (connection as PoolConnection).beginTransaction();
 
             // Insert payment
             const paymentQuery = `
@@ -43,7 +45,7 @@ export class PaymentService {
             // Update invoice payment status
             await this.updateInvoicePaymentStatus(paymentData.invoice_id, connection);
 
-            await connection.commit();
+            if (isNewConnection) await (connection as PoolConnection).commit();
 
             // Track late payment (async, don't wait)
             this.trackLatePayment(paymentData.invoice_id, paymentId).catch(error => {
@@ -53,17 +55,17 @@ export class PaymentService {
             return paymentId;
 
         } catch (error) {
-            await connection.rollback();
+            if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            connection.release();
+            if (isNewConnection) connection.release();
         }
     }
 
     /**
      * Update status pembayaran invoice
      */
-    static async updateInvoicePaymentStatus(invoiceId: number, existingConnection?: any): Promise<void> {
+    static async updateInvoicePaymentStatus(invoiceId: number, existingConnection?: PoolConnection | Pool): Promise<void> {
         const connection = existingConnection || databasePool;
         // Hitung total pembayaran
         const paymentQuery = `
@@ -77,12 +79,14 @@ export class PaymentService {
 
         // Get invoice details
         const invoiceQuery = `
-            SELECT total_amount, due_date, status
+            SELECT id, total_amount, due_date, status, customer_id, invoice_number
             FROM invoices 
             WHERE id = ?
         `;
 
         const [invoiceResult] = await connection.execute(invoiceQuery, [invoiceId]);
+        if ((invoiceResult as any[]).length === 0) return;
+
         const invoice = (invoiceResult as any[])[0];
 
         const totalAmount = parseFloat(invoice.total_amount || 0);
@@ -149,11 +153,12 @@ export class PaymentService {
     /**
      * Handle pembayaran parsial dan kekurangan
      */
-    static async handlePartialPayment(invoiceId: number, paymentAmount: number, paymentMethod: string, notes?: string): Promise<{ paymentId: number, carryOverAmount?: number }> {
-        const connection = await databasePool.getConnection();
+    static async handlePartialPayment(invoiceId: number, paymentAmount: number, paymentMethod: string, notes?: string, existingConnection?: PoolConnection | Pool): Promise<{ paymentId: number, carryOverAmount?: number }> {
+        const connection = existingConnection || await databasePool.getConnection();
+        const isNewConnection = !existingConnection;
 
         try {
-            await connection.beginTransaction();
+            if (isNewConnection) await (connection as PoolConnection).beginTransaction();
 
             // Get invoice details
             const invoiceQuery = `
@@ -166,7 +171,6 @@ export class PaymentService {
             const invoice = (invoiceResult as any[])[0];
 
             const totalAmount = parseFloat(invoice.total_amount || 0);
-            const currentPaid = parseFloat(invoice.paid_amount || 0);
             const remainingAmount = parseFloat(invoice.remaining_amount);
 
             // Catat pembayaran
@@ -177,7 +181,7 @@ export class PaymentService {
                 notes: notes
             };
 
-            const paymentId = await this.recordPayment(paymentData);
+            const paymentId = await this.recordPayment(paymentData, connection);
 
             let carryOverAmount = 0;
 
@@ -210,17 +214,17 @@ export class PaymentService {
 
                 // Import InvoiceService untuk membuat invoice
                 const { InvoiceService } = await import('./invoiceService');
-                await InvoiceService.createInvoice(carryOverInvoiceData as any, carryOverItems);
+                await InvoiceService.createInvoice(carryOverInvoiceData as any, carryOverItems, connection);
             }
 
-            await connection.commit();
+            if (isNewConnection) await (connection as PoolConnection).commit();
             return { paymentId, carryOverAmount };
 
         } catch (error) {
-            await connection.rollback();
+            if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            connection.release();
+            if (isNewConnection) connection.release();
         }
     }
 

@@ -1,4 +1,5 @@
 import { databasePool } from '../../db/pool';
+import { Pool, PoolConnection } from 'mysql2/promise';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
 import { RowDataPacket } from 'mysql2';
 import { mikrotikPool } from '../MikroTikConnectionPool';
@@ -51,8 +52,10 @@ export class IsolationService {
      */
     private static async executeMikrotikIsolation(
         customer: any,
-        action: 'isolate' | 'restore'
+        action: 'isolate' | 'restore',
+        existingConnection?: PoolConnection | Pool
     ): Promise<MikrotikIsolateResult> {
+        const connection = existingConnection || databasePool;
         console.log(`[Isolation] 🤖 Starting executeMikrotikIsolation for ${customer.name} (ID: ${customer.id}, Type: ${customer.connection_type}, Action: ${action})`);
 
         try {
@@ -118,7 +121,7 @@ export class IsolationService {
 
             } else if (connectionType === 'static_ip') {
                 // ============== STATIC IP ISOLATION ==============
-                const [staticIpRows] = await databasePool.execute(
+                const [staticIpRows] = await connection.execute(
                     `SELECT ip_address, gateway_ip, gateway_ip_id, interface FROM static_ip_clients WHERE customer_id = ? ORDER BY id DESC LIMIT 1`,
                     [customer.id]
                 );
@@ -162,7 +165,7 @@ export class IsolationService {
 
                             // Update stored ID if it was missing
                             if (!staticIpClient.gateway_ip_id) {
-                                await databasePool.execute(
+                                await connection.execute(
                                     'UPDATE static_ip_clients SET gateway_ip_id = ? WHERE customer_id = ?',
                                     [gwId, customer.id]
                                 );
@@ -226,11 +229,12 @@ export class IsolationService {
     /**
      * Isolir pelanggan (PPPoE atau Static IP)
      */
-    static async isolateCustomer(isolationData: IsolationData): Promise<boolean> {
-        const connection = await databasePool.getConnection();
+    static async isolateCustomer(isolationData: IsolationData, existingConnection?: PoolConnection | Pool): Promise<boolean> {
+        const connection = existingConnection || await databasePool.getConnection();
+        const isNewConnection = !existingConnection;
 
         try {
-            await connection.beginTransaction();
+            if (isNewConnection) await (connection as PoolConnection).beginTransaction();
 
             // Security Check: Verify unpaid invoices before restore
             if (isolationData.action === 'restore') {
@@ -271,7 +275,7 @@ export class IsolationService {
 
             if (!customer) throw new Error('Customer not found');
 
-            const mikrotikResult = await this.executeMikrotikIsolation(customer, isolationData.action);
+            const mikrotikResult = await this.executeMikrotikIsolation(customer, isolationData.action, connection);
 
             // Log it
             let mikrotikUsername = '';
@@ -295,7 +299,7 @@ export class IsolationService {
                 await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL WHERE id = ?', [customer.id]);
             }
 
-            await connection.commit();
+            if (isNewConnection) await (connection as PoolConnection).commit();
 
             // Notification
             if (customer.phone) {
@@ -327,10 +331,10 @@ export class IsolationService {
             return mikrotikResult.success;
 
         } catch (error) {
-            await connection.rollback();
+            if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            connection.release();
+            if (isNewConnection) connection.release();
         }
     }
 

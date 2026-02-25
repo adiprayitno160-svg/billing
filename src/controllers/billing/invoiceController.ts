@@ -16,6 +16,7 @@ export class InvoiceController {
             // Default to current month if no period specified, to keep view clean as per user request
             const period = (req.query.period as string) || new Date().toISOString().slice(0, 7);
             const odc_id = req.query.odc_id as string || '';
+            const hide_isolated = req.query.hide_isolated as string || '';
 
             const offset = (page - 1) * limit;
 
@@ -46,6 +47,13 @@ export class InvoiceController {
             if (search) {
                 whereConditions.push('(c.name LIKE ? OR c.phone LIKE ? OR i.invoice_number LIKE ?)');
                 queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            }
+
+            // Filter isolated customers
+            if (hide_isolated === '1') {
+                whereConditions.push('COALESCE(c.is_isolated, 0) = 0');
+            } else if (hide_isolated === 'only') {
+                whereConditions.push('COALESCE(c.is_isolated, 0) = 1');
             }
 
             const whereClause = whereConditions.length > 0
@@ -185,7 +193,8 @@ export class InvoiceController {
                     status,
                     search,
                     period,
-                    odc_id
+                    odc_id,
+                    hide_isolated
                 },
                 schedulerSettings: {
                     due_date_offset: dueDateOffset
@@ -1318,18 +1327,18 @@ Terima kasih telah berlangganan! 🙏`;
             }
 
             const { DiscountService } = await import('../../services/billing/discountService');
-            const discountId = await DiscountService.applyDowntimeDiscount(
+            const reason = startDate && endDate
+                ? `Gangguan ${startDate} s/d ${endDate} (by admin #${appliedBy})`
+                : `Gangguan ${downtimeDays} hari (by admin #${appliedBy})`;
+            await DiscountService.applyDowntimeDiscount(
                 parseInt(invoiceId),
                 parseInt(downtimeDays),
-                appliedBy,
-                startDate,
-                endDate
+                reason
             );
 
             res.json({
                 success: true,
-                message: `Diskon gangguan ${downtimeDays} hari berhasil diterapkan.`,
-                discountId
+                message: `Diskon gangguan ${downtimeDays} hari berhasil diterapkan.`
             });
         } catch (error: any) {
             console.error('Error applying downtime discount:', error);

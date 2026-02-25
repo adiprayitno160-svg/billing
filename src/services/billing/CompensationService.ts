@@ -4,7 +4,7 @@
  */
 
 import { databasePool } from '../../db/pool';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { UnifiedNotificationService } from '../notification/UnifiedNotificationService';
 
 export interface CompensationRequest {
@@ -22,12 +22,15 @@ export class CompensationService {
      * Register a new compensation request (Restitution)
      * Handles logic for immediate application to current invoice OR pending for next invoice
      */
-    static async registerCompensation(request: CompensationRequest): Promise<void> {
-        const connection = await databasePool.getConnection();
+    static async registerCompensation(request: CompensationRequest, existingConnection?: PoolConnection | Pool): Promise<void> {
+        const connection = existingConnection || await databasePool.getConnection();
+        const isNewConnection = !existingConnection;
 
         try {
-            await connection.execute('SET innodb_lock_wait_timeout = 30');
-            await connection.beginTransaction();
+            if (isNewConnection) {
+                await (connection as PoolConnection).execute('SET innodb_lock_wait_timeout = 30');
+                await (connection as PoolConnection).beginTransaction();
+            }
 
             // 1. Get active subscription to calculate daily rate
             const [subscriptionRows] = await connection.query<RowDataPacket[]>(
@@ -105,23 +108,20 @@ export class CompensationService {
                 ]
             );
 
-            await connection.commit();
-
-            // Notify if applied immediately
-            // if (status === 'applied') { ... }
+            if (isNewConnection) await (connection as PoolConnection).commit();
 
         } catch (error) {
-            await connection.rollback();
+            if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            connection.release();
+            if (isNewConnection) connection.release();
         }
     }
 
     /**
      * Helper to apply compensation directly to an existing invoice
      */
-    private static async applyToInvoice(connection: any, invoiceId: number, amount: number, days: number, reason: string, startDate?: string, endDate?: string): Promise<void> {
+    private static async applyToInvoice(connection: PoolConnection | Pool, invoiceId: number, amount: number, days: number, reason: string, startDate?: string, endDate?: string): Promise<void> {
         // Format description with dates if available
         let description = `Kompensasi Gangguan (${days} Hari)`;
         if (startDate && endDate) {
@@ -150,7 +150,7 @@ export class CompensationService {
         );
 
         // Update Invoice Totals (Recalculate subtotal)
-        const [items] = await connection.query('SELECT SUM(total_price) as new_subtotal FROM invoice_items WHERE invoice_id = ?', [invoiceId]);
+        const [items] = await connection.query<RowDataPacket[]>('SELECT SUM(total_price) as new_subtotal FROM invoice_items WHERE invoice_id = ?', [invoiceId]);
         const newSubtotal = parseFloat(items[0].new_subtotal || 0);
 
         // Update invoice and recalculate based on new subtotal
@@ -174,13 +174,13 @@ export class CompensationService {
 
     /**
      * Apply compensation to a customer (Legacy/Balance Credit method)
-     * This extends the current subscription period or adds a credit/discount to the next invoice
      */
-    static async applyCompensation(request: CompensationRequest): Promise<void> {
-        const connection = await databasePool.getConnection();
+    static async applyCompensation(request: CompensationRequest, existingConnection?: PoolConnection | Pool): Promise<void> {
+        const connection = existingConnection || await databasePool.getConnection();
+        const isNewConnection = !existingConnection;
 
         try {
-            await connection.beginTransaction();
+            if (isNewConnection) await (connection as PoolConnection).beginTransaction();
 
             // 1. Get active subscription
             const [subscriptionRows] = await connection.query<RowDataPacket[]>(
@@ -192,23 +192,9 @@ export class CompensationService {
             );
 
             if (subscriptionRows.length === 0) {
-                // If no active subscription (e.g., static IP or just customer record), 
-                // we can add balance credit instead
                 await this.applyBalanceCredit(connection, request);
             } else {
                 const subscription = subscriptionRows[0];
-
-                // Option A: Extend the due date of the current UNPAID invoice if exists
-                // Option B: Add a discount record for the NEXT invoice generation
-
-                // Let's implement Option B: Create a 'service_interruption' record that is checked during invoice generation
-                // OR directly update invoice if generated.
-
-                // Simplified Approach for Billing System:
-                // 1. Calculate value of compensation (Price / 30 * days)
-                // 2. Add as 'credit' to customer balance
-                // 3. Next invoice will use this credit
-
                 const dailyRate = parseFloat(subscription.price) / 30;
                 const compensationAmount = Math.ceil(dailyRate * request.days);
 
@@ -230,44 +216,40 @@ export class CompensationService {
                     ]
                 );
 
-                console.log(`✅ Applied compensation: ${request.days} days (Rp ${compensationAmount}) for customer ${request.customerId}`);
-
                 // Send Notification
                 if (subscription.phone) {
                     await UnifiedNotificationService.queueNotification({
                         customer_id: request.customerId,
-                        notification_type: 'broadcast', // Reuse broadcast or specific type
+                        notification_type: 'broadcast',
                         channels: ['whatsapp'],
                         variables: {
                             customer_name: subscription.name,
                             custom_message: `Mohon maaf atas gangguan layanan Anda. \n\nKami telah menambahkan kompensasi sebesar *Rp ${compensationAmount.toLocaleString('id-ID')}* (${request.days} hari) ke saldo akun Anda. Potongan ini akan otomatis digunakan pada tagihan berikutnya.\n\nTerima kasih atas pengertiannya.`
                         },
                         priority: 'high'
-                    });
+                    }).catch(err => console.error('Notification failed:', err));
                 }
             }
 
-            await connection.commit();
+            if (isNewConnection) await (connection as PoolConnection).commit();
         } catch (error) {
-            await connection.rollback();
+            if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            connection.release();
+            if (isNewConnection) connection.release();
         }
     }
 
     /**
      * Apply balance credit (fallback)
      */
-    private static async applyBalanceCredit(connection: any, request: CompensationRequest): Promise<void> {
-        // Estimate average package price (e.g., 150k) if no sub found, or just skip
-        // Better: Get last invoice amount
-        const [lastInvoice] = await connection.query(
+    private static async applyBalanceCredit(connection: PoolConnection | Pool, request: CompensationRequest): Promise<void> {
+        const [lastInvoice] = await connection.query<RowDataPacket[]>(
             `SELECT total_amount FROM invoices WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1`,
             [request.customerId]
         );
 
-        let baseAmount = 150000; // Default fallback
+        let baseAmount = 150000;
         if (lastInvoice.length > 0) {
             baseAmount = parseFloat(lastInvoice[0].total_amount);
         }
@@ -293,9 +275,9 @@ export class CompensationService {
     }
 
     /**
-     * Bulk apply compensation for reported trouble reporting
+     * Bulk apply compensation
      */
     static async processBulkCompensation(incidentId: number, adminId: number): Promise<void> {
-        // Implementation for future: compensating all users affected by a specific network incident
+        // Implementation for future
     }
 }
