@@ -184,7 +184,7 @@ export class TaxCalculationService {
   static async calculateInvoiceTax(invoiceId: number): Promise<{ taxAmount: number; totalWithTax: number }> {
     // Get the invoice details
     const [invoiceRows] = await pool.query<RowDataPacket[]>(
-      `SELECT amount, tax_rate FROM invoices WHERE id = ?`,
+      `SELECT subtotal as amount, ppn_rate as tax_rate FROM invoices WHERE id = ?`,
       [invoiceId]
     );
 
@@ -214,7 +214,7 @@ export class TaxCalculationService {
 
     // Get the current tax rate for this invoice
     const [invoiceRows] = await pool.query<RowDataPacket[]>(
-      `SELECT amount, tax_rate FROM invoices WHERE id = ?`,
+      `SELECT subtotal as amount, ppn_rate as tax_rate FROM invoices WHERE id = ?`,
       [invoiceId]
     );
 

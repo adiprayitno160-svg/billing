@@ -443,10 +443,10 @@ export class SLAMonitoringService {
     async calculateDiscount(customerId: number, actualSLA: number, targetSLA: number): Promise<number> {
         // Get customer's monthly invoice amount
         const [invoices] = await pool.query<RowDataPacket[]>(`
-            SELECT amount 
+            SELECT total_amount as amount 
             FROM invoices 
             WHERE customer_id = ? 
-            ORDER BY invoice_date DESC 
+            ORDER BY created_at DESC 
             LIMIT 1
         `, [customerId]);
 

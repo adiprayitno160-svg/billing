@@ -43,7 +43,7 @@ interface OverdueCustomer extends RowDataPacket {
     phone: string | null;
     email: string | null;
     invoice_id: number;
-    amount: number;
+    total_amount: number;
     due_date: Date;
     days_overdue: number;
     status: string;
@@ -113,7 +113,7 @@ interface DashboardSummary {
 }
 
 export class BillingDashboardService {
-    
+
     /**
      * Get comprehensive billing statistics
      */
@@ -126,25 +126,25 @@ export class BillingDashboardService {
                     (SELECT COUNT(*) FROM invoices WHERE status IN ('sent', 'partial')) as pending_bills,
                     (SELECT COUNT(*) FROM invoices WHERE status = 'overdue') as overdue_bills,
                     (SELECT COUNT(*) FROM invoices WHERE status = 'paid' AND period = DATE_FORMAT(CURRENT_DATE, '%Y-%m')) as paid_bills,
-                    (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE status = 'paid' AND period = DATE_FORMAT(CURRENT_DATE, '%Y-%m')) as monthly_revenue,
+                    (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status = 'paid' AND period = DATE_FORMAT(CURRENT_DATE, '%Y-%m')) as monthly_revenue,
                     (SELECT COUNT(*) FROM invoices WHERE status = 'paid' AND period = DATE_FORMAT(CURRENT_DATE, '%Y-%m')) as successful_payments,
                     (SELECT COUNT(*) FROM customers) as total_customers,
-                    (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE status = 'overdue') as overdue_amount,
-                    (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE status IN ('sent', 'partial')) as pending_amount
+                    (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status = 'overdue') as overdue_amount,
+                    (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE status IN ('sent', 'partial')) as pending_amount
             `;
-            
+
             const [result] = await databasePool.execute<BillingStatistics[]>(query);
             const stats = result[0];
-            
+
             if (!stats) {
                 throw new Error('Failed to retrieve billing statistics');
             }
-            
+
             // Log successful retrieval
             await BillingLogService.info('billing', 'BillingDashboard', 'Billing statistics retrieved', {
                 stats
             });
-            
+
             return stats;
         } catch (error) {
             await BillingLogService.error('billing', 'BillingDashboard', 'Error getting billing statistics', error as Error);
@@ -163,13 +163,13 @@ export class BillingDashboardService {
                     COUNT(*) as total_bills,
                     SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_bills,
                     SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue_bills,
-                    SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as revenue
+                    SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as revenue
                 FROM invoices 
                 WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL ? DAY)
                 GROUP BY DATE(created_at)
                 ORDER BY date DESC
             `;
-            
+
             const [result] = await databasePool.execute<BillingTrend[]>(query, [days]);
             await BillingLogService.info('billing', 'BillingDashboard', `Billing trends retrieved for ${days} days`);
             return result;
@@ -202,7 +202,7 @@ export class BillingDashboardService {
                 ORDER BY overdue_invoices DESC, avg_payment_delay DESC
                 LIMIT 50
             `;
-            
+
             const [result] = await databasePool.execute<CustomerPaymentBehavior[]>(query);
             await BillingLogService.info('billing', 'BillingDashboard', 'Customer payment behavior retrieved');
             return result;
@@ -224,7 +224,7 @@ export class BillingDashboardService {
                     c.phone,
                     c.email,
                     i.id as invoice_id,
-                    i.amount,
+                    i.total_amount,
                     i.due_date,
                     DATEDIFF(CURRENT_DATE, i.due_date) as days_overdue,
                     i.status
@@ -235,7 +235,7 @@ export class BillingDashboardService {
                 ORDER BY days_overdue DESC
                 LIMIT ?
             `;
-            
+
             const [result] = await databasePool.execute<OverdueCustomer[]>(query, [limit]);
             const overdueCount = result.length;
             await BillingLogService.info('billing', 'BillingDashboard', `Retrieved ${overdueCount} overdue customers`, {
@@ -288,17 +288,18 @@ export class BillingDashboardService {
                     'success' as status,
                     p.notes as reason
                 FROM payments p
-                JOIN customers c ON p.customer_id = c.id
+                JOIN invoices inv ON p.invoice_id = inv.id
+                JOIN customers c ON inv.customer_id = c.id
                 WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                 
                 UNION ALL
                 
                 SELECT 
                     'invoice' as activity_type,
-                    CONCAT('Invoice created for ', c.name, ' - Rp ', FORMAT(i.amount, 0)) as description,
+                    CONCAT('Invoice created for ', c.name, ' - Rp ', FORMAT(i.total_amount, 0)) as description,
                     i.created_at as timestamp,
                     'info' as status,
-                    i.description as reason
+                    i.notes as reason
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
                 WHERE i.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
@@ -306,7 +307,7 @@ export class BillingDashboardService {
                 ORDER BY timestamp DESC
                 LIMIT ?
             `;
-            
+
             const [result] = await databasePool.execute<BillingActivity[]>(query, [limit]);
             await BillingLogService.info('billing', 'BillingDashboard', 'Recent billing activities retrieved');
             return result;
@@ -324,7 +325,7 @@ export class BillingDashboardService {
             // Database health
             const dbHealth = await databasePool.query('SELECT 1 as health');
             const dbConnected = Array.isArray(dbHealth[0]) && dbHealth[0].length > 0;
-            
+
             // Get notification failures
             const notificationQuery = `
                 SELECT COUNT(*) as count 
@@ -334,7 +335,7 @@ export class BillingDashboardService {
             `;
             const [notificationResult] = await databasePool.execute<NotificationCount[]>(notificationQuery);
             const notificationFailures = parseInt(notificationResult[0]?.count || '0', 10);
-            
+
             // Get auto actions status
             const autoActionsQuery = `
                 SELECT 
@@ -344,7 +345,7 @@ export class BillingDashboardService {
             `;
             const [autoActionsResult] = await databasePool.execute<AutoActionsSettings[]>(autoActionsQuery);
             const autoActions = autoActionsResult[0];
-            
+
             const health: SystemHealthMetrics = {
                 database: {
                     connected: dbConnected,
@@ -361,13 +362,13 @@ export class BillingDashboardService {
                 },
                 overall_status: dbConnected && notificationFailures < 10 ? 'healthy' : 'warning'
             };
-            
+
             if (health.overall_status !== 'healthy') {
                 await BillingLogService.warning('system', 'BillingDashboard', 'System health check shows non-healthy status', health);
             } else {
                 await BillingLogService.info('system', 'BillingDashboard', 'System health check passed');
             }
-            
+
             return health;
         } catch (error) {
             await BillingLogService.error('system', 'BillingDashboard', 'Error getting system health metrics', error as Error);
@@ -421,7 +422,7 @@ export class BillingDashboardService {
                 ORDER BY overdue_count DESC, c.name ASC
                 LIMIT ?
             `;
-            
+
             const searchPattern = `%${searchTerm}%`;
             const [result] = await databasePool.execute<CustomerSearchResult[]>(query, [searchPattern, searchPattern, searchPattern, limit]);
             await BillingLogService.info('billing', 'BillingDashboard', `Customer search performed: "${searchTerm}"`, {
@@ -459,7 +460,7 @@ export class BillingDashboardService {
                 sla: slaStats,
                 timestamp: new Date().toISOString()
             };
-            
+
             await BillingLogService.info('billing', 'BillingDashboard', 'Dashboard summary retrieved');
             return summary;
         } catch (error) {
@@ -480,27 +481,27 @@ export class BillingDashboardService {
             // Use parameterized queries to prevent SQL injection
             const settingsToUpdate: string[] = [];
             const values: string[] = [];
-            
+
             if (settings.auto_isolate !== undefined) {
                 settingsToUpdate.push('auto_isolate_enabled');
                 values.push(settings.auto_isolate ? 'true' : 'false');
             }
-            
+
             if (settings.auto_restore !== undefined) {
                 settingsToUpdate.push('auto_restore_enabled');
                 values.push(settings.auto_restore ? 'true' : 'false');
             }
-            
+
             if (settings.auto_notifications !== undefined) {
                 settingsToUpdate.push('auto_notifications_enabled');
                 values.push(settings.auto_notifications ? 'true' : 'false');
             }
-            
+
             // Update each setting individually using parameterized query
             for (let i = 0; i < settingsToUpdate.length; i++) {
                 const key = settingsToUpdate[i];
                 const value = values[i];
-                
+
                 await databasePool.execute(
                     `INSERT INTO system_settings (setting_key, setting_value, updated_at) 
                      VALUES (?, ?, NOW())
@@ -508,7 +509,7 @@ export class BillingDashboardService {
                     [key, value]
                 );
             }
-            
+
             await BillingLogService.info('billing', 'BillingDashboard', 'Auto billing settings updated', { settings });
             return true;
         } catch (error) {

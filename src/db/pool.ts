@@ -557,20 +557,32 @@ export async function ensureInitialSchema(): Promise<void> {
 		// Create invoices table (referenced by notifications)
 		await conn.query(`CREATE TABLE IF NOT EXISTS invoices (
 			id INT AUTO_INCREMENT PRIMARY KEY,
-			invoice_number VARCHAR(50) NOT NULL UNIQUE,
-			customer_id INT NULL,
-			period VARCHAR(7) NOT NULL,
-			amount DECIMAL(12,2) DEFAULT 0,
-			status ENUM('paid','unpaid','partial','overdue') DEFAULT 'unpaid',
-			due_date DATETIME NULL,
-			paid_at DATETIME NULL,
-			payment_method VARCHAR(50) NULL,
+			invoice_number VARCHAR(191) UNIQUE NOT NULL,
+			customer_id INT NOT NULL,
+			subscription_id INT NULL,
+			period VARCHAR(50) NOT NULL,
+			due_date DATE NOT NULL,
+			subtotal DECIMAL(15,2) NOT NULL DEFAULT 0,
+			discount_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+			ppn_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+			ppn_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+			device_fee DECIMAL(15,2) NOT NULL DEFAULT 0,
+			total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+			paid_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+			remaining_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+			status ENUM('draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled') DEFAULT 'draft',
+			partial_payment_allowed TINYINT(1) DEFAULT 0,
+			debt_tracking_enabled TINYINT(1) DEFAULT 0,
+			last_payment_date DATE NULL,
+			notes TEXT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_customer (customer_id),
-			INDEX idx_period (period),
+			INDEX idx_customer_id (customer_id),
+			INDEX idx_invoice_number (invoice_number),
 			INDEX idx_status (status),
-			CONSTRAINT fk_invoice_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+			INDEX idx_due_date (due_date),
+			INDEX idx_created_at (created_at),
+			CONSTRAINT fk_invoice_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 		// Create discounts table for invoice-level discounts

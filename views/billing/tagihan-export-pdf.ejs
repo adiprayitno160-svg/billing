@@ -1,30 +1,35 @@
 ﻿<!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
+    <title>
+        <%= title %>
+    </title>
     <style>
         @media print {
             @page {
                 size: A4 landscape;
                 margin: 10mm;
             }
+
             .no-print {
                 display: none !important;
             }
+
             body {
                 margin: 0;
                 padding: 0;
             }
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: Arial, sans-serif;
             font-size: 10px;
@@ -32,15 +37,15 @@
             padding: 15px;
             background: #f5f5f5;
         }
-        
+
         .page-container {
             max-width: 297mm;
             margin: 0 auto;
             background: white;
             padding: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .header {
             display: flex;
             justify-content: space-between;
@@ -49,68 +54,68 @@
             padding-bottom: 10px;
             border-bottom: 3px solid #333;
         }
-        
+
         .header-left h1 {
             font-size: 18px;
             margin-bottom: 3px;
             color: #333;
         }
-        
+
         .header-left p {
             font-size: 10px;
             color: #666;
         }
-        
+
         .header-right {
             text-align: right;
             font-size: 9px;
             color: #666;
         }
-        
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             margin-bottom: 15px;
         }
-        
+
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 12px;
             border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-        
+
         .stat-card.green {
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         }
-        
+
         .stat-card.yellow {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
-        
+
         .stat-card.red {
             background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
         }
-        
+
         .stat-label {
             font-size: 9px;
             opacity: 0.9;
             margin-bottom: 5px;
         }
-        
+
         .stat-value {
             font-size: 16px;
             font-weight: bold;
         }
-        
+
         .stat-amount {
             font-size: 11px;
             margin-top: 3px;
             opacity: 0.95;
         }
-        
+
         .filters-info {
             background: #f8f9fa;
             padding: 8px;
@@ -118,7 +123,7 @@
             border-left: 4px solid #007bff;
             font-size: 9px;
         }
-        
+
         .print-button {
             position: fixed;
             top: 20px;
@@ -131,41 +136,41 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             z-index: 1000;
         }
-        
+
         .print-button:hover {
             background: #0056b3;
         }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 9px;
         }
-        
+
         table thead {
             background: #333;
             color: white;
         }
-        
+
         table th {
             padding: 6px 4px;
             text-align: left;
             font-weight: bold;
             font-size: 9px;
         }
-        
+
         table td {
             padding: 5px 4px;
             border-bottom: 1px solid #ddd;
         }
-        
+
         table tbody tr:nth-child(even) {
             background: #f8f9fa;
         }
-        
+
         .status-badge {
             display: inline-block;
             padding: 2px 5px;
@@ -173,31 +178,31 @@
             font-size: 8px;
             font-weight: bold;
         }
-        
+
         .status-paid {
             background: #d4edda;
             color: #155724;
         }
-        
+
         .status-unpaid {
             background: #fff3cd;
             color: #856404;
         }
-        
+
         .status-overdue {
             background: #f8d7da;
             color: #721c24;
         }
-        
+
         .status-cancelled {
             background: #e2e3e5;
             color: #383d41;
         }
-        
+
         .text-right {
             text-align: right;
         }
-        
+
         .footer {
             margin-top: 20px;
             text-align: center;
@@ -206,38 +211,38 @@
             padding-top: 10px;
             border-top: 1px solid #ddd;
         }
-        
+
         .odc-info {
             font-size: 8px;
             color: #666;
         }
-        
+
         .summary-section {
             margin-top: 15px;
             padding: 12px;
             background: #f8f9fa;
             border: 2px solid #dee2e6;
         }
-        
+
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
         }
-        
+
         .summary-item {
             text-align: center;
             padding: 8px;
             background: white;
             border-radius: 5px;
         }
-        
+
         .summary-item-label {
             font-size: 9px;
             color: #666;
             margin-bottom: 5px;
         }
-        
+
         .summary-item-value {
             font-size: 14px;
             font-weight: bold;
@@ -245,11 +250,12 @@
         }
     </style>
 </head>
+
 <body>
     <button class="print-button no-print" onclick="window.print()">
         🖨️ Print / Save PDF
     </button>
-    
+
     <div class="page-container">
         <div class="header">
             <div class="header-left">
@@ -258,168 +264,200 @@
             </div>
             <div class="header-right">
                 <strong>Tanggal Export:</strong><br>
-                <%= exportDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %><br>
-                <%= exportDate.toLocaleTimeString('id-ID') %> WIB
+                <%= exportDate.toLocaleDateString('id-ID', { weekday: 'long' , year: 'numeric' , month: 'long' ,
+                    day: 'numeric' }) %><br>
+                    <%= exportDate.toLocaleTimeString('id-ID') %> WIB
             </div>
         </div>
-        
+
         <% if (stats) { %>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Tagihan</div>
-                <div class="stat-value"><%= stats.total %></div>
-                <div class="stat-amount">Rp <%= new Intl.NumberFormat('id-ID').format(stats.totalAmount) %></div>
-            </div>
-            <div class="stat-card green">
-                <div class="stat-label">Lunas</div>
-                <div class="stat-value"><%= stats.paid %></div>
-                <div class="stat-amount">Rp <%= new Intl.NumberFormat('id-ID').format(stats.paidAmount) %></div>
-            </div>
-            <div class="stat-card yellow">
-                <div class="stat-label">Belum Lunas</div>
-                <div class="stat-value"><%= stats.unpaid %></div>
-                <div class="stat-amount">Rp <%= new Intl.NumberFormat('id-ID').format(stats.unpaidAmount) %></div>
-            </div>
-            <div class="stat-card red">
-                <div class="stat-label">Jatuh Tempo</div>
-                <div class="stat-value"><%= stats.overdue %></div>
-                <div class="stat-amount">Tagihan Overdue</div>
-            </div>
-        </div>
-        <% } %>
-        
-        <% if (filters.status || filters.odc_id || filters.search || filters.period) { %>
-        <div class="filters-info">
-            <strong>🔍 Filter yang Diterapkan:</strong>
-            <% if (filters.status) { %>
-                Status: <strong><%= filters.status %></strong> |
-            <% } %>
-            <% if (filters.odc_id) { %>
-                ODC ID: <strong><%= filters.odc_id %></strong> |
-            <% } %>
-            <% if (filters.search) { %>
-                Pencarian: <strong><%= filters.search %></strong> |
-            <% } %>
-            <% if (filters.period) { %>
-                Periode: <strong><%= filters.period %></strong>
-            <% } %>
-        </div>
-        <% } %>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 3%;">No</th>
-                    <th style="width: 12%;">No. Tagihan</th>
-                    <th style="width: 15%;">Pelanggan</th>
-                    <th style="width: 10%;">Telepon</th>
-                    <th style="width: 12%;">Area ODC</th>
-                    <th style="width: 8%;">Periode</th>
-                    <th style="width: 8%;">Tgl Tagihan</th>
-                    <th style="width: 8%;">Jatuh Tempo</th>
-                    <th style="width: 12%;" class="text-right">Jumlah</th>
-                    <th style="width: 12%;" class="text-right">Terbayar</th>
-                    <th style="width: 8%;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% if (invoices && invoices.length > 0) { %>
-                    <% invoices.forEach(function(invoice, index) { %>
-                        <tr>
-                            <td><%= index + 1 %></td>
-                            <td><strong><%= invoice.invoice_number %></strong></td>
-                            <td>
-                                <%= invoice.customer_name %>
-                                <% if (invoice.customer_code) { %>
-                                    <div class="odc-info"><%= invoice.customer_code %></div>
-                                <% } %>
-                            </td>
-                            <td><%= invoice.customer_phone || '-' %></td>
-                            <td>
-                                <% if (invoice.odc_name) { %>
-                                    <%= invoice.odc_name %>
-                                <% } else { %>
-                                    -
-                                <% } %>
-                            </td>
-                            <td><%= invoice.period || '-' %></td>
-                            <td><%= new Date(invoice.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) %></td>
-                            <td><%= new Date(invoice.due_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) %></td>
-                            <td class="text-right">
-                                <strong>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.amount) %></strong>
-                            </td>
-                            <td class="text-right">
-                                Rp <%= new Intl.NumberFormat('id-ID').format(invoice.paid_amount || 0) %>
-                            </td>
-                            <td>
-                                <% 
-                                    let statusClass = '';
-                                    let statusText = '';
-                                    switch(invoice.status) {
-                                        case 'paid':
-                                            statusClass = 'status-paid';
-                                            statusText = 'Lunas';
-                                            break;
-                                        case 'unpaid':
-                                            statusClass = 'status-unpaid';
-                                            statusText = 'Belum Lunas';
-                                            break;
-                                        case 'overdue':
-                                            statusClass = 'status-overdue';
-                                            statusText = 'Jatuh Tempo';
-                                            break;
-                                        case 'cancelled':
-                                            statusClass = 'status-cancelled';
-                                            statusText = 'Dibatalkan';
-                                            break;
-                                        default:
-                                            statusClass = 'status-unpaid';
-                                            statusText = invoice.status;
-                                    }
-                                %>
-                                <span class="status-badge <%= statusClass %>"><%= statusText %></span>
-                            </td>
-                        </tr>
-                    <% }); %>
-                <% } else { %>
-                    <tr>
-                        <td colspan="11" style="text-align: center; padding: 20px; color: #999;">
-                            ❌ Tidak ada data tagihan yang sesuai dengan filter
-                        </td>
-                    </tr>
-                <% } %>
-            </tbody>
-        </table>
-        
-        <% if (stats) { %>
-        <div class="summary-section">
-            <div class="summary-grid">
-                <div class="summary-item">
-                    <div class="summary-item-label">Total Nilai Tagihan</div>
-                    <div class="summary-item-value">Rp <%= new Intl.NumberFormat('id-ID').format(stats.totalAmount) %></div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Tagihan</div>
+                    <div class="stat-value">
+                        <%= stats.total %>
+                    </div>
+                    <div class="stat-amount">Rp <%= new Intl.NumberFormat('id-ID').format(stats.totalAmount) %>
+                    </div>
                 </div>
-                <div class="summary-item">
-                    <div class="summary-item-label">Total Terbayar</div>
-                    <div class="summary-item-value" style="color: #28a745;">Rp <%= new Intl.NumberFormat('id-ID').format(stats.paidAmount) %></div>
+                <div class="stat-card green">
+                    <div class="stat-label">Lunas</div>
+                    <div class="stat-value">
+                        <%= stats.paid %>
+                    </div>
+                    <div class="stat-amount">Rp <%= new Intl.NumberFormat('id-ID').format(stats.paidAmount) %>
+                    </div>
                 </div>
-                <div class="summary-item">
-                    <div class="summary-item-label">Total Belum Bayar</div>
-                    <div class="summary-item-value" style="color: #dc3545;">Rp <%= new Intl.NumberFormat('id-ID').format(stats.unpaidAmount) %></div>
+                <div class="stat-card yellow">
+                    <div class="stat-label">Belum Lunas</div>
+                    <div class="stat-value">
+                        <%= stats.unpaid %>
+                    </div>
+                    <div class="stat-amount">Rp <%= new Intl.NumberFormat('id-ID').format(stats.unpaidAmount) %>
+                    </div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-label">Jatuh Tempo</div>
+                    <div class="stat-value">
+                        <%= stats.overdue %>
+                    </div>
+                    <div class="stat-amount">Tagihan Overdue</div>
                 </div>
             </div>
-        </div>
-        <% } %>
-        
-        <div class="footer">
-            <p>📄 Laporan ini dihasilkan secara otomatis dari Sistem Billing</p>
-            <p>© <%= new Date().getFullYear() %> - Sistem Manajemen Billing FTTH - Confidential Document</p>
-        </div>
+            <% } %>
+
+                <% if (filters.status || filters.odc_id || filters.search || filters.period) { %>
+                    <div class="filters-info">
+                        <strong>🔍 Filter yang Diterapkan:</strong>
+                        <% if (filters.status) { %>
+                            Status: <strong>
+                                <%= filters.status %>
+                            </strong> |
+                            <% } %>
+                                <% if (filters.odc_id) { %>
+                                    ODC ID: <strong>
+                                        <%= filters.odc_id %>
+                                    </strong> |
+                                    <% } %>
+                                        <% if (filters.search) { %>
+                                            Pencarian: <strong>
+                                                <%= filters.search %>
+                                            </strong> |
+                                            <% } %>
+                                                <% if (filters.period) { %>
+                                                    Periode: <strong>
+                                                        <%= filters.period %>
+                                                    </strong>
+                                                    <% } %>
+                    </div>
+                    <% } %>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 3%;">No</th>
+                                    <th style="width: 12%;">No. Tagihan</th>
+                                    <th style="width: 15%;">Pelanggan</th>
+                                    <th style="width: 10%;">Telepon</th>
+                                    <th style="width: 12%;">Area ODC</th>
+                                    <th style="width: 8%;">Periode</th>
+                                    <th style="width: 8%;">Tgl Tagihan</th>
+                                    <th style="width: 8%;">Jatuh Tempo</th>
+                                    <th style="width: 12%;" class="text-right">Jumlah</th>
+                                    <th style="width: 12%;" class="text-right">Terbayar</th>
+                                    <th style="width: 8%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (invoices && invoices.length> 0) { %>
+                                    <% invoices.forEach(function(invoice, index) { %>
+                                        <tr>
+                                            <td>
+                                                <%= index + 1 %>
+                                            </td>
+                                            <td><strong>
+                                                    <%= invoice.invoice_number %>
+                                                </strong></td>
+                                            <td>
+                                                <%= invoice.customer_name %>
+                                                    <% if (invoice.customer_code) { %>
+                                                        <div class="odc-info">
+                                                            <%= invoice.customer_code %>
+                                                        </div>
+                                                        <% } %>
+                                            </td>
+                                            <td>
+                                                <%= invoice.customer_phone || '-' %>
+                                            </td>
+                                            <td>
+                                                <% if (invoice.odc_name) { %>
+                                                    <%= invoice.odc_name %>
+                                                        <% } else { %>
+                                                            -
+                                                            <% } %>
+                                            </td>
+                                            <td>
+                                                <%= invoice.period || '-' %>
+                                            </td>
+                                            <td>
+                                                <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {
+                                                    day: '2-digit' , month: 'short' }) %>
+                                            </td>
+                                            <td>
+                                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID', {
+                                                    day: '2-digit' , month: 'short' }) %>
+                                            </td>
+                                            <td class="text-right">
+                                                <strong>Rp <%= new
+                                                        Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
+                                                        </strong>
+                                            </td>
+                                            <td class="text-right">
+                                                Rp <%= new Intl.NumberFormat('id-ID').format(invoice.paid_amount || 0)
+                                                    %>
+                                            </td>
+                                            <td>
+                                                <% let statusClass='' ; let statusText='' ; switch(invoice.status) {
+                                                    case 'paid' : statusClass='status-paid' ; statusText='Lunas' ;
+                                                    break; case 'unpaid' : statusClass='status-unpaid' ;
+                                                    statusText='Belum Lunas' ; break; case 'overdue' :
+                                                    statusClass='status-overdue' ; statusText='Jatuh Tempo' ; break;
+                                                    case 'cancelled' : statusClass='status-cancelled' ;
+                                                    statusText='Dibatalkan' ; break; default:
+                                                    statusClass='status-unpaid' ; statusText=invoice.status; } %>
+                                                    <span class="status-badge <%= statusClass %>">
+                                                        <%= statusText %>
+                                                    </span>
+                                            </td>
+                                        </tr>
+                                        <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="11"
+                                                        style="text-align: center; padding: 20px; color: #999;">
+                                                        ❌ Tidak ada data tagihan yang sesuai dengan filter
+                                                    </td>
+                                                </tr>
+                                                <% } %>
+                            </tbody>
+                        </table>
+
+                        <% if (stats) { %>
+                            <div class="summary-section">
+                                <div class="summary-grid">
+                                    <div class="summary-item">
+                                        <div class="summary-item-label">Total Nilai Tagihan</div>
+                                        <div class="summary-item-value">Rp <%= new
+                                                Intl.NumberFormat('id-ID').format(stats.totalAmount) %>
+                                        </div>
+                                    </div>
+                                    <div class="summary-item">
+                                        <div class="summary-item-label">Total Terbayar</div>
+                                        <div class="summary-item-value" style="color: #28a745;">Rp <%= new
+                                                Intl.NumberFormat('id-ID').format(stats.paidAmount) %>
+                                        </div>
+                                    </div>
+                                    <div class="summary-item">
+                                        <div class="summary-item-label">Total Belum Bayar</div>
+                                        <div class="summary-item-value" style="color: #dc3545;">Rp <%= new
+                                                Intl.NumberFormat('id-ID').format(stats.unpaidAmount) %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <% } %>
+
+                                <div class="footer">
+                                    <p>📄 Laporan ini dihasilkan secara otomatis dari Sistem Billing</p>
+                                    <p>© <%= new Date().getFullYear() %> - Sistem Manajemen Billing FTTH - Confidential
+                                            Document</p>
+                                </div>
     </div>
-    
+
     <script>
         // Auto print dialog on load (optional)
         // window.onload = function() { window.print(); }
     </script>
 </body>
-</html>
 
+</html>
