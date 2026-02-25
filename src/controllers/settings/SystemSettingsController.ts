@@ -391,7 +391,7 @@ export class SystemSettingsController {
   /**
    * Ensure system_settings table exists
    */
-  private static async ensureSystemSettingsTable(): Promise<void> {
+  public static async ensureSystemSettingsTable(): Promise<void> {
     try {
       // Create table if not exists
       await pool.query(`
@@ -456,6 +456,7 @@ export class SystemSettingsController {
           ('auto_restore_enabled', 'false', 'Enable/disable auto restore untuk customer yang sudah bayar', 'billing'),
           ('auto_notifications_enabled', 'true', 'Enable/disable auto notifications untuk billing', 'billing'),
           ('auto_logout_enabled', 'true', 'Enable/disable auto logout setelah 10 menit tidak ada aktivitas', 'general'),
+          ('auto_logout_timeout', '600', 'Waktu auto logout dalam detik (default 10 menit = 600)', 'general'),
           ('ppn_enabled', 'false', 'Enable PPN (VAT)', 'billing'),
           ('ppn_rate', '11', 'PPN Percentage (%)', 'billing'),
           ('device_rental_enabled', 'false', 'Enable Device Rental', 'billing'),

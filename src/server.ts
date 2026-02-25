@@ -354,9 +354,18 @@ async function start() {
 		if (isMainInstance) {
 			console.log('[Startup] 🛠️ Initializing background services (Main Instance)...');
 
-			// Initialize billing scheduler
+			// 4. Initialize Schedulers
 			SchedulerService.initialize();
-			console.log('Billing scheduler initialized');
+			InvoiceSchedulerService.initialize();
+
+			// 5. Initialize System Settings Table & Defaults
+			try {
+				const { SystemSettingsController } = await import('./controllers/settings/SystemSettingsController');
+				await (SystemSettingsController as any).ensureSystemSettingsTable();
+				console.log('✅ System Settings initialized');
+			} catch (error) {
+				console.error('⚠️ Error initializing System Settings:', error);
+			}
 
 			// Startup Catch-Up: Isolir customer yang terlewat saat server down
 			// Delay 30 detik agar semua service siap (WhatsApp, MikroTik, dll)
