@@ -209,4 +209,58 @@ export class DiscountService {
         );
         return rows;
     }
+
+    /**
+     * Apply marketing discount code
+     */
+    static async applyMarketingDiscount(invoiceId: number, code: string, userId: number = 0): Promise<{ success: boolean; message: string }> {
+        const connection = await databasePool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            // 1. Check if code exists and is active
+            const [codeRows] = await connection.query<RowDataPacket[]>(
+                `SELECT * FROM marketing_codes WHERE code = ? AND is_active = TRUE AND (expires_at IS NULL OR expires_at > NOW())`,
+                [code]
+            );
+
+            if (codeRows.length === 0) {
+                return { success: false, message: 'Kode diskon tidak valid atau sudah kadaluarsa' };
+            }
+
+            const promo = codeRows[0];
+
+            // 2. Check usage limit
+            if (promo.usage_limit > 0 && promo.used_count >= promo.usage_limit) {
+                return { success: false, message: 'Kode diskon sudah mencapai batas penggunaan' };
+            }
+
+            // 3. Apply discount
+            await connection.execute(
+                `INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, approved_by, created_at)
+                 VALUES (?, 'promo', ?, ?, ?, NOW())`,
+                [invoiceId, promo.discount_value, `Promo Code: ${code}`, userId]
+            );
+
+            // 4. Update code usage
+            await connection.execute(
+                `UPDATE marketing_codes SET used_count = used_count + 1 WHERE id = ?`,
+                [promo.id]
+            );
+
+            // 5. Update invoice totals
+            await this.updateInvoiceTotals(invoiceId, connection);
+
+            await connection.commit();
+            return { success: true, message: `Berhasil menerapkan diskon ${promo.discount_value}` };
+
+        } catch (error: any) {
+            await connection.rollback();
+            console.error('[DiscountService] Error applying marketing discount:', error);
+            return { success: false, message: error.message || 'Gagal menerapkan diskon' };
+        } finally {
+            connection.release();
+        }
+    }
 }

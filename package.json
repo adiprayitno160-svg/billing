@@ -109,5 +109,16 @@
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
-  }
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adiprayitno160-svg/billing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adiprayitno160-svg/billing/issues"
+  },
+  "homepage": "https://github.com/adiprayitno160-svg/billing#readme"
 }

@@ -334,18 +334,61 @@
                 <div class="totals">
                     <div class="total-row">
                         <span>Subtotal</span>
-                        <span>Rp <%= Number(invoice.total_amount).toLocaleString('id-ID') %></span>
+                        <span>Rp <%= Number(invoice.subtotal || (invoice.total_amount - (invoice.ppn_amount || 0) +
+                                (invoice.discount_amount || 0))).toLocaleString('id-ID') %></span>
                     </div>
-                    <% if (invoice.paid_amount> 0) { %>
-                        <div class="total-row" style="color: var(--success-color);">
-                            <span>Sudah Dibayar</span>
-                            <span>- Rp <%= Number(invoice.paid_amount || 0).toLocaleString('id-ID') %></span>
+
+                    <% if (invoice.device_fee> 0) { %>
+                        <div class="total-row">
+                            <span>Sewa Perangkat</span>
+                            <span>Rp <%= Number(invoice.device_fee).toLocaleString('id-ID') %></span>
                         </div>
                         <% } %>
-                            <div class="total-row grand-total">
-                                <span>TOTAL</span>
-                                <span>Rp <%= Number(invoice.remaining_amount || 0).toLocaleString('id-ID') %></span>
-                            </div>
+
+                            <% if (invoice.ppn_amount> 0) { %>
+                                <div class="total-row">
+                                    <span>PPN (<%= invoice.ppn_rate %>%)</span>
+                                    <span>Rp <%= Number(invoice.ppn_amount).toLocaleString('id-ID') %></span>
+                                </div>
+                                <% } %>
+
+                                    <% if (invoice.discounts && invoice.discounts.length> 0) { %>
+                                        <% invoice.discounts.forEach(discount=> { %>
+                                            <div class="total-row" style="color: #ef4444; font-style: italic;">
+                                                <span>Potongan: <%= discount.reason || 'Kompensasi' %></span>
+                                                <span>- Rp <%= Number(discount.amount).toLocaleString('id-ID') %></span>
+                                            </div>
+                                            <% }) %>
+                                                <% } else if (invoice.discount_amount> 0) { %>
+                                                    <div class="total-row" style="color: #ef4444; font-style: italic;">
+                                                        <span>Potongan / Diskon</span>
+                                                        <span>- Rp <%=
+                                                                Number(invoice.discount_amount).toLocaleString('id-ID')
+                                                                %></span>
+                                                    </div>
+                                                    <% } %>
+
+                                                        <div class="total-row grand-total">
+                                                            <span>TOTAL TAGIHAN</span>
+                                                            <span>Rp <%=
+                                                                    Number(invoice.total_amount).toLocaleString('id-ID')
+                                                                    %></span>
+                                                        </div>
+
+                                                        <% if (invoice.paid_amount> 0) { %>
+                                                            <div class="total-row"
+                                                                style="color: var(--success-color); border-top: 1px dashed var(--border-color); margin-top: 5px; padding-top: 10px;">
+                                                                <span>TELAH DIBAYAR</span>
+                                                                <span>- Rp <%= Number(invoice.paid_amount ||
+                                                                        0).toLocaleString('id-ID') %></span>
+                                                            </div>
+                                                            <div class="total-row"
+                                                                style="font-weight: bold; border-top: 1px solid var(--text-color); margin-top: 5px; padding-top: 10px;">
+                                                                <span>SISA TAGIHAN</span>
+                                                                <span>Rp <%= Number(invoice.remaining_amount ||
+                                                                        0).toLocaleString('id-ID') %></span>
+                                                            </div>
+                                                            <% } %>
                 </div>
 
                 <% if (invoice.notes) { %>

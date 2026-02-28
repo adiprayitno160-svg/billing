@@ -192,9 +192,11 @@ export class WhatsAppHandler {
 
                     if (result.success && result.data?.autoApproved) {
                         const amountStr = result.data.extractedAmount?.toLocaleString('id-ID');
-                        const invStr = result.data.invoiceNumber || 'Tagihan';
+                        const isPrepaid = !!result.data.paymentRequestId;
+                        const invStr = result.data.invoiceNumber || (isPrepaid ? 'Pembelian Paket' : 'Tagihan');
+                        const statusStr = isPrepaid ? 'AKTIF' : 'LUNAS';
 
-                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *LUNAS* 🎉`);
+                        await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *${statusStr}* 🎉`);
 
                         if (result.data.invoiceId) {
                             try {

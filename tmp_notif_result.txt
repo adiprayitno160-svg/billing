@@ -1,0 +1,181 @@
+﻿[dotenv@17.2.3] injecting env (8) from .env -- tip: ≡ƒæÑ sync secrets across teammates & machines: https://dotenvx.com/ops
+=== FAILED NOTIFICATIONS ===
+[]
+
+=== PAYMENT NOTIFICATION STATS ===
+[
+  {
+    "notification_type": "payment_received",
+    "status": "sent",
+    "cnt": 28
+  },
+  {
+    "notification_type": "payment_received",
+    "status": "skipped",
+    "cnt": 6
+  }
+]
+
+=== PAYMENTS WITHOUT NOTIFICATIONS ===
+[
+  {
+    "payment_id": 89,
+    "invoice_id": 430,
+    "amount": "100000.00",
+    "payment_date": "2026-02-13T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Arum Setya"
+  },
+  {
+    "payment_id": 88,
+    "invoice_id": 390,
+    "amount": "100000.00",
+    "payment_date": "2026-02-11T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "ASRI"
+  },
+  {
+    "payment_id": 87,
+    "invoice_id": 388,
+    "amount": "100000.00",
+    "payment_date": "2026-02-11T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "ANGGA TONGGO"
+  },
+  {
+    "payment_id": 86,
+    "invoice_id": 351,
+    "amount": "110000.00",
+    "payment_date": "2026-02-11T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "EVA RESIANA"
+  },
+  {
+    "payment_id": 85,
+    "invoice_id": 385,
+    "amount": "110000.00",
+    "payment_date": "2026-02-11T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Adis Gedangan"
+  },
+  {
+    "payment_id": 84,
+    "invoice_id": 412,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "ANGGITA DWI SAPUTRI"
+  },
+  {
+    "payment_id": 83,
+    "invoice_id": 338,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Mbak Suryo pancing"
+  },
+  {
+    "payment_id": 82,
+    "invoice_id": 398,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "TK DARMA WANITA"
+  },
+  {
+    "payment_id": 81,
+    "invoice_id": 396,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "VERA BANARAN"
+  },
+  {
+    "payment_id": 80,
+    "invoice_id": 332,
+    "amount": "10000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Shintia puspitasari"
+  },
+  {
+    "payment_id": 79,
+    "invoice_id": 331,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Rizky Eka Meizelina"
+  },
+  {
+    "payment_id": 78,
+    "invoice_id": 335,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Sutris Bagong"
+  },
+  {
+    "payment_id": 77,
+    "invoice_id": 327,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Eni purwanti"
+  },
+  {
+    "payment_id": 76,
+    "invoice_id": 370,
+    "amount": "110000.00",
+    "payment_date": "2026-02-10T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "EVINDA MAYASARI"
+  },
+  {
+    "payment_id": 75,
+    "invoice_id": 346,
+    "amount": "110000.00",
+    "payment_date": "2026-02-09T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "bu nanik pabrik"
+  },
+  {
+    "payment_id": 74,
+    "invoice_id": 342,
+    "amount": "110000.00",
+    "payment_date": "2026-02-08T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "SUDARMAMIK"
+  },
+  {
+    "payment_id": 73,
+    "invoice_id": 387,
+    "amount": "110000.00",
+    "payment_date": "2026-02-08T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "ALIN BANARAN"
+  },
+  {
+    "payment_id": 72,
+    "invoice_id": 376,
+    "amount": "55000.00",
+    "payment_date": "2026-02-08T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "ADI WIYAHYA"
+  },
+  {
+    "payment_id": 71,
+    "invoice_id": 343,
+    "amount": "110000.00",
+    "payment_date": "2026-02-08T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "MAK TUN"
+  },
+  {
+    "payment_id": 70,
+    "invoice_id": 326,
+    "amount": "55000.00",
+    "payment_date": "2026-02-08T00:00:00.000Z",
+    "invoice_status": "paid",
+    "customer_name": "Idawati"
+  }
+]

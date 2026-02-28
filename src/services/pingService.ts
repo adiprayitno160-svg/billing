@@ -46,19 +46,52 @@ export class PingService {
             const isWindows = process.platform === 'win32';
             const extraArgs = isWindows ? ['-n', '4'] : ['-c', '4'];
 
-            const result = await ping.promise.probe(ipAddress, {
+            let result = await ping.promise.probe(ipAddress, {
                 timeout: this.PING_TIMEOUT,
                 extra: extraArgs,
             });
 
+            let isAlive = result.alive;
+
+            // FALLBACK TO MIKROTIK
+            if (!isAlive) {
+                try {
+                    const { MikrotikService } = await import('./mikrotik/MikrotikService');
+                    const mkService = await MikrotikService.getInstance();
+                    const mkPingSuccess = await mkService.ping(ipAddress);
+
+                    if (mkPingSuccess) {
+                        isAlive = true;
+                        result.time = 5;
+                        result.packetLoss = '0';
+                    }
+                } catch (mkErr) {
+                    // Ignore mikrotik error
+                }
+            }
+
             return {
                 host: result.host,
-                alive: result.alive,
+                alive: isAlive,
                 time: typeof result.time === 'number' ? result.time : (result.time === 'unknown' ? 0 : parseFloat(String(result.time)) || 0),
                 packetLoss: String(result.packetLoss || '0%')
             };
         } catch (error) {
             console.error(`Ping error for ${ipAddress}:`, error);
+
+            // FALLBACK TO MIKROTIK (Catch error case)
+            try {
+                const { MikrotikService } = await import('./mikrotik/MikrotikService');
+                const mkService = await MikrotikService.getInstance();
+                const mkPingSuccess = await mkService.ping(ipAddress);
+
+                if (mkPingSuccess) {
+                    return { host: ipAddress, alive: true, time: 5, packetLoss: '0%' };
+                }
+            } catch (mkErr) {
+                // Ignore mikrotik error
+            }
+
             return {
                 host: ipAddress,
                 alive: false,

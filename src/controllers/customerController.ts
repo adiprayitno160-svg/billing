@@ -1130,12 +1130,25 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
                         // Check if ANY subscription exists for this customer
                         const [existingSubs] = await conn.query<RowDataPacket[]>(
-                            'SELECT id, status FROM subscriptions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1',
+                            'SELECT id, status FROM subscriptions WHERE customer_id = ? ORDER BY created_at DESC',
                             [customerId]
                         );
 
                         if (existingSubs && existingSubs.length > 0) {
-                            // Update existing subscription
+                            // CLEANUP: If there are duplicate subscriptions, delete all except the latest one
+                            if (existingSubs.length > 1) {
+                                const keepId = existingSubs[0].id;
+                                const deleteIds = existingSubs.slice(1).map((s: any) => s.id);
+                                console.log(`[Edit Customer] ⚠️ Found ${existingSubs.length} subscriptions for customer ${customerId}. Cleaning up duplicates...`);
+                                console.log(`[Edit Customer] Keeping subscription ID: ${keepId}, Deleting IDs: ${deleteIds.join(', ')}`);
+                                await conn.query(
+                                    `DELETE FROM subscriptions WHERE id IN (${deleteIds.map(() => '?').join(',')})`,
+                                    deleteIds
+                                );
+                                console.log(`[Edit Customer] ✅ Cleaned up ${deleteIds.length} duplicate subscription(s)`);
+                            }
+
+                            // Update the remaining (latest) subscription
                             const targetSubStatus = forceEnableBilling ? 'active' : 'inactive';
                             await conn.query(
                                 `UPDATE subscriptions 
@@ -1149,11 +1162,11 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             const targetSubStatus = (forceEnableBilling || (newStatus || oldCustomer.status) !== 'inactive') ? 'active' : 'inactive';
 
                             await conn.query(
-                                `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at)
-                                 VALUES (?, ?, ?, ?, ?, NOW(), NOW(), NOW())`,
+                                `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at, is_activated, activation_date, next_block_date)
+                                 VALUES (?, ?, ?, ?, ?, NOW(), NOW(), NOW(), 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))`,
                                 [customerId, pkg?.id, pkg?.name, pkg?.price, targetSubStatus]
                             );
-                            console.log(`[Edit Customer] ✅ New subscription created with package: ${pkg?.name} (Status: ${targetSubStatus})`);
+                            console.log(`[Edit Customer] ✅ New subscription created with package: ${pkg?.name} (Status: ${targetSubStatus}, Activated: Yes)`);
                         }
 
                         // ========== SYNC PPPoE SECRET TO MIKROTIK ==========
@@ -1225,29 +1238,41 @@ export const updateCustomer = async (req: Request, res: Response) => {
 
                         // Check if ANY subscription exists
                         const [existingSubs] = await conn.query<RowDataPacket[]>(
-                            'SELECT id, status FROM subscriptions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1',
+                            'SELECT id, status FROM subscriptions WHERE customer_id = ? ORDER BY created_at DESC',
                             [customerId]
                         );
 
                         const targetSubStatus = forceEnableBilling ? 'active' : 'inactive';
 
                         if (existingSubs && existingSubs.length > 0) {
-                            // Update existing subscription
+                            // CLEANUP: If there are duplicate subscriptions, delete all except the latest one
+                            if (existingSubs.length > 1) {
+                                const keepId = existingSubs[0].id;
+                                const deleteIds = existingSubs.slice(1).map((s: any) => s.id);
+                                console.log(`[Edit Customer Static IP] ⚠️ Found ${existingSubs.length} subscriptions. Cleaning up duplicates...`);
+                                await conn.query(
+                                    `DELETE FROM subscriptions WHERE id IN (${deleteIds.map(() => '?').join(',')})`,
+                                    deleteIds
+                                );
+                                console.log(`[Edit Customer Static IP] ✅ Cleaned up ${deleteIds.length} duplicate subscription(s)`);
+                            }
+
+                            // Update the remaining (latest) subscription
                             await conn.query(
                                 `UPDATE subscriptions 
-                                 SET package_id = ?, package_name = ?, price = ?, status = ?, updated_at = NOW() 
+                                 SET package_id = ?, package_name = ?, price = ?, status = ?, is_activated = 1, activation_date = IFNULL(activation_date, NOW()), next_block_date = IFNULL(next_block_date, DATE_ADD(NOW(), INTERVAL 1 MONTH)), updated_at = NOW() 
                                  WHERE id = ?`,
                                 [pkg?.id, pkg?.name, pkg?.price, targetSubStatus, existingSubs[0].id]
                             );
-                            console.log(`[Edit Customer Static IP] ✅ Subscription updated to package: ${pkg?.name} (Status: ${targetSubStatus})`);
+                            console.log(`[Edit Customer Static IP] ✅ Subscription updated to package: ${pkg?.name} (Status: ${targetSubStatus}, Activated: Yes)`);
                         } else {
                             // Create new subscription if none exists
                             await conn.query(
-                                `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at)
-                                 VALUES (?, ?, ?, ?, ?, NOW(), NOW(), NOW())`,
+                                `INSERT INTO subscriptions (customer_id, package_id, package_name, price, status, start_date, created_at, updated_at, is_activated, activation_date, next_block_date)
+                                 VALUES (?, ?, ?, ?, ?, NOW(), NOW(), NOW(), 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))`,
                                 [customerId, pkg?.id, pkg?.name, pkg?.price, targetSubStatus]
                             );
-                            console.log(`[Edit Customer Static IP] ✅ New subscription created with package: ${pkg?.name} (Status: ${targetSubStatus})`);
+                            console.log(`[Edit Customer Static IP] ✅ New subscription created with package: ${pkg?.name} (Status: ${targetSubStatus}, Activated: Yes)`);
                         }
                     }
                 }
@@ -1324,6 +1349,46 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     }
                 } catch (staticIpError) {
                     console.error('[UpdateCustomer] Error updating static IP data:', staticIpError);
+                }
+            }
+
+            // ========== SYNC ACTIVATION DATE TO SUBSCRIPTIONS ==========
+            if (req.body.activation_date !== undefined) {
+                try {
+                    const newActivationDate = req.body.activation_date || null;
+                    if (newActivationDate) {
+                        const activDate = new Date(newActivationDate);
+                        const nextBlockDate = new Date(activDate);
+                        nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
+
+                        // Handle end-of-month dates
+                        if (activDate.getDate() > 28) {
+                            const lastDay = new Date(nextBlockDate.getFullYear(), nextBlockDate.getMonth() + 1, 0).getDate();
+                            nextBlockDate.setDate(Math.min(activDate.getDate(), lastDay));
+                        } else {
+                            nextBlockDate.setDate(activDate.getDate());
+                        }
+
+                        // Update active subscriptions with the new activation_date and recalculated next_block_date
+                        await conn.query(
+                            `UPDATE subscriptions 
+                             SET activation_date = ?, next_block_date = ?, updated_at = NOW() 
+                             WHERE customer_id = ? AND status = 'active'`,
+                            [newActivationDate, nextBlockDate.toISOString().split('T')[0], customerId]
+                        );
+                        console.log(`[updateCustomer] ✅ Synced activation_date=${newActivationDate}, next_block_date=${nextBlockDate.toISOString().split('T')[0]} to subscriptions`);
+                    } else {
+                        // If activation_date is cleared, clear it from subscriptions too
+                        await conn.query(
+                            `UPDATE subscriptions 
+                             SET activation_date = NULL, next_block_date = NULL, updated_at = NOW() 
+                             WHERE customer_id = ? AND status = 'active'`,
+                            [customerId]
+                        );
+                        console.log(`[updateCustomer] ✅ Cleared activation_date from subscriptions`);
+                    }
+                } catch (syncErr) {
+                    console.error('[updateCustomer] ⚠️ Failed to sync activation_date to subscriptions:', syncErr);
                 }
             }
 

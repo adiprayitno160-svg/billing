@@ -1,0 +1,405 @@
+﻿[TAILING] Tailing last 200 lines for [billing-app] process (change the value with --lines option)
+/home/adi/.pm2/logs/billing-app-error.log last 200 lines:
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/logs/billing-2026-02-28.log'
+0|billing- | }
+0|billing- | Logging failed: Error: EACCES: permission denied, open '/var/www/billing/logs/billing-2026-02-28.log'
+0|billing- |     at Object.writeFileSync (node:fs:2380:20)
+0|billing- |     at Object.appendFileSync (node:fs:2461:6)
+0|billing- |     at Function.writeToFile (/var/www/billing/src/services/billing/BillingLogService.ts:58:12)
+0|billing- |     at Function.log (/var/www/billing/src/services/billing/BillingLogService.ts:40:24)
+0|billing- |     at ServerResponse.res.end (/var/www/billing/src/middlewares/loggingMiddleware.ts:44:35)
+0|billing- |     at writeend (/var/www/billing/node_modules/express-session/index.js:270:22)
+0|billing- |     at onsave (/var/www/billing/node_modules/express-session/index.js:348:11)
+0|billing- |     at /var/www/billing/node_modules/express-mysql-session/index.js:435:38
+0|billing- |     at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/logs/billing-2026-02-28.log'
+0|billing- | }
+0|billing- | Logging failed: Error: EACCES: permission denied, open '/var/www/billing/logs/billing-2026-02-28.log'
+0|billing- |     at Object.writeFileSync (node:fs:2380:20)
+0|billing- |     at Object.appendFileSync (node:fs:2461:6)
+0|billing- |     at Function.writeToFile (/var/www/billing/src/services/billing/BillingLogService.ts:58:12)
+0|billing- |     at Function.log (/var/www/billing/src/services/billing/BillingLogService.ts:40:24)
+0|billing- |     at Function.info (/var/www/billing/src/services/billing/BillingLogService.ts:140:20)
+0|billing- |     at loggingMiddleware (/var/www/billing/src/middlewares/loggingMiddleware.ts:21:27)
+0|billing- |     at Layer.handleRequest (/var/www/billing/node_modules/router/lib/layer.js:152:17)
+0|billing- |     at trimPrefix (/var/www/billing/node_modules/router/index.js:342:13)
+0|billing- |     at /var/www/billing/node_modules/router/index.js:297:9
+0|billing- |     at processParams (/var/www/billing/node_modules/router/index.js:582:12) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/logs/billing-2026-02-28.log'
+0|billing- | }
+0|billing- | Logging failed: Error: EACCES: permission denied, open '/var/www/billing/logs/billing-2026-02-28.log'
+0|billing- |     at Object.writeFileSync (node:fs:2380:20)
+0|billing- |     at Object.appendFileSync (node:fs:2461:6)
+0|billing- |     at Function.writeToFile (/var/www/billing/src/services/billing/BillingLogService.ts:58:12)
+0|billing- |     at Function.log (/var/www/billing/src/services/billing/BillingLogService.ts:40:24)
+0|billing- |     at ServerResponse.res.end (/var/www/billing/src/middlewares/loggingMiddleware.ts:44:35)
+0|billing- |     at writeend (/var/www/billing/node_modules/express-session/index.js:270:22)
+0|billing- |     at onsave (/var/www/billing/node_modules/express-session/index.js:348:11)
+0|billing- |     at /var/www/billing/node_modules/express-mysql-session/index.js:435:38
+0|billing- |     at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/logs/billing-2026-02-28.log'
+0|billing- | }
+0|billing- | Trace: [WhatsApp] Initialize called (TRACE):
+0|billing- |     at WhatsAppService.initialize (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:240:13)
+0|billing- |     at start (/var/www/billing/src/server.ts:442:28)
+0|billing- |     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|billing- | Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |     at open (node:internal/fs/promises:634:25)
+0|billing- |     at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |     at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |     at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- | }
+0|billing- | Unhandled Rejection at: Promise {
+0|billing- |   <rejected> Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |       at open (node:internal/fs/promises:634:25)
+0|billing- |       at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |       at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |       at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |     errno: -13,
+0|billing- |     code: 'EACCES',
+0|billing- |     syscall: 'open',
+0|billing- |     path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |   }
+0|billing- | } reason: Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |     at open (node:internal/fs/promises:634:25)
+0|billing- |     at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |     at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |     at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- | }
+0|billing- | Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |     at open (node:internal/fs/promises:634:25)
+0|billing- |     at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |     at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |     at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- | }
+0|billing- | Unhandled Rejection at: Promise {
+0|billing- |   <rejected> Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |       at open (node:internal/fs/promises:634:25)
+0|billing- |       at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |       at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |       at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |     errno: -13,
+0|billing- |     code: 'EACCES',
+0|billing- |     syscall: 'open',
+0|billing- |     path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |   },
+0|billing- |   [Symbol(async_id_symbol)]: 1223,
+0|billing- |   [Symbol(trigger_async_id_symbol)]: 1194,
+0|billing- |   [Symbol(kResourceStore)]: {
+0|billing- |     cache: { 'pre-key': [Object] },
+0|billing- |     mutations: { 'pre-key': [Object] },
+0|billing- |     dbQueries: 0
+0|billing- |   }
+0|billing- | } reason: Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |     at open (node:internal/fs/promises:634:25)
+0|billing- |     at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |     at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |     at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- | }
+0|billing- | Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |     at open (node:internal/fs/promises:634:25)
+0|billing- |     at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |     at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |     at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- | }
+0|billing- | Unhandled Rejection at: Promise {
+0|billing- |   <rejected> Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |       at open (node:internal/fs/promises:634:25)
+0|billing- |       at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |       at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |       at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |     errno: -13,
+0|billing- |     code: 'EACCES',
+0|billing- |     syscall: 'open',
+0|billing- |     path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |   },
+0|billing- |   [Symbol(async_id_symbol)]: 2248,
+0|billing- |   [Symbol(trigger_async_id_symbol)]: 2155,
+0|billing- |   [Symbol(kResourceStore)]: undefined
+0|billing- | } reason: Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- |     at open (node:internal/fs/promises:634:25)
+0|billing- |     at writeFile (node:internal/fs/promises:1206:14)
+0|billing- |     at file:///var/www/billing/node_modules/@whiskeysockets/baileys/src/Utils/use-multi-file-auth-state.ts:43:5
+0|billing- |     at EventEmitter.<anonymous> (/var/www/billing/src/services/whatsapp/WhatsAppService.ts:373:7) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/whatsapp_auth_v3/creds.json'
+0|billing- | }
+0|billing- | Could not fetch isolir_date, defaulting to 1 SyntaxError: Expected property name or '}' in JSON at position 2
+0|billing- |     at JSON.parse (<anonymous>)
+0|billing- |     at Function.autoIsolatePreviousMonthUnpaid (/var/www/billing/src/services/billing/isolationService.ts:623:78)
+0|billing- |     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|billing- |     at Function.startupCatchUpIsolation (/var/www/billing/src/services/billing/isolationService.ts:892:37)
+0|billing- |     at Timeout._onTimeout (/var/www/billing/src/server.ts:376:21)
+0|billing- | [2026-02-28T15:21:58.153Z] [WhatsApp] [ERROR] Failed to send message to 6289678630707@s.whatsapp.net: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-63729093849223_1.0.json'
+0|billing- | [2026-02-28T15:21:58.176Z] [WhatsApp] [WARN] ΓÜá∩╕Å Message msg_1772292113729_h8deddq2i to 6289678630707@s.whatsapp.net failed. Attempt 1/3. Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-63729093849223_1.0.json' 
+0|billing- | Background PPPoE reset error: Error: Column 'id' in field list is ambiguous
+0|billing- |     at PromisePoolConnection.execute (/var/www/billing/node_modules/mysql2/lib/promise/connection.js:47:22)
+0|billing- |     at PPPoEActivationService.resetNextBlockDate (/var/www/billing/src/services/pppoe/pppoeActivationService.ts:559:57)
+0|billing- |     at processTicksAndRejections (node:internal/process/task_queues:95:5) {
+0|billing- |   code: 'ER_NON_UNIQ_ERROR',
+0|billing- |   errno: 1052,
+0|billing- |   sql: 'SELECT id, activation_date, c.pppoe_username \n' +
+0|billing- |     '                 FROM subscriptions s\n' +
+0|billing- |     '                 JOIN customers c ON s.customer_id = c.id\n' +
+0|billing- |     "                 WHERE s.customer_id = ? AND s.status = 'active' AND s.is_activated = TRUE",
+0|billing- |   sqlState: '23000',
+0|billing- |   sqlMessage: "Column 'id' in field list is ambiguous"
+0|billing- | }
+0|billing- | [UnifiedNotification] Γ¥î Failed to generate PDF for invoice: Error: EACCES: permission denied, open '/var/www/billing/public/invoices/invoice-537.pdf'
+0|billing- |     at Object.openSync (node:fs:573:18)
+0|billing- |     at Object.writeFileSync (node:fs:2393:35)
+0|billing- |     at Function.generateInvoicePdf (/var/www/billing/src/services/invoice/InvoicePdfService.ts:68:23)
+0|billing- |     at Function.generateInvoicePdf (/var/www/billing/src/services/notification/UnifiedNotificationService.ts:723:30)
+0|billing- |     at Function.notifyPaymentReceived (/var/www/billing/src/services/notification/UnifiedNotificationService.ts:929:26) {
+0|billing- |   errno: -13,
+0|billing- |   code: 'EACCES',
+0|billing- |   syscall: 'open',
+0|billing- |   path: '/var/www/billing/public/invoices/invoice-537.pdf'
+0|billing- | }
+0|billing- | [2026-02-28T15:23:10.704Z] [WhatsApp] [ERROR] Failed to send message to 6289678630707@s.whatsapp.net: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json'
+0|billing- | [2026-02-28T15:23:10.705Z] [WhatsApp] [WARN] ΓÜá∩╕Å Message msg_1772292113729_h8deddq2i to 6289678630707@s.whatsapp.net failed. Attempt 2/3. Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json' 
+0|billing- | [2026-02-28T15:23:25.842Z] [WhatsApp] [ERROR] Failed to send message to 6281231621402@s.whatsapp.net: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-130760463917061_1.0.json'
+0|billing- | [2026-02-28T15:23:25.843Z] [WhatsApp] [WARN] ΓÜá∩╕Å Message msg_1772292176354_vdglepu3p to 6281231621402@s.whatsapp.net failed. Attempt 1/3. Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-130760463917061_1.0.json' 
+0|billing- | [2026-02-28T15:24:23.231Z] [WhatsApp] [ERROR] Failed to send message to 6289678630707@s.whatsapp.net: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json'
+0|billing- | [2026-02-28T15:24:23.232Z] [WhatsApp] [WARN] ΓÜá∩╕Å Message msg_1772292113729_h8deddq2i to 6289678630707@s.whatsapp.net failed. Attempt 3/3. Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json' 
+0|billing- | [2026-02-28T15:24:23.233Z] [WhatsApp] [ERROR] Γ¥î Message msg_1772292113729_h8deddq2i permanently failed: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json' 
+0|billing- | [2026-02-28T15:24:38.378Z] [WhatsApp] [ERROR] Failed to send message to 6281231621402@s.whatsapp.net: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json'
+0|billing- | [2026-02-28T15:24:38.379Z] [WhatsApp] [WARN] ΓÜá∩╕Å Message msg_1772292176354_vdglepu3p to 6281231621402@s.whatsapp.net failed. Attempt 2/3. Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json' 
+0|billing- | [2026-02-28T15:25:50.983Z] [WhatsApp] [ERROR] Failed to send message to 6281231621402@s.whatsapp.net: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json'
+0|billing- | [2026-02-28T15:25:50.983Z] [WhatsApp] [WARN] ΓÜá∩╕Å Message msg_1772292176354_vdglepu3p to 6281231621402@s.whatsapp.net failed. Attempt 3/3. Error: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json' 
+0|billing- | [2026-02-28T15:25:50.984Z] [WhatsApp] [ERROR] Γ¥î Message msg_1772292176354_vdglepu3p permanently failed: EACCES: permission denied, open '/var/www/billing/whatsapp_auth_v3/session-181639049162809_1.0.json' 
+
+/home/adi/.pm2/logs/billing-app-out.log last 200 lines:
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292300433_2yb7i
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 6373ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 0
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292310440_363ly
+0|billing- | [BandwidthLogService] Bandwidth collection completed
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 6.779 ms - 108[0m
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292320445_hjz22
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 36 static IP customers to check
+0|billing- | [AMS] 3. Batch pings starting...
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292330450_56vk5
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292340454_w4szm
+0|billing- | [2026-02-28T15:25:43.381Z] [WhatsApp] [DEBUG] ΓÅ│ Smart delay: 5082ms (Burst: 0, Hourly: 5/30) 
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 15.805 ms - 108[0m
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 15604ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 36
+0|billing- |   - Offline alerts: 37
+0|billing- | [2026-02-28T15:25:48.465Z] [WhatsApp] [INFO] ≡ƒô¿ Processing message 6/6 (msg_1772292176354_vdglepu3p) to 6281231621402@s.whatsapp.net 
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292350459_ry5wg
+0|billing- | [2026-02-28T15:25:50.984Z] [WhatsApp] [DEBUG] ≡ƒÅü Queue processor stopped. Remaining: 0 
+0|billing- | [UnifiedNotification] Γ£à WhatsApp sent successfully to 081231621402 { messageId: 'unknown', notification_id: 863 }
+0|billing- | [UnifiedNotification] Γ£à Notification ID: 863 marked as sent (actually sent successfully)
+0|billing- | [UnifiedNotification] ≡ƒôè Processing complete: 1 sent, 0 failed, 0 skipped
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 4 static IP customers to check
+0|billing- | [AMS] 3. Batch pings starting...
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292360463_doqg4
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 7455ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 4
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292370467_ahol6
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 13.471 ms - 108[0m
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292380474_g9xlj
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 0 static IP customers to check
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292390478_o6d8z
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 3818ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 0
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292400483_banxz
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 7.393 ms - 108[0m
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292410489_5vsyx
+0|billing- | [Middleware] companyInfoMiddleware START for /customers/list
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /customers/list
+0|billing- | [Middleware] companyInfoMiddleware END for /customers/list
+0|billing- | [getCustomerList] Route handler called for: /customers/list
+0|billing- | [0mGET /assets/styles.css [36m304[0m 4.397 ms - -[0m
+0|billing- | [0mGET /assets/sidebar.js [36m304[0m 3.925 ms - -[0m
+0|billing- | [0mGET /customers/list [32m200[0m 88.791 ms - -[0m
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 18.563 ms - 108[0m
+0|billing- | [0mGET /api/server-time [32m200[0m 18.754 ms - 108[0m
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 36 static IP customers to check
+0|billing- | [AMS] 3. Batch pings starting...
+0|billing- | [Scheduler] ≡ƒ¢í∩╕Å Running Self-Healing Network Anomaly Detection...
+0|billing- | Starting Self-Healing Network Notifications detection...
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | Self-Healing Network Notifications detection completed.
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292420496_ggqcq
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292430499_33lbk
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 16192ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 36
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292440504_0z362
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 7.432 ms - 108[0m
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 4 static IP customers to check
+0|billing- | [AMS] 3. Batch pings starting...
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292450508_y06hy
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 7205ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 4
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292460512_chekm
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292470517_gam69
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 7.167 ms - 108[0m
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 0 static IP customers to check
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292480523_e65fw
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 4271ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 0
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292490527_ftpg6
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292500533_uf26y
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 7.193 ms - 108[0m
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 36 static IP customers to check
+0|billing- | [AMS] 3. Batch pings starting...
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292510540_31e44
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292520544_twi01
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 16114ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 36
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292530551_p85o5
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 6.711 ms - 108[0m
+0|billing- | [AMS] 2. Fetching Static IP customers...
+0|billing- | [AMS] Got 4 static IP customers to check
+0|billing- | [AMS] 3. Batch pings starting...
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292540555_ve5ni
+0|billing- | [AdvancedMonitoringService] Refreshing monitoring cache...
+0|billing- | [AdvancedMonitoringService] Cached 58 PPPoE sessions
+0|billing- | [AdvancedMonitoringService] Updated 112 Static IP statuses in cache
+0|billing- | [AdvancedMonitoringService] Monitoring cycle completed in 7461ms
+0|billing- |   - PPPoE checked: 58
+0|billing- |   - Static IP checked: 4
+0|billing- |   - Offline alerts: 37
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292550561_bfypw
+0|billing- | [UnifiedNotification] ≡ƒöä Processing pending notifications (limit: 100, specific: 0)...
+0|billing- | [UnifiedNotification] ≡ƒôï Claimed 0 notifications with worker_id: worker_1772292560567_e6lrs
+0|billing- | [Middleware] companyInfoMiddleware START for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware DB QUERY DONE for /api/server-time
+0|billing- | [Middleware] companyInfoMiddleware END for /api/server-time
+0|billing- | [0mHEAD /api/server-time [32m200[0m 6.960 ms - 108[0m
+

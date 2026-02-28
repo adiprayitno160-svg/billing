@@ -560,22 +560,34 @@ export class UnifiedNotificationService {
         console.log(`[UnifiedNotification] 📝 Message preview (first 100 chars):`, fullMessage.substring(0, 100));
 
         try {
+          let attachmentPath = notification.attachment_path;
+
+          // Generate PDF on the fly if missing for invoice notifications
+          if (!attachmentPath && notification.invoice_id && (notification.notification_type === 'invoice_created' || notification.notification_type === 'invoice_reminder')) {
+            try {
+              console.log(`[UnifiedNotification] 🧙 Generating missing PDF for invoice ${notification.invoice_id} on the fly...`);
+              attachmentPath = await UnifiedNotificationService.generateInvoicePdf(notification.invoice_id);
+            } catch (pdfErr) {
+              console.error(`[UnifiedNotification] ❌ On-the-fly PDF generation failed:`, pdfErr);
+            }
+          }
+
           let whatsappResult: any;
-          if (notification.attachment_path) {
+          if (attachmentPath) {
             // Verify file exists
             const fs = await import('fs');
-            if (fs.existsSync(notification.attachment_path)) {
-              console.log(`[UnifiedNotification] 📄 Sending PDF attachment with caption: ${notification.attachment_path}`);
+            if (fs.existsSync(attachmentPath)) {
+              console.log(`[UnifiedNotification] 📄 Sending PDF attachment with caption: ${attachmentPath}`);
 
               // Send document with the full message as caption
               whatsappResult = await waClient.sendDocument(
                 recipient,
-                notification.attachment_path,
+                attachmentPath,
                 `Invois-${notification.invoice_id || 'Tagihan'}.pdf`,
                 fullMessage // Use the full message as caption
               );
             } else {
-              console.warn(`[UnifiedNotification] ⚠️ Attachment path provided but file not found: ${notification.attachment_path}. Sending text only.`);
+              console.warn(`[UnifiedNotification] ⚠️ Attachment path provided but file not found: ${attachmentPath}. Sending text only.`);
               whatsappResult = await waClient.sendMessage(recipient, fullMessage);
             }
           } else {
@@ -681,6 +693,9 @@ export class UnifiedNotificationService {
 
       const bank = await this.getBankSettings();
 
+      // Skip synchronous PDF generation to speed up invoice creation
+      const attachmentPath = undefined;
+
       await this.queueNotification({
         customer_id: invoice.customer_id,
         invoice_id: invoiceId,
@@ -706,7 +721,7 @@ export class UnifiedNotificationService {
           bank_list: bank.bankListText,
           notes: invoice.notes || ''
         },
-        attachment_path: await this.generateInvoicePdf(invoiceId),
+        attachment_path: attachmentPath,
         send_immediately: sendImmediately
       });
     } finally {

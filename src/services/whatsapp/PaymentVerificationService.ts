@@ -271,7 +271,7 @@ export class PaymentVerificationService {
             const uniqueCode = transferAmount % 1000; // Get last 3 digits
 
             const [paymentRequests] = await databasePool.query<RowDataPacket[]>(
-                `SELECT * FROM prepaid_payment_requests
+                `SELECT * FROM payment_requests
                  WHERE customer_id = ?
                  AND status = 'pending'
                  AND expires_at > NOW()
@@ -286,7 +286,7 @@ export class PaymentVerificationService {
             if (paymentRequests.length === 0) {
                 // Try to find by amount match (without unique code)
                 const [requestsByAmount] = await databasePool.query<RowDataPacket[]>(
-                    `SELECT * FROM prepaid_payment_requests
+                    `SELECT * FROM payment_requests
                      WHERE customer_id = ?
                      AND status = 'pending'
                      AND expires_at > NOW()

@@ -1,4 +1,3 @@
-
 import { databasePool } from './db/pool';
 import { WhatsAppSessionService } from './services/whatsapp/WhatsAppSessionService';
 import { WhatsAppHandler } from './services/whatsapp/WhatsAppHandler';

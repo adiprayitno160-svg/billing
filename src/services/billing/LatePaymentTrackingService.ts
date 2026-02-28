@@ -303,6 +303,189 @@ export class LatePaymentTrackingService {
   }
 
   /**
+   * Run daily recalculation for all active customers
+   */
+  static async dailyRecalculation(): Promise<{ processed: number; errors: number }> {
+    const connection = await pool.getConnection();
+    let processed = 0;
+    let errors = 0;
+
+    try {
+      // 1. Get rolling months window from settings
+      const [settings] = await connection.query<RowDataPacket[]>(
+        `SELECT setting_value FROM system_settings WHERE setting_key = 'late_payment_rolling_months'`
+      );
+      const months = settings.length > 0 ? parseInt(settings[0].setting_value) : 12;
+
+      // 2. Identify customers who have overdue invoices currently
+      const [overdueCustomers] = await connection.query<RowDataPacket[]>(
+        `SELECT DISTINCT customer_id FROM invoices WHERE status = 'overdue' AND remaining_amount > 0`
+      );
+
+      console.log(`[LatePaymentTrackingService] Starting daily recalculation for ${overdueCustomers.length} customers with overdue invoices`);
+
+      for (const row of overdueCustomers) {
+        try {
+          await this.calculateLatePaymentCount(row.customer_id, months, connection);
+          processed++;
+        } catch (err) {
+          console.error(`[LatePaymentTrackingService] Error processing customer ID ${row.customer_id}:`, err);
+          errors++;
+        }
+      }
+
+      return { processed, errors };
+    } catch (error) {
+      console.error('[LatePaymentTrackingService] Critical error in dailyRecalculation:', error);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Get late payment stats for a customer
+   */
+  static async getCustomerLatePaymentStats(customerId: number): Promise<LatePaymentStats> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT 
+        COALESCE(late_payment_count, 0) as late_payment_count, 
+        last_late_payment_date, 
+        COALESCE(consecutive_on_time_payments, 0) as consecutive_on_time_payments 
+       FROM customers WHERE id = ?`,
+      [customerId]
+    );
+
+    const customer = rows[0] || { late_payment_count: 0, last_late_payment_date: null, consecutive_on_time_payments: 0 };
+
+    return {
+      late_payment_count: customer.late_payment_count,
+      last_late_payment_date: customer.last_late_payment_date,
+      consecutive_on_time_payments: customer.consecutive_on_time_payments,
+      total_late_payments_in_period: customer.late_payment_count // Simplified
+    };
+  }
+
+  /**
+   * Get late payment history for a customer
+   */
+  static async getLatePaymentHistory(customerId: number, limit: number = 20): Promise<any[]> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT t.*, i.invoice_number 
+       FROM customer_late_payment_tracking t
+       JOIN invoices i ON t.invoice_id = i.id
+       WHERE t.customer_id = ?
+       ORDER BY t.payment_date DESC, t.id DESC
+       LIMIT ?`,
+      [customerId, limit]
+    );
+
+    return rows;
+  }
+
+  /**
+   * Adjust counter manually
+   */
+  static async adjustCounter(
+    customerId: number,
+    adjustment: number,
+    adminId: number = 0,
+    reason: string = 'Manual adjustment',
+    adminName?: string
+  ): Promise<void> {
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Get current count
+      const [customerRows] = await connection.query<RowDataPacket[]>(
+        `SELECT COALESCE(late_payment_count, 0) as late_count FROM customers WHERE id = ?`,
+        [customerId]
+      );
+
+      const oldCount = customerRows.length > 0 ? customerRows[0].late_count : 0;
+      const newCount = Math.max(0, oldCount + adjustment);
+
+      // Update
+      await connection.execute(
+        `UPDATE customers SET late_payment_count = ? WHERE id = ?`,
+        [newCount, customerId]
+      );
+
+      // Log audit
+      await this.logAudit(customerId, 'adjust', oldCount, newCount, reason, adminId, adminName || 'System', connection);
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  /**
+   * Batch reset counter
+   */
+  static async batchResetCounter(
+    customerIds: number[],
+    adminId: number = 0,
+    reason: string = 'Batch reset',
+    adminName?: string
+  ): Promise<number> {
+    let successCount = 0;
+    for (const id of customerIds) {
+      try {
+        await this.resetCounter(id, adminId, reason, adminName);
+        successCount++;
+      } catch (err) {
+        console.error(`[LatePaymentTrackingService] Failed to reset counter for customer ${id}:`, err);
+      }
+    }
+    return successCount;
+  }
+
+  /**
+   * Export report data
+   */
+  static async exportLatePaymentReport(filters: any = {}): Promise<any[]> {
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+
+    if (filters.minCount !== undefined) {
+      whereClause += ' AND COALESCE(c.late_payment_count, 0) >= ?';
+      params.push(filters.minCount);
+    }
+
+    if (filters.maxCount !== undefined) {
+      whereClause += ' AND COALESCE(c.late_payment_count, 0) <= ?';
+      params.push(filters.maxCount);
+    }
+
+    if (filters.customerId) {
+      whereClause += ' AND c.id = ?';
+      params.push(filters.customerId);
+    }
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT 
+        c.customer_code,
+        c.name,
+        c.phone,
+        COALESCE(c.late_payment_count, 0) as late_payment_count,
+        c.last_late_payment_date,
+        COALESCE(c.consecutive_on_time_payments, 0) as consecutive_on_time_payments
+       FROM customers c
+       ${whereClause}
+       ORDER BY c.late_payment_count DESC`,
+      params
+    );
+
+    return rows;
+  }
+
+  /**
    * Log audit trail
    */
   private static async logAudit(

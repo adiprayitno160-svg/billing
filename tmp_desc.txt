@@ -1,0 +1,8 @@
+﻿Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	auto_increment
+customer_id	int	NO	MUL	NULL	
+discount_rule_id	int	YES	MUL	NULL	
+discount_amount	decimal(12,2)	NO		NULL	
+reason	text	YES		NULL	
+applied_by	int	YES	MUL	NULL	
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED

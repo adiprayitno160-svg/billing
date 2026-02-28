@@ -58,7 +58,7 @@ export class PaymentService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -165,12 +165,14 @@ export class PaymentService {
                 SELECT total_amount, paid_amount, remaining_amount, customer_id, period
                 FROM invoices 
                 WHERE id = ?
+                FOR UPDATE
             `;
 
             const [invoiceResult] = await connection.execute(invoiceQuery, [invoiceId]);
             const invoice = (invoiceResult as any[])[0];
 
-            const totalAmount = parseFloat(invoice.total_amount || 0);
+            if (!invoice) throw new Error('Invoice not found');
+
             const remainingAmount = parseFloat(invoice.remaining_amount);
 
             // Catat pembayaran
@@ -185,36 +187,27 @@ export class PaymentService {
 
             let carryOverAmount = 0;
 
-            // Jika pembayaran kurang dari total, buat invoice untuk bulan depan
+            // Jika pembayaran kurang dari sisa tagihan, catat sebagai carry over untuk bulan depan
             if (paymentAmount < remainingAmount) {
                 carryOverAmount = remainingAmount - paymentAmount;
 
                 // Generate periode bulan depan
                 const currentPeriod = invoice.period;
-                const [year, month] = currentPeriod.split('-');
-                const nextMonth = new Date(parseInt(year), parseInt(month), 10);
-                const nextPeriod = `${nextMonth.getFullYear()}-${(nextMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+                const [year, month] = currentPeriod.split('-').map(Number);
+                const nextDate = new Date(year, month, 1); // Month is 0-indexed in Date, but here month is 1-indexed, so Date(year, month, 1) is next month
+                const nextPeriod = `${nextDate.getFullYear()}-${(nextDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-                // Buat invoice untuk kekurangan
-                const carryOverInvoiceData = {
-                    customer_id: invoice.customer_id,
-                    period: nextPeriod,
-                    due_date: new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 7).toISOString().split('T')[0],
-                    subtotal: carryOverAmount,
-                    total_amount: carryOverAmount,
-                    notes: `Kekurangan dari periode ${currentPeriod}`
-                };
+                // Insert into carry_over_invoices so it picks up in next monthly generation
+                await connection.execute(
+                    'INSERT INTO carry_over_invoices (customer_id, carry_over_amount, target_period, status) VALUES (?, ?, ?, "pending")',
+                    [invoice.customer_id, carryOverAmount, nextPeriod]
+                );
 
-                const carryOverItems = [{
-                    description: `Kekurangan periode ${currentPeriod}`,
-                    quantity: 1,
-                    unit_price: carryOverAmount,
-                    total_price: carryOverAmount
-                }];
-
-                // Import InvoiceService untuk membuat invoice
-                const { InvoiceService } = await import('./invoiceService');
-                await InvoiceService.createInvoice(carryOverInvoiceData as any, carryOverItems, connection);
+                // Also track in debt_tracking for visibility
+                await connection.execute(
+                    'INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, status) VALUES (?, ?, ?, ?, ?)',
+                    [invoice.customer_id, invoiceId, carryOverAmount, `Sisa tagihan dari periode ${currentPeriod}`, 'active']
+                );
             }
 
             if (isNewConnection) await (connection as PoolConnection).commit();
@@ -224,7 +217,7 @@ export class PaymentService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 

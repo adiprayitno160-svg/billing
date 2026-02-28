@@ -95,7 +95,7 @@ export async function getStaticIpClientAdd(req: Request, res: Response, next: Ne
             res.render('packages/static_ip_client_add', {
                 title: `Tambah Client ke Paket ${packageData.name}`,
                 package: packageData,
-                packages: await listStaticIpPackages(), // Pass all packages
+                packages: await listStaticIpPackages(), // Back to packages
                 interfaces,
                 odpData: odpRows,
                 customers: customerRows,
@@ -419,7 +419,7 @@ export async function getStaticIpClientEdit(req: Request, res: Response, next: N
             res.render('packages/static_ip_client_edit', {
                 title: `Edit Client Paket ${packageData.name}`,
                 package: packageData,
-                packages: packages, // Pass packages list
+                packages: packages, // Back to packages
                 client,
                 interfaces,
                 odpData: odpRows,

@@ -36,7 +36,14 @@ export class InvoiceDataService {
         );
         invoice.items = itemRows;
 
-        logger.info(`✅ Loaded invoice ${invoiceId} with ${invoice.items.length} items`);
+        // Fetch discounts (from discounts table)
+        const [discountRows] = await databasePool.query(
+            `SELECT * FROM discounts WHERE invoice_id = ?`,
+            [invoiceId]
+        );
+        invoice.discounts = discountRows;
+
+        logger.info(`✅ Loaded invoice ${invoiceId} with ${invoice.items.length} items and ${(invoice.discounts as any).length} discounts`);
         return invoice;
     }
 }

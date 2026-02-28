@@ -114,7 +114,7 @@ export class CompensationService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -236,7 +236,7 @@ export class CompensationService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 

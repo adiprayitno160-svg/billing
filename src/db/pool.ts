@@ -589,7 +589,7 @@ export async function ensureInitialSchema(): Promise<void> {
 		await conn.query(`CREATE TABLE IF NOT EXISTS discounts (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			invoice_id INT NOT NULL,
-			discount_type ENUM('sla', 'manual', 'other', 'disturbance') DEFAULT 'manual',
+			discount_type VARCHAR(50) DEFAULT 'manual',
 			discount_value DECIMAL(12,2) NOT NULL,
 			reason TEXT,
 			applied_by INT NULL,
@@ -607,8 +607,8 @@ export async function ensureInitialSchema(): Promise<void> {
 			}
 			await addCol(`ALTER TABLE discounts ADD COLUMN applied_by INT NULL AFTER reason`);
 
-			// Ensure discount_type enum includes 'disturbance'
-			await conn.query(`ALTER TABLE discounts MODIFY COLUMN discount_type ENUM('sla', 'manual', 'other', 'disturbance') DEFAULT 'manual'`);
+			// Ensure discount_type is VARCHAR(50)
+			await conn.query(`ALTER TABLE discounts MODIFY COLUMN discount_type VARCHAR(50) DEFAULT 'manual'`);
 		} catch (e) {
 			console.log('[DB] Note: Error updating discounts table structure (might already be correct)');
 		}

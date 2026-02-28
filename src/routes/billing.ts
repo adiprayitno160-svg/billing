@@ -139,33 +139,7 @@ router.post('/tagihan/force-cleanup', invoiceController.forceCleanupPeriod.bind(
 // Apply downtime discount
 router.post('/tagihan/apply-downtime-discount', invoiceController.applyDowntimeDiscount.bind(invoiceController));
 
-// Bulk delete invoices
-router.post('/tagihan/bulk-delete', async (req, res) => {
-    try {
-        const { invoiceIds } = req.body;
 
-        if (!invoiceIds || !Array.isArray(invoiceIds) || invoiceIds.length === 0) {
-            return res.status(400).json({ success: false, message: 'No invoices selected' });
-        }
-
-        const { InvoiceService } = await import('../services/billing/invoiceService');
-        const result = await InvoiceService.bulkDeleteInvoices(invoiceIds.map(id => parseInt(id)));
-
-        res.json({
-            success: true,
-            message: `Deleted ${result.deleted} invoices`,
-            deleted: result.deleted,
-            failed: result.failed,
-            errors: result.errors
-        });
-    } catch (error: any) {
-        console.error('Error bulk deleting invoices:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to delete invoices'
-        });
-    }
-});
 
 // Bulk Reminder Route
 router.post('/tagihan/bulk-reminder', async (req, res) => {
@@ -680,10 +654,17 @@ router.get('/tagihan/:id/print', async (req, res) => {
                 [req.params.id]
             ) as any;
 
+            // Get discounts
+            const [discounts] = await conn.query(
+                'SELECT * FROM discounts WHERE invoice_id = ?',
+                [req.params.id]
+            ) as any;
+
             res.render('billing/tagihan-print', {
                 title: `Print Invoice ${invoice.invoice_number}`,
                 invoice,
                 items,
+                discounts,
                 layout: false
             });
         } finally {
@@ -732,10 +713,17 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
                 [req.params.id]
             ) as any;
 
+            // Get discounts
+            const [discounts] = await conn.query(
+                'SELECT * FROM discounts WHERE invoice_id = ?',
+                [req.params.id]
+            ) as any;
+
             res.render('billing/tagihan-print-thermal', {
                 title: `Print Thermal ${invoice.invoice_number}`,
                 invoice,
                 items,
+                discounts,
                 layout: false
             });
         } finally {
@@ -756,6 +744,9 @@ router.post('/tagihan/:id/send-paid-pdf', invoiceController.sendPaidInvoicePdf.b
 
 // Invoice detail (harus di akhir karena :id catch-all)
 router.get('/tagihan/:id', invoiceController.getInvoiceDetail.bind(invoiceController));
+
+// Delete bulk invoices
+router.post('/tagihan/bulk-delete', invoiceController.bulkDeleteInvoices.bind(invoiceController));
 
 // Delete invoice
 router.delete('/tagihan/:id', invoiceController.deleteInvoice.bind(invoiceController));
@@ -1169,8 +1160,22 @@ router.get('/debts/view', async (req, res) => {
 
 // Debt detail
 router.get('/debts/:id', async (req, res) => {
-    // Will be implemented with PaymentController
-    res.render('billing/debt-detail', { title: 'Detail Hutang' });
+    try {
+        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+        try {
+            const [rows] = await conn.query('SELECT invoice_id FROM debt_tracking WHERE id = ?', [req.params.id]) as any;
+            if (rows && rows.length > 0) {
+                res.redirect(`/billing/tagihan/${rows[0].invoice_id}`);
+            } else {
+                res.status(404).send('Hutang tidak ditemukan');
+            }
+        } finally {
+            conn.release();
+        }
+    } catch (error) {
+        console.error('Error getting debt detail:', error);
+        res.status(500).send('Terjadi kesalahan internal');
+    }
 });
 
 // Resolve debt

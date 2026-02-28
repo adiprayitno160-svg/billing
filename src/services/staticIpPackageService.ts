@@ -449,18 +449,30 @@ export async function createMikrotikQueues(packageId: number): Promise<void> {
 
 export async function deleteStaticIpPackage(id: number): Promise<void> {
 	const config = await getMikrotikConfig();
-	if (!config) throw new Error('Konfigurasi MikroTik tidak ditemukan');
 
 	const conn = await databasePool.getConnection();
 	try {
+		// 1. Check if there are active clients
+		const [clients] = await conn.execute(
+			'SELECT id FROM static_ip_clients WHERE package_id = ? AND status = "active"',
+			[id]
+		);
+		if (Array.isArray(clients) && clients.length > 0) {
+			throw new Error(`Tidak dapat menghapus paket: Masih ada ${clients.length} pelanggan aktif menggunakan paket ini. Harap pindahkan atau hapus pelanggan terlebih dahulu.`);
+		}
+
 		await conn.beginTransaction();
 		const pkg = await getStaticIpPackageById(id);
 		if (!pkg) throw new Error('Paket tidak ditemukan');
 
-		// Delete from MikroTik
-		try {
-			await deletePackageQueueTrees(config, pkg.name);
-		} catch (e) { console.warn(e); }
+		// Delete from MikroTik if config is available
+		if (config) {
+			try {
+				await deletePackageQueueTrees(config, pkg.name);
+			} catch (e) { console.warn('Failed to delete package queues on MikroTik:', e); }
+		} else {
+			console.warn('Skipping MikroTik queue deletion: MikroTik configuration not found');
+		}
 
 		await conn.execute('DELETE FROM static_ip_packages WHERE id = ?', [id]);
 		await conn.commit();

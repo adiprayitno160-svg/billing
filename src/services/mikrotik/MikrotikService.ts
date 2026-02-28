@@ -440,4 +440,34 @@ export class MikrotikService {
 
     return { success, failed, errors };
   }
+
+  /**
+   * Ping an IP address from MikroTik
+   */
+  async ping(ip: string): Promise<boolean> {
+    try {
+      const result = await mikrotikPool.execute(
+        {
+          host: this.config.host,
+          port: this.config.port || 8728,
+          username: this.config.username,
+          password: this.config.password
+        },
+        '/ping',
+        [`=address=${ip}`, '=count=1']
+      );
+
+      if (result && Array.isArray(result) && result.length > 0) {
+        // Typically returns [{ "received": "1", "sent": "1", ... }]
+        const stats = result.find((item: any) => item.received !== undefined);
+        if (stats) {
+          return parseInt(stats.received) > 0;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error(`[MikrotikService] Ping error to ${ip}:`, error);
+      return false;
+    }
+  }
 }

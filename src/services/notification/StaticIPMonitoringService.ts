@@ -1,6 +1,7 @@
 import { databasePool } from '../../db/pool';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { MikrotikService } from '../mikrotik/MikrotikService';
 
 const execAsync = promisify(exec);
 
@@ -28,10 +29,11 @@ export class StaticIPMonitoringService {
           c.id as customerId,
           c.name as customerName,
           c.phone as customerPhone,
-          c.static_ip as ipAddress,
+          COALESCE(c.static_ip, sic.ip_address, c.ip_address) as ipAddress,
           a.name as area
         FROM customers c
         LEFT JOIN ftth_areas a ON c.area_id = a.id
+        LEFT JOIN static_ip_clients sic ON sic.customer_id = c.id
         WHERE c.connection_type = 'static_ip' AND c.status = 'active'
       `;
 
@@ -70,37 +72,50 @@ export class StaticIPMonitoringService {
       return { isReachable: false };
     }
 
+    let isSuccessful = false;
+    let responseTime: number | undefined;
+
     try {
-      // Using ping command - works on both Windows and Linux
+      // 1. Try DIRECT PING from server first
       const command = process.platform === 'win32'
-        ? `ping -n 1 -w 3000 ${ipAddress}`  // Windows ping command
-        : `ping -c 1 -W 3 ${ipAddress}`;    // Linux/Unix ping command
+        ? `ping -n 1 -w 2000 ${ipAddress}`  // 2s timeout
+        : `ping -c 1 -W 2 ${ipAddress}`;    // 2s timeout
 
       const startTime = Date.now();
       const { stdout, stderr } = await execAsync(command);
       const endTime = Date.now();
 
-      const responseTime = endTime - startTime;
+      responseTime = endTime - startTime;
 
-      // Check if ping was successful
-      if (stderr && stderr.trim() !== '') {
-        return { isReachable: false };
+      if (!(stderr && stderr.trim() !== '')) {
+        isSuccessful =
+          (process.platform === 'win32' && stdout.includes('TTL=')) ||
+          (process.platform !== 'win32' && stdout.includes('bytes from'));
       }
-
-      // On Windows, "TTL=" indicates a successful ping
-      // On Linux, successful ping will have output
-      const isSuccessful =
-        (process.platform === 'win32' && stdout.includes('TTL=')) ||
-        (process.platform !== 'win32' && stdout.includes('bytes from'));
-
-      return {
-        isReachable: isSuccessful,
-        responseTime: isSuccessful ? responseTime : undefined
-      };
     } catch (error) {
-      // Ping failed
-      return { isReachable: false };
+      isSuccessful = false;
     }
+
+    // 2. If direct ping fails, TRY PING VIA MIKROTIK
+    if (!isSuccessful) {
+      try {
+        const mkService = await MikrotikService.getInstance();
+        const mkPingSuccess = await mkService.ping(ipAddress);
+
+        if (mkPingSuccess) {
+          isSuccessful = true;
+          responseTime = 5; // Artificial low response time via Mikrotik
+          console.log(`[StaticIPMonitor] ✅ IP ${ipAddress} reachable via MikroTik (Direct ping failed)`);
+        }
+      } catch (mkError) {
+        // Ignore Mikrotik errors
+      }
+    }
+
+    return {
+      isReachable: isSuccessful,
+      responseTime: isSuccessful ? responseTime : undefined
+    };
   }
 
   /**
@@ -155,10 +170,11 @@ export class StaticIPMonitoringService {
           c.id as customerId,
           c.name as customerName,
           c.phone as customerPhone,
-          c.static_ip as ipAddress,
+          COALESCE(c.static_ip, sic.ip_address, c.ip_address) as ipAddress,
           a.name as area
         FROM customers c
         LEFT JOIN ftth_areas a ON c.area_id = a.id
+        LEFT JOIN static_ip_clients sic ON sic.customer_id = c.id
         WHERE c.id = ? AND c.connection_type = 'static_ip'
       `;
 

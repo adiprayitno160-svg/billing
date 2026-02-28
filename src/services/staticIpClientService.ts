@@ -131,8 +131,9 @@ export async function addClientToPackage(packageId: number, clientData: {
         await conn.execute(`
             INSERT INTO subscriptions (
                 customer_id, package_id, package_name, price, 
-                start_date, end_date, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                start_date, end_date, status, created_at, updated_at,
+                is_activated, activation_date, next_block_date
+            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW(), 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))
         `, [
             customerId,
             pkg.id,
@@ -177,19 +178,38 @@ export async function addClientToPackage(packageId: number, clientData: {
 export async function removeClientFromPackage(clientId: number): Promise<void> {
     const conn = await databasePool.getConnection();
     try {
-        // Hapus dari tabel static_ip_clients
-        await conn.execute(
-            'DELETE FROM static_ip_clients WHERE id = ?',
+        await conn.beginTransaction();
+
+        // 1. Dapatkan customer_id sebelum menghapus client
+        const [clientRows] = await conn.execute(
+            'SELECT customer_id FROM static_ip_clients WHERE id = ?',
             [clientId]
         );
+        const client = (clientRows as any[])[0];
 
-        // Hapus dari tabel customers juga jika ada
-        await conn.execute(
-            'DELETE FROM customers WHERE id IN (SELECT customer_id FROM static_ip_clients WHERE id = ?)',
-            [clientId]
-        );
+        if (client) {
+            const customerId = client.customer_id;
 
-        console.log(`Client with ID ${clientId} deleted from database`);
+            // 2. Hapus dari tabel static_ip_clients
+            await conn.execute(
+                'DELETE FROM static_ip_clients WHERE id = ?',
+                [clientId]
+            );
+
+            // 3. Hapus dari tabel customers jika ada
+            if (customerId) {
+                await conn.execute(
+                    'DELETE FROM customers WHERE id = ?',
+                    [customerId]
+                );
+            }
+        }
+
+        await conn.commit();
+        console.log(`Client (ID: ${clientId}) and associated customer deleted successfully.`);
+    } catch (error) {
+        await conn.rollback();
+        throw error;
     } finally {
         conn.release();
     }

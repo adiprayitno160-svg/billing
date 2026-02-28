@@ -15,6 +15,7 @@ export interface AdvancedVerificationResult {
     data?: {
         invoiceId?: number;
         invoiceNumber?: string;
+        paymentRequestId?: number;
         customerId?: number;
         customerName?: string;
         expectedAmount?: number;
@@ -83,8 +84,8 @@ export class AdvancedPaymentVerificationService {
                 };
             }
 
-            // Stage 2: Match with invoices
-            console.log('[AdvancedAI] Stage 2: Matching with invoices...');
+            // Stage 2: Match with invoices/requests
+            console.log('[AdvancedAI] Stage 2: Matching with invoices/requests...');
             const matchResult = await this.stageMatching(
                 customerId,
                 extractionResult.details.amount,
@@ -108,9 +109,10 @@ export class AdvancedPaymentVerificationService {
 
             // Stage 3: Validate payment proof
             console.log('[AdvancedAI] Stage 3: Validating payment proof...');
+            const matchObj = matchResult.details.invoice || matchResult.details.paymentRequest;
             const validationResult = await this.stageValidation(
                 imageBuffer,
-                matchResult.details.invoice,
+                matchObj,
                 extractionResult.details
             );
 
@@ -158,9 +160,10 @@ export class AdvancedPaymentVerificationService {
                 console.log('[AdvancedAI] Stage 5: Executing auto-approve actions...');
                 actions = await this.executeAutoApproveActions(
                     customerId,
-                    matchResult.details.invoice,
+                    matchObj,
                     extractionResult.details.amount,
-                    validationResult.details
+                    validationResult.details,
+                    matchResult.details.isPaymentRequest
                 );
             }
 
@@ -173,8 +176,9 @@ export class AdvancedPaymentVerificationService {
                 data: {
                     invoiceId: matchResult.details.invoice?.id,
                     invoiceNumber: matchResult.details.invoice?.invoice_number,
+                    paymentRequestId: matchResult.details.paymentRequest?.id,
                     customerId: customerId,
-                    expectedAmount: matchResult.details.invoice?.remaining_amount,
+                    expectedAmount: matchResult.details.isPaymentRequest ? matchResult.details.paymentRequest?.total_amount : matchResult.details.invoice?.remaining_amount,
                     extractedAmount: extractionResult.details.amount,
                     amountMatch: matchResult.details.matchType,
                     confidence: approvalResult.confidence,
@@ -406,8 +410,8 @@ PENTING:
         specificInvoiceId?: number
     ): Promise<VerificationStageResult> {
         try {
-            // Get unpaid invoices
-            let query = `
+            // 1. Get unpaid invoices
+            let invoiceQuery = `
                 SELECT i.*, c.name as customer_name
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
@@ -415,94 +419,135 @@ PENTING:
                 AND i.status IN ('sent', 'partial', 'overdue')
                 AND i.remaining_amount > 0
             `;
-            const params: any[] = [customerId];
+            const invoiceParams: any[] = [customerId];
 
             if (specificInvoiceId) {
-                query += ' AND i.id = ?';
-                params.push(specificInvoiceId);
+                invoiceQuery += ' AND i.id = ?';
+                invoiceParams.push(specificInvoiceId);
             }
 
-            query += ' ORDER BY i.due_date ASC, i.created_at DESC';
+            invoiceQuery += ' ORDER BY i.due_date ASC, i.created_at DESC';
 
-            const [invoices] = await databasePool.query<RowDataPacket[]>(query, params);
+            const [invoices] = await databasePool.query<RowDataPacket[]>(invoiceQuery, invoiceParams);
 
-            if (invoices.length === 0) {
+            // 2. Get pending payment requests (prepaid/activation)
+            const [paymentRequests] = await databasePool.query<RowDataPacket[]>(
+                `SELECT pr.*, c.name as customer_name
+                 FROM payment_requests pr
+                 JOIN customers c ON pr.customer_id = c.id
+                 WHERE pr.customer_id = ?
+                 AND pr.status = 'pending'
+                 AND pr.expires_at > NOW()
+                 ORDER BY pr.created_at DESC`,
+                [customerId]
+            );
+
+            if (invoices.length === 0 && paymentRequests.length === 0) {
                 return {
                     passed: false,
                     confidence: 0,
                     details: {
-                        error: 'Tidak ada tagihan yang belum dibayar',
-                        invoiceCount: 0
+                        error: 'Tidak ada tagihan atau permintaan pembayaran yang aktif',
+                        invoiceCount: 0,
+                        requestCount: 0
                     },
                     warnings: []
                 };
             }
 
-            // Smart matching with tolerance levels
+            // Combine and match
             let bestMatch: any = null;
             let matchType: 'exact' | 'close' | 'partial' | 'mismatch' = 'mismatch';
             let matchConfidence = 0;
+            let isPaymentRequest = false;
 
-            for (const invoice of invoices) {
-                const remaining = parseFloat(invoice.remaining_amount.toString());
-                const total = parseFloat(invoice.total_amount.toString());
-                const diff = Math.abs(extractedAmount - remaining);
-                const totalDiff = Math.abs(extractedAmount - total);
+            // Check Payment Requests first (usually more specific with unique codes)
+            for (const request of paymentRequests) {
+                const total = parseFloat(request.total_amount.toString());
+                const diff = Math.abs(extractedAmount - total);
 
-                // Exact match or very close (within 2000 rupiah - tolerance for admin fees/random numbers)
-                if (diff <= 2000) {
-                    bestMatch = invoice;
+                // For payment requests, we look for EXACT match (since they have unique codes)
+                if (diff <= 10) { // Very strict for requests
+                    bestMatch = request;
                     matchType = 'exact';
                     matchConfidence = 100;
+                    isPaymentRequest = true;
                     break;
                 }
+            }
 
-                // Close match (within 1% or 5000 rupiah)
-                const tolerance = Math.max(remaining * 0.01, 5000);
-                if (diff <= tolerance) {
-                    if (!bestMatch || matchConfidence < 90) {
+            // If no exact request match, check invoices
+            if (!bestMatch) {
+                for (const invoice of invoices) {
+                    const remaining = parseFloat(invoice.remaining_amount.toString());
+                    const total = parseFloat(invoice.total_amount.toString());
+                    const diff = Math.abs(extractedAmount - remaining);
+                    const totalDiff = Math.abs(extractedAmount - total);
+
+                    if (diff <= 2000) {
                         bestMatch = invoice;
-                        matchType = 'close';
-                        matchConfidence = 90 - (diff / tolerance) * 10;
+                        matchType = 'exact';
+                        matchConfidence = 100;
+                        break;
+                    }
+
+                    const tolerance = Math.max(remaining * 0.01, 5000);
+                    if (diff <= tolerance) {
+                        if (!bestMatch || matchConfidence < 90) {
+                            bestMatch = invoice;
+                            matchType = 'close';
+                            matchConfidence = 90 - (diff / tolerance) * 10;
+                        }
+                    }
+
+                    if (totalDiff <= 2000) {
+                        if (!bestMatch || matchConfidence < 85) {
+                            bestMatch = invoice;
+                            matchType = 'close';
+                            matchConfidence = 85;
+                        }
+                    }
+
+                    if (extractedAmount < remaining && extractedAmount >= remaining * 0.5) {
+                        if (!bestMatch || matchConfidence < 70) {
+                            bestMatch = invoice;
+                            matchType = 'partial';
+                            matchConfidence = 70;
+                        }
                     }
                 }
+            }
 
-                // Check total amount match (for full payment after partial)
-                if (totalDiff <= 2000) {
-                    if (!bestMatch || matchConfidence < 85) {
-                        bestMatch = invoice;
+            // Final fallback: if still no match, check requests again with loose tolerance
+            if (!bestMatch) {
+                for (const request of paymentRequests) {
+                    const total = parseFloat(request.total_amount.toString());
+                    const diff = Math.abs(extractedAmount - total);
+                    if (diff <= 1000) {
+                        bestMatch = request;
                         matchType = 'close';
-                        matchConfidence = 85;
-                    }
-                }
-
-                // Partial payment check (amount is less but reasonable)
-                // STRICT MODE: Only allow partial if explicit enabled or very specific conditions
-                // For now, we allow it to be 'bestMatch' but 'partial' type will be flagged in approval
-                if (extractedAmount < remaining && extractedAmount >= remaining * 0.5) {
-                    if (!bestMatch || matchConfidence < 70) {
-                        bestMatch = invoice;
-                        matchType = 'partial';
-                        matchConfidence = 70;
+                        matchConfidence = 80;
+                        isPaymentRequest = true;
+                        break;
                     }
                 }
             }
 
             if (!bestMatch) {
-                // No good match, suggest closest
-                const closest = invoices[0];
-                const remaining = parseFloat(closest.remaining_amount.toString());
+                const combined = [...invoices, ...paymentRequests];
+                const closest = combined[0];
+                const expected = closest.remaining_amount ? parseFloat(closest.remaining_amount.toString()) : parseFloat(closest.total_amount.toString());
 
                 return {
                     passed: false,
                     confidence: 30,
                     details: {
-                        error: `Nominal tidak sesuai. Transfer: Rp ${extractedAmount.toLocaleString('id-ID')}, Tagihan: Rp ${remaining.toLocaleString('id-ID')}`,
-                        suggestedInvoice: closest,
+                        error: `Nominal tidak sesuai. Transfer: Rp ${extractedAmount.toLocaleString('id-ID')}, Tagihan/Permintaan: Rp ${expected.toLocaleString('id-ID')}`,
+                        suggestedMatch: closest,
                         extractedAmount,
-                        expectedAmount: remaining
+                        expectedAmount: expected
                     },
-                    warnings: ['Nominal tidak cocok dengan tagihan manapun']
+                    warnings: ['Nominal tidak cocok dengan tagihan/permintaan manapun']
                 };
             }
 
@@ -510,10 +555,11 @@ PENTING:
                 passed: true,
                 confidence: matchConfidence,
                 details: {
-                    invoice: bestMatch,
+                    [isPaymentRequest ? 'paymentRequest' : 'invoice']: bestMatch,
+                    isPaymentRequest,
                     matchType,
                     extractedAmount,
-                    expectedAmount: parseFloat(bestMatch.remaining_amount.toString())
+                    expectedAmount: isPaymentRequest ? parseFloat(bestMatch.total_amount.toString()) : parseFloat(bestMatch.remaining_amount.toString())
                 },
                 warnings: matchType === 'partial' ? ['Pembayaran parsial terdeteksi'] : []
             };
@@ -556,7 +602,7 @@ PENTING:
             }
 
             // Get customer name for validation
-            const expectedAmount = invoice ? parseFloat(invoice.remaining_amount.toString()) : undefined;
+            const expectedAmount = invoice ? (invoice.remaining_amount ? parseFloat(invoice.remaining_amount.toString()) : parseFloat(invoice.total_amount.toString())) : undefined;
             const customerName = invoice?.customer_name;
 
             // Fetch company name for recipient verification
@@ -804,9 +850,10 @@ PENTING:
      */
     private static async executeAutoApproveActions(
         customerId: number,
-        invoice: any,
+        matchObj: any,
         paymentAmount: number,
-        validationDetails: any
+        validationDetails: any,
+        isPaymentRequest: boolean = false
     ): Promise<{
         paymentRecorded: boolean;
         isolationRemoved: boolean;
@@ -818,6 +865,35 @@ PENTING:
         let notificationSent = false;
 
         try {
+            if (isPaymentRequest) {
+                // HANDLE PREPAID / ACTIVATION REQUEST
+                console.log(`[AdvancedAI] ⚡ Processing auto-confirm for payment request ${matchObj.id}`);
+
+                // Import PrepaidService 
+                const { PrepaidService } = await import('../billing/PrepaidService');
+
+                // Confirm the payment
+                const confirmResult = await PrepaidService.confirmPayment(
+                    matchObj.id,
+                    null, // System verified
+                    'transfer'
+                );
+
+                if (confirmResult.success) {
+                    paymentRecorded = true;
+                    isolationRemoved = true;
+
+                    await this.logVerificationAttempt(customerId, 'success', `Auto-confirmed payment request ${matchObj.id}`, {
+                        paymentRequestId: matchObj.id,
+                        amount: paymentAmount,
+                        riskScore: validationDetails.riskScore
+                    });
+                }
+
+                return { paymentRecorded, isolationRemoved, notificationSent };
+            }
+
+            // HANDLE STANDARD INVOICE
             await connection.beginTransaction();
 
             // Get customer billing mode
@@ -828,6 +904,7 @@ PENTING:
             const billingMode = customerRows[0]?.billing_mode || 'postpaid';
 
             // Record payment
+            const invoice = matchObj;
             const currentPaid = parseFloat(invoice.paid_amount?.toString() || '0');
             const totalAmount = parseFloat(invoice.total_amount.toString());
             const remainingBefore = parseFloat(invoice.remaining_amount.toString());
@@ -938,7 +1015,7 @@ PENTING:
             });
 
         } catch (error) {
-            await connection.rollback();
+            if (!isPaymentRequest) await connection.rollback();
             console.error('[AdvancedAI] Action execution error:', error);
             throw error;
         } finally {

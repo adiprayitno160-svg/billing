@@ -1,0 +1,22 @@
+﻿Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	auto_increment
+customer_id	int	YES	MUL	NULL	
+subscription_id	int	YES		NULL	
+invoice_id	int	YES	MUL	NULL	
+payment_id	int	YES		NULL	
+notification_type	varchar(100)	NO	MUL	NULL	
+template_code	varchar(100)	YES		NULL	
+channel	varchar(50)	NO	MUL	whatsapp	
+title	text	NO		NULL	
+message	text	NO		NULL	
+attachment_path	varchar(255)	YES		NULL	
+status	varchar(50)	NO	MUL	pending	
+worker_id	varchar(50)	YES		NULL	
+priority	varchar(20)	YES		normal	
+retry_count	int	YES		0	
+max_retries	int	YES		3	
+error_message	text	YES		NULL	
+scheduled_for	timestamp	YES	MUL	NULL	
+sent_at	timestamp	YES		NULL	
+created_at	timestamp	YES	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP

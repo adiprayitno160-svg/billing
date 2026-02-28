@@ -9,12 +9,12 @@
  */
 export function formatPeriodToMonth(period: string): string {
     if (!period) return '-';
-    
+
     const months = [
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    
+
     try {
         const [year, month] = period.split('-');
         if (!month) return period;
@@ -34,12 +34,12 @@ export function formatPeriodToMonth(period: string): string {
  */
 export function formatPeriodToMonthShort(period: string): string {
     if (!period) return '-';
-    
+
     const months = [
         'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
         'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
     ];
-    
+
     try {
         const [year, month] = period.split('-');
         if (!month) return period;
@@ -63,24 +63,24 @@ export function formatPeriodToMonthShort(period: string): string {
  * @returns Format bulan tagihan
  */
 export function getBillingMonth(
-    invoicePeriod: string, 
+    invoicePeriod: string,
     paymentDate?: Date | string | null,
     dueDate?: Date | string | null
 ): string {
     if (!invoicePeriod) return '-';
-    
+
     // Jika ada paymentDate dan dueDate, cek apakah pembayaran terlewat bulan
     if (paymentDate && dueDate) {
         const payDate = typeof paymentDate === 'string' ? new Date(paymentDate) : paymentDate;
         const due = typeof dueDate === 'string' ? new Date(dueDate) : dueDate;
-        
+
         // Jika pembayaran setelah bulan due date, berarti terlewat bulan
         // Tampilkan bulan tagihan (periode invoice)
         if (payDate > due) {
             return formatPeriodToMonth(invoicePeriod);
         }
     }
-    
+
     // Default: tampilkan bulan tagihan dari period
     return formatPeriodToMonth(invoicePeriod);
 }
@@ -92,6 +92,15 @@ export function getBillingMonth(
 export function getBillingMonthForIsolation(invoicePeriod: string | null): string {
     if (!invoicePeriod) return 'Bulan tagihan tidak tersedia';
     return formatPeriodToMonth(invoicePeriod);
+}
+
+/**
+ * Dapatkan periode bulan selanjutnya dari string YYYY-MM
+ */
+export function getNextPeriod(currentPeriod: string): string {
+    const [year, month] = currentPeriod.split('-').map(Number);
+    const nextDate = new Date(year, month, 1); // Date month is 0-indexed, so passing current (1-indexed) month as index gives next month
+    return `${nextDate.getFullYear()}-${(nextDate.getMonth() + 1).toString().padStart(2, '0')}`;
 }
 
 

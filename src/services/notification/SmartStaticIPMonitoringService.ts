@@ -2,6 +2,7 @@ import { databasePool } from '../../db/pool';
 import { whatsappService } from '../whatsapp/WhatsAppService';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { MikrotikService } from '../mikrotik/MikrotikService';
 
 const execAsync = promisify(exec);
 
@@ -34,7 +35,7 @@ export class SmartStaticIPMonitoringService {
         c.id,
         c.name,
         c.phone,
-        c.static_ip,
+        COALESCE(c.static_ip, sic.ip_address, c.ip_address) as static_ip,
         c.area,
         c.odc_location as location,
         c.last_ping_check,
@@ -43,11 +44,13 @@ export class SmartStaticIPMonitoringService {
         c.awaiting_customer_response,
         c.customer_response_received
       FROM customers c
+      LEFT JOIN static_ip_clients sic ON sic.customer_id = c.id
       WHERE c.billing_mode = 'prepaid' 
         AND c.connection_type = 'static_ip'
         AND c.status = 'active'
-        AND c.static_ip IS NOT NULL 
-        AND c.static_ip != ''
+        AND (c.static_ip IS NOT NULL AND c.static_ip != '' 
+             OR sic.ip_address IS NOT NULL
+             OR c.ip_address IS NOT NULL)
     `;
 
     try {
@@ -64,32 +67,46 @@ export class SmartStaticIPMonitoringService {
    */
   async pingIPAddress(ip: string): Promise<boolean> {
     try {
-      // Gunakan ping command berdasarkan OS
+      // 1. Cobalah ping LANGSUNG dari server (lebih cepat jika bisa)
       const isWindows = process.platform === 'win32';
       const pingCommand = isWindows
-        ? `ping -n 1 -w 3000 ${ip}`  // Windows: 1 packet, 3 second timeout
-        : `ping -c 1 -W 3 ${ip}`;    // Linux/Mac: 1 packet, 3 second timeout
+        ? `ping -n 1 -w 2000 ${ip}`  // 2s timeout
+        : `ping -c 1 -W 2 ${ip}`;    // 2s timeout
 
-      const { stdout, stderr } = await execAsync(pingCommand);
+      try {
+        const { stdout } = await execAsync(pingCommand);
+        const output = stdout.toLowerCase();
+        const hasReply = output.includes('reply from') ||
+          output.includes('bytes=') ||
+          output.includes('ttl=') ||
+          (!output.includes('100% packet loss') &&
+            !output.includes('timed out') &&
+            !output.includes('host unreachable'));
 
-      // Cek apakah ada packet loss atau timeout
-      const output = stdout.toLowerCase();
-      const hasReply = output.includes('reply from') ||
-        output.includes('bytes=') ||
-        output.includes('ttl=') ||
-        (!output.includes('100% packet loss') &&
-          !output.includes('timed out') &&
-          !output.includes('host unreachable'));
-
-      if (hasReply) {
-        console.log(`✅ Ping SUCCESS for ${ip}`);
-      } else {
-        console.log(`❌ Ping FAILED for ${ip}`);
+        if (hasReply) {
+          console.log(`✅ Direct Ping SUCCESS for ${ip}`);
+          return true;
+        }
+      } catch (e) {
+        // Direct ping failed, fall through to Mikrotik
       }
 
-      return hasReply;
+      // 2. Jika ping langsung gagal, ping via MIKROTIK
+      try {
+        const mkService = await MikrotikService.getInstance();
+        const mkPingSuccess = await mkService.ping(ip);
+
+        if (mkPingSuccess) {
+          console.log(`✅ Microtik Ping SUCCESS for ${ip}`);
+          return true;
+        }
+      } catch (mkError) {
+        // Ignore Mikrotik errors
+      }
+
+      console.log(`❌ All Ping methods FAILED for ${ip}`);
+      return false;
     } catch (error) {
-      // Jika command gagal, anggap sebagai tidak merespon
       console.log(`❌ Ping ERROR for ${ip}:`, (error as Error).message);
       return false;
     }

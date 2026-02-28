@@ -326,67 +326,86 @@
                             <span>Subtotal</span>
                             <span style="font-weight: bold;">Rp <%= new
                                     Intl.NumberFormat('id-ID').format(invoice.subtotal || invoice.total_amount) %>
-                                    </span>
+                            </span>
                         </div>
                         <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
-                            <div class="total-row" style="color: #d9534f;">
-                                <span>Diskon<% if (invoice.discount_reason) { %> (<%= invoice.discount_reason %>)<% } %>
-                                                </span>
+                            <div class="total-row" style="color: #000;">
+                                <span>DISKON <%= (typeof discounts !=='undefined' && discounts.length> 0) ? '(' +
+                                        discounts[0].discount_type.toUpperCase() + ')' : '' %></span>
                                 <span style="font-weight: bold;">- Rp <%= new
                                         Intl.NumberFormat('id-ID').format(invoice.discount_amount) %></span>
                             </div>
-                            <% } %>
-                                <div class="total-row">
-                                    <span>PPN</span>
-                                    <span>Rp 0</span>
-                                </div>
-
-                                <div class="grand-total">
-                                    <div class="total-row">
-                                        <span>TOTAL BAYAR</span>
-                                        <span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %>
-                                                </span>
+                            <% if (typeof discounts !=='undefined' && discounts.length> 0) { %>
+                                <% discounts.forEach(d=> { %>
+                                    <div
+                                        style="font-size: 6.5pt; text-align: left; margin-bottom: 2px; padding-left: 2mm; opacity: 0.8;">
+                                        * <%= d.reason %>
                                     </div>
-                                </div>
-
-                                <% if (invoice.paid_amount> 0) { %>
-                                    <div class="total-row" style="margin-top: 1mm;">
-                                        <span>Sudah Dibayar</span>
-                                        <span style="font-weight: bold; color: #2e7d32;">Rp <%= new
-                                                Intl.NumberFormat('id-ID').format(invoice.paid_amount) %></span>
-                                    </div>
-                                    <div class="total-row">
-                                        <span style="font-weight: bold;">Sisa Piutang</span>
-                                        <span style="font-weight: bold; color: #d32f2f;">Rp <%= new
-                                                Intl.NumberFormat('id-ID').format(invoice.remaining_amount ||
-                                                (invoice.total_amount - invoice.paid_amount)) %></span>
-                                    </div>
-                                    <% } %>
-
-                                        <hr class="sep">
-
-                                        <!-- Info Box -->
-                                        <div class="info-box">
+                                    <% }); %>
+                                        <% } else if (invoice.discount_reason) { %>
                                             <div
-                                                style="font-weight: bold; margin-bottom: 1mm; text-decoration: underline;">
-                                                INFORMASI LAYANAN:</div>
-                                            • Simpan struk sebagai bukti bayar sah.<br>
-                                            • Bayar tepat waktu agar tidak terisolir.
-                                        </div>
+                                                style="font-size: 6.5pt; text-align: left; margin-bottom: 2px; padding-left: 2mm; opacity: 0.8;">
+                                                * <%= invoice.discount_reason %>
+                                            </div>
+                                            <% } %>
+                                                <% } %>
+                                                    <div class="total-row">
+                                                        <span>PPN</span>
+                                                        <span>Rp 0</span>
+                                                    </div>
 
-                                        <!-- QR Code -->
-                                        <div style="text-align: center; margin: 2mm 0;">
-                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('VERIFIED OK: ' + invoice.invoice_number + ' | ' + invoice.customer_name + ' | ' + invoice.total_amount) %>"
-                                                style="width: 60px; height: 60px;" alt="QR">
-                                            <div style="font-size: 5.5pt; margin-top: 1mm;">E-RECEIPT VERIFICATION</div>
-                                        </div>
+                                                    <div class="grand-total">
+                                                        <div class="total-row">
+                                                            <span>TOTAL BAYAR</span>
+                                                            <span>Rp <%= new
+                                                                    Intl.NumberFormat('id-ID').format(invoice.total_amount)
+                                                                    %>
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                        <!-- Footer -->
-                                        <div class="footer">
-                                            *** TERIMA KASIH ***<br>
-                                            <%= new Date().toLocaleString('id-ID', {day: '2-digit' , month: '2-digit' ,
-                                                year: 'numeric' , hour: '2-digit' , minute: '2-digit' }) %>
-                                        </div>
+                                                    <% if (invoice.paid_amount> 0) { %>
+                                                        <div class="total-row" style="margin-top: 1mm;">
+                                                            <span>Sudah Dibayar</span>
+                                                            <span style="font-weight: bold; color: #2e7d32;">Rp <%= new
+                                                                    Intl.NumberFormat('id-ID').format(invoice.paid_amount)
+                                                                    %></span>
+                                                        </div>
+                                                        <div class="total-row">
+                                                            <span style="font-weight: bold;">Sisa Piutang</span>
+                                                            <span style="font-weight: bold; color: #d32f2f;">Rp <%= new
+                                                                    Intl.NumberFormat('id-ID').format(invoice.remaining_amount
+                                                                    || (invoice.total_amount - invoice.paid_amount)) %>
+                                                            </span>
+                                                        </div>
+                                                        <% } %>
+
+                                                            <hr class="sep">
+
+                                                            <!-- Info Box -->
+                                                            <div class="info-box">
+                                                                <div
+                                                                    style="font-weight: bold; margin-bottom: 1mm; text-decoration: underline;">
+                                                                    INFORMASI LAYANAN:</div>
+                                                                • Simpan struk sebagai bukti bayar sah.<br>
+                                                                • Bayar tepat waktu agar tidak terisolir.
+                                                            </div>
+
+                                                            <!-- QR Code -->
+                                                            <div style="text-align: center; margin: 2mm 0;">
+                                                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('VERIFIED OK: ' + invoice.invoice_number + ' | ' + invoice.customer_name + ' | ' + invoice.total_amount) %>"
+                                                                    style="width: 60px; height: 60px;" alt="QR">
+                                                                <div style="font-size: 5.5pt; margin-top: 1mm;">
+                                                                    E-RECEIPT VERIFICATION</div>
+                                                            </div>
+
+                                                            <!-- Footer -->
+                                                            <div class="footer">
+                                                                *** TERIMA KASIH ***<br>
+                                                                <%= new Date().toLocaleString('id-ID', {day: '2-digit' ,
+                                                                    month: '2-digit' , year: 'numeric' , hour: '2-digit'
+                                                                    , minute: '2-digit' }) %>
+                                                            </div>
     </div>
 </body>
 

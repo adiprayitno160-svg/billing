@@ -1669,7 +1669,7 @@ router.post('/packages/static-ip/:id/delete', postStaticIpPackageDelete);
 router.post('/packages/static-ip/:id/update', postStaticIpPackageUpdate);
 router.post('/packages/static-ip/:id/delete-queues', postStaticIpPackageDeleteQueues);
 router.post('/packages/static-ip/:id/copy', postStaticIpPackageCopy);
-router.delete('/api/packages/static-ip/:id', apiDeletePackage);
+router.delete('/packages/static-ip/:id/api-delete', apiDeletePackage);
 
 // Routes untuk mengganti paket IP statis pelanggan
 router.get('/customers/:customerId/change-static-ip-package', getChangePackageForm);
@@ -2634,8 +2634,11 @@ router.post('/customers/new-pppoe', async (req, res) => {
                                 end_date, 
                                 status,
                                 created_at,
-                                updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                                updated_at,
+                                is_activated,
+                                activation_date,
+                                next_block_date
+                            ) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW(), 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))
                         `, [
                             customerId,
                             pkg.id,

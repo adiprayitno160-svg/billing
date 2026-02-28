@@ -1,0 +1,10 @@
+﻿Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	auto_increment
+user_id	int	NO	MUL	NULL	
+type	enum('ujian','pr','tugas','nilai','system','reminder')	YES	MUL	system	
+title	varchar(255)	NO		NULL	
+message	text	NO		NULL	
+link	varchar(500)	YES		NULL	
+is_read	tinyint(1)	YES	MUL	0	
+created_at	timestamp	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED
+read_at	timestamp	YES		NULL	

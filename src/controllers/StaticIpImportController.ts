@@ -102,8 +102,9 @@ export class StaticIpImportController {
                 await conn.execute(`
                     INSERT INTO subscriptions (
                         customer_id, package_id, package_name, price, 
-                        start_date, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, NOW(), 'active', NOW(), NOW())
+                        start_date, status, created_at, updated_at,
+                        is_activated, activation_date, next_block_date
+                    ) VALUES (?, ?, ?, ?, NOW(), 'active', NOW(), NOW(), 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))
                 `, [customerId, pkg.id, pkg.name, pkg.price]);
                 console.log(`[Import-Link] Subscription created for customer ${customerId}`);
             }
@@ -236,8 +237,9 @@ export class StaticIpImportController {
                     await conn.execute(`
                         INSERT INTO subscriptions (
                             customer_id, package_id, package_name, price, 
-                            start_date, status, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, NOW(), 'active', NOW(), NOW())
+                            start_date, status, created_at, updated_at,
+                            is_activated, activation_date, next_block_date
+                        ) VALUES (?, ?, ?, ?, NOW(), 'active', NOW(), NOW(), 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))
                     `, [newCustomerId, packageId, pkgData.name, pkgData.price]);
                     console.log(`[Import] Subscription created for customer ${newCustomerId}`);
                 }

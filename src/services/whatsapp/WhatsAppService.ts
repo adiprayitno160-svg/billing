@@ -96,6 +96,8 @@ export class WhatsAppService extends EventEmitter {
   private reconnectAttempts: number = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 50;
   private reconnectTimeout: NodeJS.Timeout | null = null;
+  private qrRetryCount: number = 0;
+  private readonly MAX_QR_RETRIES = 5;
 
   // Initialization promise for concurrency handling
   private initPromise: Promise<void> | null = null;
@@ -105,9 +107,32 @@ export class WhatsAppService extends EventEmitter {
   // Message Queue
   private messageQueue: QueuedMessage[] = [];
   private isProcessingQueue: boolean = false;
-  private readonly QUEUE_PROCESS_INTERVAL_MIN = 3000; // 3 seconds min
-  private readonly QUEUE_PROCESS_INTERVAL_MAX = 6000; // 6 seconds max
+  private readonly QUEUE_PROCESS_INTERVAL_MIN = 5000; // 5 seconds min (increased from 3)
+  private readonly QUEUE_PROCESS_INTERVAL_MAX = 10000; // 10 seconds max (increased from 6)
   private readonly MAX_QUEUE_SIZE = 500;
+
+  // ========== ANTI-SPAM RATE LIMITING ==========
+  // Per-contact rate limiting
+  private contactLastSent: Map<string, number> = new Map();  // phone -> last sent timestamp
+  private readonly CONTACT_COOLDOWN_MS = 60000; // Min 60 seconds between messages to same contact
+
+  // Hourly/Daily rate limiting
+  private hourlySentCount: number = 0;
+  private dailySentCount: number = 0;
+  private lastHourlyReset: number = Date.now();
+  private lastDailyReset: number = Date.now();
+  private readonly MAX_MESSAGES_PER_HOUR = 30; // Max 30 messages per hour
+  private readonly MAX_MESSAGES_PER_DAY = 200; // Max 200 messages per day
+
+  // Progressive delay (gets slower as we send more)
+  private consecutiveSentCount: number = 0;
+  private lastBurstReset: number = Date.now();
+  private readonly BURST_WINDOW_MS = 300000; // 5 minute window for burst detection
+  private readonly BURST_THRESHOLD = 10; // After 10 messages in 5 min, increase delays
+
+  // Duplicate detection
+  private recentMessages: Map<string, number> = new Map(); // hash -> timestamp
+  private readonly DEDUP_WINDOW_MS = 300000; // 5 minute dedup window
 
   // Paths
   private readonly AUTH_DIR = path.join(process.cwd(), 'whatsapp_auth_v3');
@@ -139,7 +164,12 @@ export class WhatsAppService extends EventEmitter {
       const now = Date.now();
       const isStuckInitializing = this.isConnecting && (now - this.lastInitializationTime > 300000); // 5 mins
 
-      if ((!this.isConnected && !this.isConnecting && !this.qrCode) || isStuckInitializing) {
+      // Don't restart while QR code is being displayed (user might be scanning)
+      if (this.qrCode) {
+        return; // QR is active, don't interfere
+      }
+
+      if ((!this.isConnected && !this.isConnecting) || isStuckInitializing) {
         this.log('warn', `🐕 Watchdog: Service seems stuck or disconnected (Stuck: ${isStuckInitializing}). Triggering auto-restart...`);
         try {
           await this.restart();
@@ -253,7 +283,7 @@ export class WhatsAppService extends EventEmitter {
         this.log('info', `📦 Baileys Version: ${version.join('.')} (Latest: ${isLatest})`);
 
         // Create socket
-        const logger = pino({ level: 'debug' }); // Increased pino level for debugging
+        const logger = pino({ level: 'silent' });
 
         this.sock = makeWASocket({
           version,
@@ -263,7 +293,7 @@ export class WhatsAppService extends EventEmitter {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, logger as any),
           },
-          browser: ['Windows', 'Chrome', '110.0.5481.178'], // Changed browser string
+          browser: ['Billing-System', 'Desktop', '2.0.0'],
           generateHighQualityLinkPreview: true,
           defaultQueryTimeoutMs: 60000,
           connectTimeoutMs: 60000,
@@ -358,7 +388,21 @@ export class WhatsAppService extends EventEmitter {
 
       // QR Code received
       if (qr) {
-        this.log('info', '📱 QR Code received');
+        this.qrRetryCount++;
+        this.log('info', `📱 QR Code received (attempt ${this.qrRetryCount}/${this.MAX_QR_RETRIES})`);
+
+        // Check if QR has been regenerated too many times (expired too many times)
+        if (this.qrRetryCount > this.MAX_QR_RETRIES) {
+          this.log('warn', '⚠️ QR code expired too many times. Clearing session and restarting...');
+          this.qrRetryCount = 0;
+          this.qrCode = null;
+          this.qrDataUrl = null;
+          await this.clearSession();
+          this.initPromise = null;
+          setTimeout(() => this.initialize(), 3000);
+          return;
+        }
+
         this.qrCode = qr;
 
         // Generate Data URL for web display
@@ -397,6 +441,7 @@ export class WhatsAppService extends EventEmitter {
         this.qrCode = null;
         this.qrDataUrl = null;
         this.isProcessingQueue = false; // Stop queue
+        this.initPromise = null; // CRITICAL: Allow re-initialization
 
         this.emit('disconnected', statusCode);
         this.saveStatusToDisk();
@@ -421,6 +466,7 @@ export class WhatsAppService extends EventEmitter {
         this.isConnected = true;
         this.isConnecting = false;
         this.reconnectAttempts = 0;
+        this.qrRetryCount = 0; // Reset QR retry counter
         this.lastConnected = new Date();
         this.qrCode = null;
         this.qrDataUrl = null;
@@ -661,7 +707,84 @@ export class WhatsAppService extends EventEmitter {
   }
 
   /**
-   * Queue a message for sending
+   * Reset rate limiting counters if time window has passed
+   */
+  private resetRateLimitCounters(): void {
+    const now = Date.now();
+
+    // Reset hourly counter
+    if (now - this.lastHourlyReset >= 3600000) {
+      this.hourlySentCount = 0;
+      this.lastHourlyReset = now;
+      this.log('debug', '🔄 Hourly rate limit counter reset');
+    }
+
+    // Reset daily counter
+    if (now - this.lastDailyReset >= 86400000) {
+      this.dailySentCount = 0;
+      this.lastDailyReset = now;
+      this.log('debug', '🔄 Daily rate limit counter reset');
+    }
+
+    // Reset burst counter
+    if (now - this.lastBurstReset >= this.BURST_WINDOW_MS) {
+      this.consecutiveSentCount = 0;
+      this.lastBurstReset = now;
+    }
+
+    // Clean old contact cooldowns (remove entries older than 10 minutes)
+    for (const [contact, timestamp] of this.contactLastSent.entries()) {
+      if (now - timestamp > 600000) {
+        this.contactLastSent.delete(contact);
+      }
+    }
+
+    // Clean old dedup entries
+    for (const [hash, timestamp] of this.recentMessages.entries()) {
+      if (now - timestamp > this.DEDUP_WINDOW_MS) {
+        this.recentMessages.delete(hash);
+      }
+    }
+  }
+
+  /**
+   * Generate a hash for message deduplication
+   */
+  private getMessageHash(to: string, content: AnyMessageContent): string {
+    const textContent = (content as any)?.text || (content as any)?.caption || '';
+    return `${to}:${textContent.substring(0, 100)}`;
+  }
+
+  /**
+   * Calculate the appropriate delay based on rate limiting state
+   */
+  private calculateSmartDelay(): number {
+    this.resetRateLimitCounters();
+
+    let baseDelay = this.QUEUE_PROCESS_INTERVAL_MIN;
+
+    // Progressive delay: increase delay as we send more messages
+    if (this.consecutiveSentCount >= this.BURST_THRESHOLD) {
+      const extraDelay = (this.consecutiveSentCount - this.BURST_THRESHOLD) * 2000;
+      baseDelay += Math.min(extraDelay, 30000); // Cap at 30 extra seconds
+      this.log('debug', `🐢 Burst mode: Adding ${extraDelay}ms extra delay (${this.consecutiveSentCount} messages in window)`);
+    }
+
+    // If approaching hourly limit, slow down significantly
+    if (this.hourlySentCount >= this.MAX_MESSAGES_PER_HOUR * 0.8) {
+      baseDelay = Math.max(baseDelay, 30000); // At least 30 seconds
+      this.log('warn', `⚠️ Approaching hourly limit (${this.hourlySentCount}/${this.MAX_MESSAGES_PER_HOUR}), slowing down`);
+    }
+
+    // Add randomness to look more human (±30%)
+    const jitter = baseDelay * 0.3;
+    const randomDelay = baseDelay + Math.floor(Math.random() * jitter * 2 - jitter);
+
+    return Math.max(randomDelay, this.QUEUE_PROCESS_INTERVAL_MIN);
+  }
+
+  /**
+   * Queue a message for sending with anti-spam protection
    */
   private queueMessage(to: string, content: AnyMessageContent, options?: SendMessageOptions): Promise<MessageResult> {
     return new Promise((resolve, reject) => {
@@ -674,6 +797,32 @@ export class WhatsAppService extends EventEmitter {
       if (this.messageQueue.length >= this.MAX_QUEUE_SIZE) {
         this.log('warn', `Message queue full (${this.messageQueue.length}), rejects new message to ${to}`);
         resolve({ success: false, error: 'Antrian pesan penuh, silakan tunggu beberapa saat.' });
+        return;
+      }
+
+      // ===== ANTI-SPAM CHECKS =====
+      this.resetRateLimitCounters();
+
+      // Check hourly limit
+      if (this.hourlySentCount >= this.MAX_MESSAGES_PER_HOUR) {
+        this.log('warn', `🚫 Hourly rate limit reached (${this.hourlySentCount}/${this.MAX_MESSAGES_PER_HOUR}). Message to ${to} rejected.`);
+        resolve({ success: false, error: `Rate limit: Batas pengiriman per jam tercapai (${this.MAX_MESSAGES_PER_HOUR} pesan/jam). Coba lagi nanti.` });
+        return;
+      }
+
+      // Check daily limit
+      if (this.dailySentCount >= this.MAX_MESSAGES_PER_DAY) {
+        this.log('warn', `🚫 Daily rate limit reached (${this.dailySentCount}/${this.MAX_MESSAGES_PER_DAY}). Message to ${to} rejected.`);
+        resolve({ success: false, error: `Rate limit: Batas pengiriman per hari tercapai (${this.MAX_MESSAGES_PER_DAY} pesan/hari). Coba lagi besok.` });
+        return;
+      }
+
+      // Check duplicate message
+      const msgHash = this.getMessageHash(this.formatPhoneNumber(to), content);
+      const lastSentTime = this.recentMessages.get(msgHash);
+      if (lastSentTime && Date.now() - lastSentTime < this.DEDUP_WINDOW_MS) {
+        this.log('warn', `🚫 Duplicate message detected to ${to} (sent ${Math.round((Date.now() - lastSentTime) / 1000)}s ago). Skipping.`);
+        resolve({ success: true, error: 'Pesan duplikat terdeteksi, dilewati.' });
         return;
       }
 
@@ -690,7 +839,7 @@ export class WhatsAppService extends EventEmitter {
       };
 
       this.messageQueue.push(queueItem);
-      this.log('debug', `📤 Message queued: ${queueItem.id} to ${to}`);
+      this.log('debug', `📤 Message queued: ${queueItem.id} to ${to} (Queue: ${this.messageQueue.length}, Hourly: ${this.hourlySentCount}/${this.MAX_MESSAGES_PER_HOUR}, Daily: ${this.dailySentCount}/${this.MAX_MESSAGES_PER_DAY})`);
 
       // Start processing if not already
       if (!this.isProcessingQueue && this.isConnected) {
@@ -788,12 +937,36 @@ export class WhatsAppService extends EventEmitter {
         }
       }
 
-      // Human-like random delay before next message (2-5 seconds)
-      // Only wait if there are more messages left in the queue
+      // ===== ANTI-SPAM: Record successful send =====
+      if (!('error' in item) || item.retries === 0) {
+        this.hourlySentCount++;
+        this.dailySentCount++;
+        this.consecutiveSentCount++;
+        this.contactLastSent.set(item.to, Date.now());
+
+        // Record for dedup
+        const msgHash = this.getMessageHash(item.to, item.content);
+        this.recentMessages.set(msgHash, Date.now());
+      }
+
+      // Smart adaptive delay before next message
       if (this.messageQueue.length > 0) {
-        const randomDelay = Math.floor(Math.random() * (this.QUEUE_PROCESS_INTERVAL_MAX - this.QUEUE_PROCESS_INTERVAL_MIN + 1)) + this.QUEUE_PROCESS_INTERVAL_MIN;
-        this.log('debug', `⏳ Waiting ${randomDelay}ms before next message...`);
-        await new Promise(resolve => setTimeout(resolve, randomDelay));
+        // Check contact cooldown for next message
+        const nextItem = this.messageQueue[0];
+        if (nextItem) {
+          const nextContactLastSent = this.contactLastSent.get(nextItem.to);
+          if (nextContactLastSent) {
+            const contactWait = this.CONTACT_COOLDOWN_MS - (Date.now() - nextContactLastSent);
+            if (contactWait > 0) {
+              this.log('debug', `⏳ Contact cooldown: Waiting ${Math.round(contactWait / 1000)}s for ${nextItem.to}`);
+              await new Promise(resolve => setTimeout(resolve, contactWait));
+            }
+          }
+        }
+
+        const smartDelay = this.calculateSmartDelay();
+        this.log('debug', `⏳ Smart delay: ${smartDelay}ms (Burst: ${this.consecutiveSentCount}, Hourly: ${this.hourlySentCount}/${this.MAX_MESSAGES_PER_HOUR})`);
+        await new Promise(resolve => setTimeout(resolve, smartDelay));
       }
 
       // Yield event loop
@@ -989,6 +1162,7 @@ export class WhatsAppService extends EventEmitter {
     this.qrCode = null;
     this.qrDataUrl = null;
     this.reconnectAttempts = 0;
+    this.qrRetryCount = 0;
     this.initPromise = null; // IMPORTANT: Allow re-initialization
 
     this.log('info', '♻️ WhatsApp service state reset, starting initialization...');
@@ -1020,6 +1194,8 @@ export class WhatsAppService extends EventEmitter {
     this.displayName = null;
     this.qrCode = null;
     this.qrDataUrl = null;
+    this.qrRetryCount = 0;
+    this.initPromise = null;
 
     this.emit('logout');
 

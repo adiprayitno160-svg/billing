@@ -1,6 +1,6 @@
 import { SLARebateService } from './SLARebateService';
 import { databasePool } from '../../db/pool';
-import { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise';
+import { Pool, PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 
 export interface InvoiceData {
     customer_id: number;
@@ -128,7 +128,7 @@ export class InvoiceService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -217,7 +217,7 @@ export class InvoiceService {
                 message: `Error processing payment: ${error instanceof Error ? error.message : 'Unknown error'}`
             };
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -265,7 +265,8 @@ export class InvoiceService {
 
             const queryParams: any[] = [];
             if (!forceAll && !customerIds) {
-                subscriptionQuery += ` AND DAY(s.start_date) = DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) `;
+                // Modified: check for current day and past days to catch up, up to H-7
+                subscriptionQuery += ` AND DAY(s.start_date) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) `;
             }
 
             if (customerIds) {
@@ -304,14 +305,16 @@ export class InvoiceService {
                     // Start transaction for each invoice to minimize lock time
                     await connection.beginTransaction();
 
-                    // Carry Over
+                    // Carry Over: Pick up ALL pending debt for this customer up to this period
                     const [carryOverResult] = await connection.query<RowDataPacket[]>(
-                        `SELECT COALESCE(SUM(carry_over_amount), 0) as carry_over_amount
+                        `SELECT COALESCE(SUM(carry_over_amount), 0) as carry_over_amount,
+                                GROUP_CONCAT(id) as ids
                          FROM carry_over_invoices 
-                         WHERE customer_id = ? AND target_period = ? AND status = 'pending'`,
+                         WHERE customer_id = ? AND target_period <= ? AND status = 'pending'`,
                         [subscription.customer_id, period]
                     );
                     const carryOverAmount = parseFloat(carryOverResult[0].carry_over_amount || 0);
+                    const carryOverIds = carryOverResult[0].ids ? carryOverResult[0].ids.split(',') : [];
 
                     // SLA Rebate
                     const prevDate = new Date(periodYear, periodMonth - 2, 1);
@@ -384,8 +387,41 @@ export class InvoiceService {
                         await connection.execute('UPDATE customers SET account_balance = account_balance - ? WHERE id = ?', [amountFromBalance, subscription.customer_id]);
                         await connection.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at) VALUES (?, "balance", ?, NOW(), "COMPLETED", "Otomatis potong saldo", 0, NOW())', [invoiceId, amountFromBalance]);
                     }
+                    if (carryOverAmount > 0 && carryOverIds.length > 0) {
+                        await connection.query('UPDATE carry_over_invoices SET status = "applied", applied_at = NOW() WHERE id IN (?)', [carryOverIds]);
+                    }
+
+                    // 4. Update source invoices for carry-over debt to prevent double listing
+                    // Find all active debt tracking for this customer that was just applied
                     if (carryOverAmount > 0) {
-                        await connection.execute('UPDATE carry_over_invoices SET status = "applied", applied_at = NOW() WHERE customer_id = ? AND target_period = ? AND status = "pending"', [subscription.customer_id, period]);
+                        try {
+                            // Mark source invoices as 'paid' because they are now "paid" by being transferred to this invoice
+                            // We find which invoices these were from the carry_over_ids (which should map to invoices via debt_tracking)
+                            await connection.execute(
+                                `UPDATE invoices i 
+                                     JOIN debt_tracking dt ON i.id = dt.invoice_id
+                                     SET i.status = 'paid', i.remaining_amount = 0, i.notes = CONCAT(COALESCE(i.notes, ''), '\n[CARRIED OVER to Period ', ?, ' Invoice ', ?, ']')
+                                     WHERE i.customer_id = ? AND dt.status = 'active'`,
+                                [period, invoiceId, subscription.customer_id]
+                            );
+
+                            // Deactivate the old debt tracking since it's now applied to a NEW invoice
+                            await connection.execute(
+                                'UPDATE debt_tracking SET status = "applied" WHERE customer_id = ? AND status = "active"',
+                                [subscription.customer_id]
+                            );
+                        } catch (debtUpdateErr) {
+                            console.error(`[InvoiceService] Error updating source invoices:`, debtUpdateErr);
+                        }
+                    }
+
+
+                    // Update carry-over status for just those applied
+                    if (carryOverIds.length > 0) {
+                        await connection.query(
+                            'UPDATE carry_over_invoices SET status = "applied" WHERE id IN (?)',
+                            [carryOverIds]
+                        );
                     }
 
                     await connection.commit();
@@ -436,5 +472,79 @@ export class InvoiceService {
         if (filters.limit) { query += ` LIMIT ? OFFSET ?`; params.push(filters.limit, filters.offset || 0); }
         const [result] = await databasePool.query(query, params);
         return result as any[];
+    }
+
+    /**
+     * Dapatkan tagihan yang sudah jatuh tempo
+     */
+    static async getOverdueInvoices(): Promise<any[]> {
+        const [rows] = await databasePool.query(
+            `SELECT i.*, c.name as customer_name, c.phone 
+             FROM invoices i 
+             JOIN customers c ON i.customer_id = c.id 
+             WHERE i.status = 'overdue' AND i.remaining_amount > 0`
+        );
+        return rows as any[];
+    }
+
+    /**
+     * Bulk delete invoices
+     */
+    static async bulkDeleteInvoices(invoiceIds: number[]): Promise<{ deleted: number; failed: number; errors: any[] }> {
+        const connection = await databasePool.getConnection();
+        let deleted = 0;
+        let failed = 0;
+        const errors: any[] = [];
+
+        try {
+            await connection.beginTransaction();
+
+            for (const id of invoiceIds) {
+                try {
+                    // Cek apakah ada pembayaran
+                    const [payments] = await connection.query<RowDataPacket[]>(
+                        'SELECT id FROM payments WHERE invoice_id = ?', [id]
+                    );
+
+                    if (payments.length > 0) {
+                        failed++;
+                        errors.push({ id, message: 'Invoice sudah ada pembayaran (Batalkan pembayaran terlebih dahulu)' });
+                        continue;
+                    }
+
+                    // Delete related records in specific order
+                    await connection.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
+                    await connection.execute('DELETE FROM discounts WHERE invoice_id = ?', [id]);
+                    await connection.execute('DELETE FROM debt_tracking WHERE invoice_id = ?', [id]);
+
+                    // Cleanup any notification queue entries
+                    await connection.execute('DELETE FROM unified_notifications_queue WHERE invoice_id = ?', [id]);
+
+                    // Delete invoice
+                    const [result] = await connection.execute<ResultSetHeader>(
+                        'DELETE FROM invoices WHERE id = ?', [id]
+                    );
+
+                    if (result.affectedRows > 0) {
+                        deleted++;
+                    } else {
+                        failed++;
+                        errors.push({ id, message: 'Invoice tidak ditemukan saat akan dihapus' });
+                    }
+                } catch (err: any) {
+                    failed++;
+                    console.error(`[BulkDelete] Error deleting invoice ${id}:`, err);
+                    errors.push({ id, message: err.message });
+                }
+            }
+
+            await connection.commit();
+            return { deleted, failed, errors };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 }

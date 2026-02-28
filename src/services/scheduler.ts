@@ -272,22 +272,22 @@ export class SchedulerService {
 
 
 
-        // Static IP Ping Monitoring - Temporarily Disabled for Debugging
-        // cron.schedule('* * * * *', async () => {
-        //     // Quiet logging to avoid spam
-        //     try {
-        //         const pingServiceModule = await import('./pingService') as any;
-        //         const pingService = pingServiceModule.default || pingServiceModule;
-        //
-        //         if (typeof pingService.monitorAllStaticIPs === 'function') {
-        //             await pingService.monitorAllStaticIPs();
-        //         } else {
-        //             console.error('monitorAllStaticIPs function not found in PingService');
-        //         }
-        //     } catch (error) {
-        //         console.error('Error running static IP monitoring:', error);
-        //     }
-        // });
+        // Static IP Ping Monitoring - Enabled
+        cron.schedule('* * * * *', async () => {
+            // Quiet logging to avoid spam
+            try {
+                const pingServiceModule = await import('./pingService') as any;
+                const pingService = pingServiceModule.default || pingServiceModule;
+
+                if (typeof pingService.monitorAllStaticIPs === 'function') {
+                    await pingService.monitorAllStaticIPs();
+                } else {
+                    console.error('monitorAllStaticIPs function not found in PingService');
+                }
+            } catch (error) {
+                console.error('Error running static IP monitoring:', error);
+            }
+        });
 
         // Daily WhatsApp Service Restart - 04:30 AM
         cron.schedule('30 4 * * *', async () => {
