@@ -344,22 +344,12 @@ export class VerificationController {
                         );
                     }).catch(e => console.error('Error importing PPPoE service:', e));
 
-                    // Check if isolated
-                    const [customerCheck] = await connection.query<any[]>(
-                        'SELECT is_isolated FROM customers WHERE id = ?',
-                        [customerId]
-                    );
-
-                    if (customerCheck[0]?.is_isolated) {
-                        import('../../services/billing/isolationService').then(({ IsolationService }) => {
-                            IsolationService.isolateCustomer({
-                                customer_id: customerId,
-                                action: 'restore',
-                                reason: 'Manual verification approved - invoice paid',
-                                performed_by: 'admin'
-                            }).catch(e => console.warn('Background isolation removal failed:', e));
-                        }).catch(e => console.error('Error importing Isolation service:', e));
-                    }
+                    // Use standardized restore logic
+                    import('../../services/billing/isolationService').then(({ IsolationService }) => {
+                        IsolationService.restoreIfQualified(customerId, connection).catch(e =>
+                            console.warn('Background isolation removal failed in verification:', e)
+                        );
+                    }).catch(e => console.error('Error importing Isolation service:', e));
                 }
             }
 

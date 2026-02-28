@@ -4,6 +4,8 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { BillingPaymentIntegration } from '../../services/payment/BillingPaymentIntegration';
 import { PaymentGatewayService } from '../../services/payment/PaymentGatewayService';
 import SLAMonitoringService from '../../services/slaMonitoringService';
+import { getNextPeriod } from '../../utils/periodHelper';
+import { IsolationService } from '../../services/billing/isolationService';
 
 export class PaymentController {
     private billingPaymentService: BillingPaymentIntegration;
@@ -420,7 +422,6 @@ export class PaymentController {
                 invoice_id
             ]);
 
-            // Resolve any active debts for this invoice
             await conn.execute(`
                 UPDATE debt_tracking 
                 SET status = 'resolved', resolved_at = NOW(), updated_at = NOW()
@@ -428,6 +429,13 @@ export class PaymentController {
             `, [invoice_id]);
 
             await conn.commit();
+
+            // Check if customer qualifies for auto-restore after full payment
+            try {
+                await IsolationService.restoreIfQualified(invoice.customer_id, conn);
+            } catch (restoreErr: any) {
+                console.warn(`[PaymentController] Auto-restore check failed: ${restoreErr.message}`);
+            }
 
             // Release connection first before sending notification
             conn.release();
@@ -699,9 +707,23 @@ export class PaymentController {
                     paymentDateStr,
                     `Sisa pembayaran dari invoice ${invoice.invoice_number}`
                 ]);
+
+                // Create carry over record for next month
+                const nextPeriod = getNextPeriod(invoice.period);
+                await conn.execute(
+                    'INSERT INTO carry_over_invoices (customer_id, carry_over_amount, target_period, status) VALUES (?, ?, ?, "pending")',
+                    [invoice.customer_id, newRemainingAmount, nextPeriod]
+                );
             }
 
             await conn.commit();
+
+            // Check if customer qualifies for auto-restore after partial payment
+            try {
+                await IsolationService.restoreIfQualified(invoice.customer_id, conn);
+            } catch (restoreErr: any) {
+                console.warn(`[PaymentController] Auto-restore partial check failed: ${restoreErr.message}`);
+            }
 
             // Release connection first before sending notification
             conn.release();

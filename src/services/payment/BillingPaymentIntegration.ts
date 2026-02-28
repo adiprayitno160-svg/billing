@@ -1,5 +1,6 @@
 import { databasePool as pool } from '../../db/pool';
 import { PaymentGatewayService, PaymentRequest } from './PaymentGatewayService';
+import { IsolationService } from '../billing/isolationService';
 
 export interface BillingPaymentRequest {
   invoiceId: number;
@@ -183,11 +184,12 @@ export class BillingPaymentIntegration {
       );
       const paymentId = (paymentResult as any).insertId;
 
-      // Update customer status and activate PPPoE if applicable
-      await connection.execute(
-        'UPDATE customers SET is_isolated = FALSE WHERE id = ?',
-        [transaction.customer_id]
-      );
+      // Check if customer qualifies for auto-restore after automated payment
+      try {
+        await IsolationService.restoreIfQualified(transaction.customer_id, connection);
+      } catch (restoreErr: any) {
+        console.warn(`[BillingPaymentIntegration] Auto-restore check failed: ${restoreErr.message}`);
+      }
 
       // Automatic PPPoE Activation if invoice is paid and has subscription_id
       if (newStatus === 'paid' && transaction.subscription_id) {

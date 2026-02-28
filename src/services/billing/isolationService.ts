@@ -334,7 +334,7 @@ export class IsolationService {
             if (isNewConnection) await (connection as PoolConnection).rollback();
             throw error;
         } finally {
-            if (isNewConnection) connection.release();
+            if (isNewConnection) (connection as PoolConnection).release();
         }
     }
 
@@ -748,6 +748,47 @@ export class IsolationService {
             }
         }
         return { restored, failed };
+    }
+
+    /**
+     * Restore specific customer if they have no more unpaid invoices
+     */
+    static async restoreIfQualified(customerId: number, existingConnection?: PoolConnection | Pool): Promise<boolean> {
+        const connection = existingConnection || databasePool;
+
+        try {
+            // Check if customer is currently isolated
+            const [customerResult] = await connection.query<RowDataPacket[]>(
+                "SELECT id, is_isolated, name FROM customers WHERE id = ?",
+                [customerId]
+            );
+
+            const customer = customerResult[0];
+            if (!customer || !customer.is_isolated) {
+                return false;
+            }
+
+            // Check for any unpaid invoices
+            const [unpaidResult] = await connection.query<RowDataPacket[]>(
+                "SELECT id FROM invoices WHERE customer_id = ? AND status != 'paid'",
+                [customerId]
+            );
+
+            if (unpaidResult.length === 0) {
+                console.log(`[Isolation] 🔓 Customer ${customer.name} (#${customerId}) qualified for auto-restore.`);
+                return await this.isolateCustomer({
+                    customer_id: customerId,
+                    action: 'restore',
+                    reason: 'Auto restore: Tagihan telah lunas (Pembayaran Terverifikasi)',
+                    performed_by: 'system'
+                }, existingConnection);
+            }
+
+            return false;
+        } catch (error: any) {
+            console.error(`[Isolation] Error in restoreIfQualified for customer ${customerId}:`, error.message);
+            return false;
+        }
     }
 
     static async getIsolationHistory(customerId?: number, limit: number = 50) {

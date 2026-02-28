@@ -4,7 +4,8 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { databasePool } from '../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import * as XLSX from 'xlsx';
-import { formatPeriodToMonth } from '../utils/periodHelper';
+import { formatPeriodToMonth, getNextPeriod } from '../utils/periodHelper';
+import { IsolationService } from '../services/billing/isolationService';
 
 export class KasirController {
     private userService: UserService;
@@ -1036,15 +1037,14 @@ export class KasirController {
             }
 
             const customer = customerRows[0];
-            const currentBalance = parseFloat(customer.balance || 0);
+            let currentBalance = parseFloat(customer.balance || 0);
 
-            // Get pending invoices for this customer
+            // Get ALL pending invoices for this customer
             const [invoices] = await conn.query<RowDataPacket[]>(`
                 SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices 
                 WHERE customer_id = ? 
                 AND status IN ('sent', 'partial', 'overdue')
                 ORDER BY period ASC
-                LIMIT 1
             `, [customerId]);
 
             if (!invoices || invoices.length === 0) {
@@ -1052,144 +1052,143 @@ export class KasirController {
                 return { success: false, message: 'Tidak ada tagihan yang perlu dibayar' };
             }
 
-            const invoice = invoices[0];
-            if (!invoice) {
-                await conn.rollback();
-                return { success: false, message: 'Invoice tidak ditemukan' };
-            }
-            const remainingAmount = parseFloat(invoice.remaining_amount || invoice.total_amount);
+            let totalPaymentBuffer = (paymentType === 'debt') ? 0 : amount;
+            let firstPaymentId: number | undefined;
+            let appliedInvoices: string[] = [];
+            let processedInvoicesData: any[] = [];
+            let totalAppliedCash = 0;
+            let totalAppliedBalance = 0;
 
-            // Calculate balance usage
-            let amountFromBalance = 0;
-            if (useBalance && currentBalance > 0) {
-                amountFromBalance = Math.min(currentBalance, remainingAmount);
-
-                // Deduct from customer balance
-                await conn.query(
-                    'UPDATE customers SET balance = balance - ? WHERE id = ?',
-                    [amountFromBalance, customerId]
-                );
-
-                // Add balance log
-                await conn.query(`
-                    INSERT INTO customer_balance_logs (customer_id, amount, type, description, reference_id, reference_type, created_by)
-                    VALUES (?, ?, 'debit', ?, ?, 'invoice', ?)
-                `, [customerId, amountFromBalance, `Pembayaran tagihan ${invoice.invoice_number} menggunakan saldo`, invoice.id, kasirId]);
-
-                // Create a payment record for balance part
-                await conn.query<ResultSetHeader>(`
-                    INSERT INTO payments (
-                        invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at
-                    ) VALUES (?, 'balance', ?, NOW(), 'completed', ?, ?, NOW())
-                `, [invoice.id, amountFromBalance, `Bayar via saldo untuk tagihan ${invoice.invoice_number}`, kasirId]);
-            }
-
-            // Determine cash payment amount
-            let cashAmount = amount;
+            // If paymentType is 'full', we set buffer to the total remaining across all invoices
             if (paymentType === 'full') {
-                cashAmount = Math.max(0, remainingAmount - amountFromBalance);
-            } else if (paymentType === 'debt') {
-                cashAmount = 0;
+                const totalDebt = invoices.reduce((sum, inv) => sum + parseFloat(inv.remaining_amount || inv.total_amount), 0);
+                totalPaymentBuffer = Math.max(0, totalDebt - (useBalance ? currentBalance : 0));
+                console.log(`[KasirController] Full payment mode. Total debt: ${totalDebt}. Cash needed: ${totalPaymentBuffer}`);
             }
 
-            // Handle overpayment if cash provided exceeds remaining needed
-            let excessAmount = 0;
-            let cashAppliedToInvoice = cashAmount;
+            for (const invoice of invoices) {
+                if (totalPaymentBuffer <= 0 && (!useBalance || currentBalance <= 0) && paymentType !== 'debt') break;
 
-            if (paymentType !== 'debt' && cashAmount > (remainingAmount - amountFromBalance)) {
-                cashAppliedToInvoice = Math.max(0, remainingAmount - amountFromBalance);
-                excessAmount = cashAmount - cashAppliedToInvoice;
+                const invoiceRemaining = parseFloat(invoice.remaining_amount || invoice.total_amount);
+
+                // 1. apply balance first if requested
+                let appliedFromBalance = 0;
+                if (useBalance && currentBalance > 0) {
+                    appliedFromBalance = Math.min(currentBalance, invoiceRemaining);
+                    currentBalance -= appliedFromBalance;
+                    totalAppliedBalance += appliedFromBalance;
+
+                    // Deduct from customer balance
+                    await conn.query('UPDATE customers SET balance = balance - ? WHERE id = ?', [appliedFromBalance, customerId]);
+
+                    // Add balance log
+                    await conn.query(`
+                        INSERT INTO customer_balance_logs (customer_id, amount, type, description, reference_id, reference_type, created_by)
+                        VALUES (?, ?, 'debit', ?, ?, 'invoice', ?)
+                    `, [customerId, appliedFromBalance, `Pembayaran tagihan ${invoice.invoice_number} menggunakan saldo`, invoice.id, kasirId]);
+
+                    // Add payment record for balance
+                    await conn.query(`
+                        INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at)
+                        VALUES (?, 'balance', ?, NOW(), 'completed', ?, ?, NOW())
+                    `, [invoice.id, appliedFromBalance, `Bayar via saldo`, kasirId]);
+                }
+
+                // 2. apply cash buffer
+                let appliedFromCash = 0;
+                if (totalPaymentBuffer > 0) {
+                    appliedFromCash = Math.min(totalPaymentBuffer, invoiceRemaining - appliedFromBalance);
+                    totalPaymentBuffer -= appliedFromCash;
+                    totalAppliedCash += appliedFromCash;
+
+                    const paymentStatus = 'completed';
+                    const [pResult] = await conn.query<ResultSetHeader>(`
+                        INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at)
+                        VALUES (?, ?, ?, NOW(), ?, ?, ?, NOW())
+                    `, [invoice.id, paymentMethod, appliedFromCash, paymentStatus, notes || '', kasirId]);
+
+                    if (!firstPaymentId) firstPaymentId = pResult.insertId;
+                }
+
+                // Apply debt (no cash, but still marks as partial/overdue)
+                if (paymentType === 'debt' && (appliedFromBalance + appliedFromCash) < invoiceRemaining) {
+                    // Debt tracking is handled later if remaining > 0
+                }
+
+                const totalAppliedToInv = appliedFromBalance + appliedFromCash;
+
+                // 3. Update invoice status
+                let newPaidTotal = parseFloat(invoice.paid_amount || 0) + totalAppliedToInv;
+                let newRem = Math.max(0, parseFloat(invoice.total_amount) - newPaidTotal);
+                let newStat = invoice.status;
+
+                if (newRem <= 0) {
+                    newStat = 'paid';
+                } else if (newPaidTotal > 0 || paymentType === 'debt') {
+                    newStat = 'partial';
+                    if (new Date(invoice.due_date) < new Date()) newStat = 'overdue';
+                }
+
+                await conn.query(`
+                    UPDATE invoices 
+                    SET paid_amount = ?, remaining_amount = ?, status = ?, paid_at = CASE WHEN ? = 'paid' THEN NOW() ELSE paid_at END
+                    WHERE id = ?
+                `, [newPaidTotal, newRem, newStat, newStat, invoice.id]);
+
+                appliedInvoices.push(invoice.invoice_number);
+
+                // 4. Carry over if still remaining
+                if (newRem > 0) {
+                    const nextPeriod = getNextPeriod(invoice.period);
+                    await conn.query('INSERT INTO carry_over_invoices (customer_id, carry_over_amount, target_period, status) VALUES (?, ?, ?, "pending")', [customerId, newRem, nextPeriod]);
+                    await conn.query('INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, status) VALUES (?, ?, ?, ?, "active")', [customerId, invoice.id, newRem, `Sisa tagihan period ${invoice.period}`, 'active']);
+
+                    // If we partially paid an invoice and ran out of cash/balance, stop here to avoid spreading debt too far
+                    if (paymentType !== 'debt') break;
+                }
+
+                // If invoice not fully paid and not in debt mode, we probably stopped anyway
+                processedInvoicesData.push({ invoice, appliedCash: appliedFromCash });
             }
 
-            const totalAppliedToInvoice = amountFromBalance + cashAppliedToInvoice;
-
-            // Insert cash payment record (if any)
-            let paymentId: number | undefined;
-            if (cashAmount > 0) {
-                const paymentStatus = paymentType === 'debt' ? 'pending' : 'completed';
-                const [paymentResult] = await conn.query<ResultSetHeader>(`
-                    INSERT INTO payments (
-                        invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at
-                    ) VALUES (?, ?, ?, NOW(), ?, ?, ?, NOW())
-                `, [invoice.id, paymentMethod, cashAmount, paymentStatus, notes || '', kasirId]);
-                paymentId = paymentResult.insertId;
-            }
-
-            // Handle excess (credit to balance)
-            if (excessAmount > 0) {
-                await conn.query(
-                    'UPDATE customers SET account_balance = account_balance + ? WHERE id = ?',
-                    [excessAmount, customerId]
-                );
-
+            // 5. Excess to balance
+            if (totalPaymentBuffer > 0) {
+                await conn.query('UPDATE customers SET account_balance = account_balance + ? WHERE id = ?', [totalPaymentBuffer, customerId]);
                 await conn.query(`
                     INSERT INTO customer_balance_logs (customer_id, amount, type, description, reference_id, reference_type, created_by)
                     VALUES (?, ?, 'credit', ?, ?, 'payment', ?)
-                `, [customerId, excessAmount, `Kelebihan pembayaran tagihan ${invoice.invoice_number}`, paymentId || 0, kasirId]);
+                `, [customerId, totalPaymentBuffer, `Kelebihan pembayaran (buffer cash)`, firstPaymentId || 0, kasirId]);
             }
 
-            // Update invoice
-            let newPaidAmount = parseFloat(invoice.paid_amount || 0) + totalAppliedToInvoice;
-            let newRemainingAmount = Math.max(0, parseFloat(invoice.total_amount) - newPaidAmount);
-            let newStatus = invoice.status;
-
-            if (newRemainingAmount <= 0) {
-                newStatus = 'paid';
-            } else if (newPaidAmount > 0) {
-                newStatus = 'partial';
-            } else if (paymentType === 'debt') {
-                newStatus = 'debt';
-            }
-
-            await conn.query(`
-                UPDATE invoices 
-                SET paid_amount = ?,
-                    remaining_amount = ?,
-                    status = ?,
-                    paid_at = CASE WHEN ? = 'paid' THEN NOW() ELSE paid_at END
-                WHERE id = ?
-            `, [newPaidAmount, newRemainingAmount, newStatus, newStatus, invoice.id]);
-
-            // If invoice is paid, remove isolation and activate PPPoE if applicable
-            if (newStatus === 'paid') {
-                await conn.query(
-                    'UPDATE customers SET is_isolated = FALSE WHERE id = ?',
-                    [customerId]
-                );
-
-                // Automatic PPPoE Activation if subscription_id exists
-                if (invoice.subscription_id) {
-                    try {
-                        const { pppoeActivationService } = await import('../services/pppoe/pppoeActivationService');
-                        await pppoeActivationService.activateSubscription(invoice.subscription_id, kasirId);
-                        console.log(`[KasirController] ✅ PPPoE subscription ${invoice.subscription_id} activated automatically`);
-                    } catch (pppoeError) {
-                        console.error('[KasirController] ❌ Error in automatic PPPoE activation:', pppoeError);
-                        // Non-critical, payment already success
-                    }
-                }
+            // If at least one invoice was paid, check if customer qualifies to be unblocked
+            try {
+                await IsolationService.restoreIfQualified(customerId, conn);
+            } catch (restoreErr: any) {
+                console.warn(`[KasirController] Non-critical error during auto-restore check: ${restoreErr.message}`);
             }
 
             await conn.commit();
 
-            // Track late payment (async)
-            if (paymentId) {
+            // Track late payment and notifications asynchronously for the PRIMARY/LAST invoice processed
+            if (firstPaymentId && processedInvoicesData.length > 0) {
+                const primaryInvoiceData = processedInvoicesData[processedInvoicesData.length - 1]; // Use last to get "most recently paid" status
+                const primaryInvoice = primaryInvoiceData.invoice;
+
                 const paymentDateStr = new Date().toISOString().slice(0, 10);
-                this.trackLatePayment(invoice.id, paymentId, paymentDateStr).catch(err => {
+                this.trackLatePayment(primaryInvoice.id, firstPaymentId, paymentDateStr).catch(err => {
                     console.error('Error tracking late payment:', err);
+                });
+
+                const finalCustomer = { ...customer, balance: (currentBalance + totalPaymentBuffer) };
+                this.sendPaymentNotification(finalCustomer, primaryInvoice, totalAppliedCash, paymentMethod, firstPaymentId, paymentType, totalAppliedBalance, totalPaymentBuffer).catch(err => {
+                    console.error('Error sending WhatsApp notification:', err);
                 });
             }
 
-            // Send WhatsApp notification (async)
-            const finalCustomer = { ...customer, balance: (currentBalance - amountFromBalance + excessAmount) };
-            this.sendPaymentNotification(finalCustomer, invoice, cashAmount, paymentMethod, paymentId || 0, paymentType, amountFromBalance, excessAmount).catch(err => {
-                console.error('Error sending WhatsApp notification:', err);
-            });
-
             return {
                 success: true,
-                message: 'Pembayaran berhasil diproses' + (excessAmount > 0 ? `. Kelebihan Rp ${excessAmount.toLocaleString('id-ID')} masuk ke saldo.` : ''),
-                paymentId: paymentId
+                message: `Pembayaran berhasil diproses untuk invoice: ${appliedInvoices.join(', ')}` + (totalPaymentBuffer > 0 ? `. Kelebihan Rp ${totalPaymentBuffer.toLocaleString('id-ID')} masuk ke saldo.` : ''),
+                paymentId: firstPaymentId
             };
 
         } catch (error) {
@@ -1701,6 +1700,13 @@ export class KasirController {
                     payment_id = ?
                 WHERE id = ?
             `, [req.user!.id, paymentId, id]);
+
+            // Check if customer qualifies for auto-restore after verification approval
+            try {
+                await IsolationService.restoreIfQualified(verification.customer_id, conn);
+            } catch (restoreErr: any) {
+                console.warn(`[KasirController] Non-critical error during verification auto-restore check: ${restoreErr.message}`);
+            }
 
             await conn.commit();
 

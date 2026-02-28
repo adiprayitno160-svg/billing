@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { IsolationService } from '../../services/billing/isolationService';
 
 export class InvoiceController {
 
@@ -261,12 +262,18 @@ export class InvoiceController {
             const [debtsResult] = await databasePool.query(debtsQuery, [id]);
             const debts = debtsResult as RowDataPacket[];
 
+            // Get discounts
+            const [discounts] = await databasePool.query(`
+                SELECT * FROM discounts WHERE invoice_id = ?
+            `, [id]) as any;
+
             res.render('billing/tagihan-detail', {
                 title: 'Detail Tagihan',
                 invoice,
                 items,
                 payments,
-                debts
+                debts,
+                discounts: discounts || []
             });
         } catch (error) {
             console.error('Error getting invoice detail:', error);
@@ -821,6 +828,22 @@ Terima kasih telah berlangganan! 🙏`;
                 }
             }
 
+            // AUTO-UNBLOCK if status changed to paid
+            if (status === 'paid') {
+                try {
+                    // Get customer ID first
+                    const [invRows] = await databasePool.query<RowDataPacket[]>(
+                        'SELECT customer_id FROM invoices WHERE id = ?',
+                        [id]
+                    );
+                    if (invRows.length > 0) {
+                        await IsolationService.restoreIfQualified(invRows[0].customer_id);
+                    }
+                } catch (unblockError) {
+                    console.error('[InvoiceController] Failed to auto-unblock:', unblockError);
+                }
+            }
+
             res.json({
                 success: true,
                 message: 'Status invoice berhasil diperbarui'
@@ -922,6 +945,69 @@ Terima kasih telah berlangganan! 🙏`;
             res.status(500).json({
                 success: false,
                 message: 'Gagal menghapus invoice'
+            });
+        } finally {
+            conn.release();
+        }
+    }
+
+    /**
+     * Delete bulk invoices
+     */
+    async bulkDeleteInvoices(req: Request, res: Response): Promise<void> {
+        const conn = await databasePool.getConnection();
+
+        try {
+            await conn.beginTransaction();
+
+            const { invoiceIds } = req.body;
+
+            if (!invoiceIds || !Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+                res.status(400).json({ success: false, message: 'ID tagihan tidak valid' });
+                return;
+            }
+
+            // Ensure invoiceIds are numbers
+            const validIds = invoiceIds.map((id: any) => parseInt(id)).filter((id: number) => !isNaN(id));
+
+            if (validIds.length === 0) {
+                res.status(400).json({ success: false, message: 'ID tagihan tidak valid' });
+                return;
+            }
+
+            // Execute delete for all id
+            // Using IN clause for better performance instead of looping
+            const idListStr = validIds.join(',');
+
+            // Delete associated payments
+            await conn.execute(`DELETE FROM payments WHERE invoice_id IN (${idListStr})`);
+
+            // Delete associated discounts
+            await conn.execute(`DELETE FROM discounts WHERE invoice_id IN (${idListStr})`);
+
+            // Delete associated debt tracking
+            await conn.execute(`DELETE FROM debt_tracking WHERE invoice_id IN (${idListStr})`);
+
+            // Delete invoice items
+            await conn.execute(`DELETE FROM invoice_items WHERE invoice_id IN (${idListStr})`);
+
+            // Delete invoice
+            await conn.execute(`DELETE FROM invoices WHERE id IN (${idListStr})`);
+
+            await conn.commit();
+
+            res.json({
+                success: true,
+                message: `${validIds.length} tagihan berhasil dihapus`,
+                deleted: validIds.length
+            });
+
+        } catch (error) {
+            await conn.rollback();
+            console.error('Error bulk deleting invoice:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Gagal menghapus tagihan secara masal'
             });
         } finally {
             conn.release();
