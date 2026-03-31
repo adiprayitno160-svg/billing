@@ -780,6 +780,7 @@
         const allInvoicesData = <%- JSON.stringify(allPendingInvoices || []) %>;
         let invoiceTotalAmount = <%= invoice.total_amount %>;
         let remainingAmount = <%= invoice.remaining_amount %>;
+        const invoiceDiscountAmount = <%= invoice.discount_amount || 0 %>;
         let currentDiscount = 0;
         let finalAmount = remainingAmount;
 
