@@ -797,8 +797,15 @@ class IsolationService {
             if (!customer || !customer.is_isolated) {
                 return false;
             }
-            // Check for any truly unpaid invoices (excluding draft/cancelled)
-            const [unpaidResult] = await connection.query("SELECT id, invoice_number, status, remaining_amount FROM invoices WHERE customer_id = ? AND status IN ('sent', 'partial', 'overdue') AND remaining_amount > 0", [customerId]);
+            // Check for any TRULY unpaid and overdue invoices (excluding draft/cancelled)
+            // A 'sent' invoice is only considered blocking if it's actually overdue.
+            const [unpaidResult] = await connection.query(`SELECT id, invoice_number, status, remaining_amount, due_date 
+                 FROM invoices 
+                 WHERE customer_id = ? 
+                 AND status != 'paid' 
+                 AND status != 'cancelled' 
+                 AND remaining_amount > 0 
+                 AND (status = 'overdue' OR status = 'partial' OR (status = 'sent' AND due_date <= CURDATE()))`, [customerId]);
             if (unpaidResult.length === 0) {
                 console.log(`[Isolation] 🔓 Customer ${customer.name} (#${customerId}) qualified for auto-restore. No unpaid invoices remaining.`);
                 try {

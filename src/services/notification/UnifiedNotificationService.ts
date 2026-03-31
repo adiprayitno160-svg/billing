@@ -304,6 +304,10 @@ export class UnifiedNotificationService {
     }
   }
 
+  private static async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   /**
    * Process pending notifications
    */
@@ -444,7 +448,14 @@ export class UnifiedNotificationService {
         return { sent: 0, failed: 0, skipped: 0 };
       }
 
+      let processedInThisBatch = 0;
       for (const notif of notifications) {
+        // Anti-spam: Wait 12 seconds between each message if requested
+        // User requested 12 second intervals between messages (max 5 per minute)
+        if (processedInThisBatch > 0) {
+          console.log(`[UnifiedNotification] ⏳ Waiting 12 seconds before next message...`);
+          await this.delay(12000);
+        }
 
         console.log(`[UnifiedNotification] 🔍 Processing notification ID: ${notif.id}`, {
           customer_id: notif.customer_id,
@@ -529,6 +540,7 @@ export class UnifiedNotificationService {
 
           console.log(`[UnifiedNotification] ✅ Notification ID: ${notif.id} marked as sent (actually sent successfully)`);
           sent++;
+          processedInThisBatch++;
         } catch (error: any) {
           const errorMessage = error.message || 'Unknown error';
 

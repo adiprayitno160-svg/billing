@@ -1,4 +1,4 @@
-﻿import { mikrotikPool, MikroTikConfig } from './MikroTikConnectionPool';
+import { mikrotikPool, MikroTikConfig } from './MikroTikConnectionPool';
 export { MikroTikConfig };
 
 export async function testMikrotikConnection(cfg: MikroTikConfig): Promise<{ connected: boolean, error?: string }> {
@@ -658,4 +658,18 @@ export async function findQueueTreeIdByPacketMark(cfg: MikroTikConfig, packetMar
         const res = await mikrotikPool.execute<any[]>(cfg, '/queue/tree/print', [`?packet-mark=${packetMark}`], `qt_mark:${packetMark}`, 5000);
         return res?.[0]?.['.id'] || null;
     } catch { return null; }
+}
+
+export async function removeActivePppConnection(cfg: MikroTikConfig, name: string): Promise<void> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/ppp/active/print', [`?name=${name}`], `active_chk:${name}`, 1000);
+        if (res && res.length > 0) {
+            for (const r of res) {
+                await mikrotikPool.execute(cfg, '/ppp/active/remove', [`.id=${r['.id']}`]);
+            }
+            console.log(`[MikroTik] Removed active connection for: ${name}`);
+        }
+    } catch (err: any) {
+        console.error(`[MikroTik] Failed to remove active connection for ${name}:`, err.message);
+    }
 }

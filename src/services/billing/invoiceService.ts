@@ -326,7 +326,7 @@ export class InvoiceService {
                        c.name as customer_name, c.email, c.phone, COALESCE(s.activation_date, s.start_date) as start_date,
                        DAY(COALESCE(s.activation_date, s.start_date)) as billing_day, c.account_balance, c.use_device_rental, c.is_taxable,
                        c.customer_code, c.rental_mode, c.rental_cost,
-                       c.custom_payment_deadline, c.custom_isolate_days_after_deadline
+                       c.custom_payment_deadline, c.custom_isolate_days_after_deadline, c.loyalty_discount
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
@@ -443,7 +443,8 @@ export class InvoiceService {
                         ppnAmount = Math.round(Math.max(0, baseSubtotal + deviceFee - totalDiscount) * (ppnRate / 100));
                     }
 
-                    const totalAmount = Math.max(0, baseSubtotal + deviceFee + ppnAmount + carryOverAmount - totalDiscount);
+                    const loyaltyDiscount = parseFloat(subscription.loyalty_discount || 0);
+                    const totalAmount = Math.max(0, baseSubtotal + deviceFee + ppnAmount + carryOverAmount - totalDiscount - loyaltyDiscount);
                     const amountFromBalance = Math.min(parseFloat(subscription.account_balance || 0), totalAmount);
 
                     const items: InvoiceItem[] = [
@@ -525,7 +526,7 @@ export class InvoiceService {
 
             // 2. Fallback customers (without active subscriptions)
             let customerQuery = `
-                SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, 
+                SELECT c.id as customer_id, c.loyalty_discount, c.name as customer_name, c.email, c.phone, c.account_balance, 
                        c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost, c.created_at,
                        c.connection_type, c.custom_payment_deadline,
                        sp.name as static_pkg_name, sp.price as static_pkg_price,
@@ -640,7 +641,8 @@ export class InvoiceService {
                         });
                     }
 
-                    const totalAmount = subtotal + deviceFee + ppnAmount + carryOverAmount;
+                    const loyaltyDiscountFallback = parseFloat(customer.loyalty_discount || 0);
+                    const totalAmount = Math.max(0, subtotal + deviceFee + ppnAmount + carryOverAmount - loyaltyDiscountFallback);
                     const customerBalance = parseFloat(customer.account_balance || 0);
                     const amountFromBalance = Math.min(customerBalance, totalAmount);
                     

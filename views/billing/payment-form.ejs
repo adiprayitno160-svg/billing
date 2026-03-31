@@ -295,6 +295,11 @@
 
                 <form id="payment-form" class="p-8">
                     <!-- NEW: Selective Invoice Payment List -->
+                    <% 
+                        const hasDebts = (allPendingInvoices || []).some(inv => inv.status === 'overdue' || inv.status === 'partial');
+                        const showMonthSelection = (allPendingInvoices && allPendingInvoices.length > 1) && hasDebts;
+                    %>
+                    <% if (showMonthSelection) { %>
                     <div class="mb-12">
                         <div class="flex items-center justify-between mb-6">
                             <label class="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Pilih Bulan Yang Akan Dibayar</label>
@@ -339,8 +344,8 @@
                                 <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md">
                                     <i class="fas fa-layer-group text-xl text-blue-400"></i>
                                 </div>
-                                <div>
-                                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Terpilih: <span id="selected-count" class="text-white">1</span> Periode</p>
+                                <div class="flex flex-col">
+                                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-1">Terpilih: <span id="selected-count" class="text-white">1</span> Periode</p>
                                     <p class="text-xs font-bold text-slate-300">Konfirmasi total sebelum bayar</p>
                                 </div>
                             </div>
@@ -350,6 +355,10 @@
                             </div>
                         </div>
                     </div>
+                    <% } else { %>
+                        <!-- Always output the input for the primary invoice when hidden -->
+                        <input type="hidden" name="selectedInvoiceIds[]" value="<%= invoice.id %>" checked data-amount="<%= invoice.remaining_amount %>">
+                    <% } %>
                     <!-- Step 1: Payment Type -->
                     <div class="mb-12">
                         <label class="block text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Pilih
@@ -395,8 +404,8 @@
                                         class="w-16 h-16 mx-auto mb-4 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                                         <i class="fas fa-file-invoice text-2xl"></i>
                                     </div>
-                                    <h3 class="font-black text-slate-800 text-lg mb-1 tracking-tight">HUTANG</h3>
-                                    <p class="text-xs text-slate-400 font-medium mb-4">Tunda (Catat Saja)</p>
+                                    <h3 class="font-black text-slate-800 text-lg mb-1 tracking-tight">TUNGGAKAN</h3>
+                                    <p class="text-xs text-slate-400 font-medium mb-4">Tunda (Catat Tunggakan)</p>
                                     <span
                                         class="text-[9px] font-black uppercase tracking-widest py-1 px-2 rounded-md bg-amber-100 text-amber-700">Tanpa
                                         Bayar</span>
@@ -1299,11 +1308,8 @@
                             timerProgressBar: true
                         });
                         
-                        if (result.paymentId) {
-                            window.location.href = '/kasir/receipt/' + result.paymentId;
-                        } else {
-                            window.location.href = '/billing/tagihan/' + invoiceId;
-                        }
+                        // Always return to the tagihan list in the Admin module as requested
+                        window.location.href = '/billing/tagihan';
                     } else {
                         Swal.fire({
                             title: 'Error Pengolahan!',

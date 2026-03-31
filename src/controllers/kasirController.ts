@@ -190,10 +190,13 @@ export class KasirController {
     // Halaman pembayaran kasir
     public async payments(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
+            const { month } = req.query;
+            const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
+            
             const conn = await databasePool.getConnection();
             try {
-                // Get all active customers with their invoice status
-                const [recentCustomers] = await conn.query<RowDataPacket[]>(`
+                // Base query for customers with pending invoices
+                let query = `
                     SELECT 
                         c.id,
                         c.customer_code,
@@ -205,6 +208,7 @@ export class KasirController {
                         c.pppoe_profile_id,
                         c.created_at,
                         c.updated_at,
+                        c.account_balance,
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
@@ -223,21 +227,34 @@ export class KasirController {
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     WHERE (SELECT COUNT(*) FROM invoices 
                            WHERE customer_id = c.id 
-                           AND status IN ('sent', 'partial', 'overdue')) > 0
+                           AND status IN ('sent', 'partial', 'overdue')
+                `;
+
+                const queryParams: any[] = [];
+                
+                if (month === 'current') {
+                    query += ` AND period = ?`;
+                    queryParams.push(currentPeriod);
+                }
+
+                query += `) > 0
                     ORDER BY 
                         CASE 
                             WHEN c.is_isolated = 1 THEN 1
                             ELSE 2
                         END,
                         c.updated_at DESC
-                    LIMIT 100
-                `);
+                    LIMIT 200
+                `;
+
+                const [recentCustomers] = await conn.query<RowDataPacket[]>(query, queryParams);
 
                 res.render('kasir/payments', {
                     title: 'Proses Pembayaran',
                     currentPath: '/kasir/payments',
                     user: req.user,
                     recentCustomers: recentCustomers,
+                    currentMonth: month === 'current',
                     layout: 'layouts/kasir'
                 });
             } finally {
@@ -391,6 +408,55 @@ export class KasirController {
         } catch (error) {
             console.error('Error getting payment detail:', error);
             res.json({ success: false, message: 'Gagal mengambil detail payment' });
+        }
+    }
+
+    // Action Desk: send invoice notification manually
+    public async sendInvoiceNotificationAction(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { customerId } = req.params;
+            const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+
+            const conn = await databasePool.getConnection();
+            try {
+                // Find latest unpaid invoice for this customer
+                const [invoices] = await conn.query<RowDataPacket[]>(
+                    `SELECT id, invoice_number, total_amount, paid_amount, period, due_date 
+                     FROM invoices 
+                     WHERE customer_id = ? AND status IN ('sent', 'partial', 'overdue')
+                     ORDER BY period DESC LIMIT 1`,
+                    [customerId]
+                );
+
+                if (!invoices || invoices.length === 0) {
+                    res.json({ success: false, message: 'Tidak ada tagihan tertunggak untuk pelanggan ini' });
+                    return;
+                }
+
+                const invoice = invoices[0];
+                const amount = invoice.total_amount - invoice.paid_amount;
+
+                // Queue notification
+                await UnifiedNotificationService.queueNotification({
+                    customer_id: parseInt(customerId),
+                    invoice_id: invoice.id,
+                    notification_type: 'invoice_reminder_manual',
+                    variables: {
+                        invoice_number: invoice.invoice_number,
+                        period: invoice.period,
+                        amount: amount.toLocaleString('id-ID'),
+                        due_date: new Date(invoice.due_date).toLocaleDateString('id-ID'),
+                        total_amount: amount.toLocaleString('id-ID')
+                    }
+                });
+
+                res.json({ success: true, message: 'Notifikasi tagihan berhasil dikirim' });
+            } finally {
+                conn.release();
+            }
+        } catch (error) {
+            console.error('Error sending manual invoice notification:', error);
+            res.status(500).json({ success: false, message: 'Gagal mengirim notifikasi' });
         }
     }
 
@@ -969,7 +1035,7 @@ export class KasirController {
             if (paymentResult.success) {
                 // Redirect to print receipt page
                 if (paymentResult.paymentId) {
-                    return res.redirect(`/kasir/receipt/${paymentResult.paymentId}`);
+                    return res.redirect(`/kasir/payments?success_payment_id=${paymentResult.paymentId}`);
                 }
                 req.flash('success', 'Pembayaran berhasil diproses');
                 res.redirect('/kasir/payments');
@@ -1206,7 +1272,7 @@ export class KasirController {
 
             // Get customer info
             const [customerRows] = await conn.query<RowDataPacket[]>(
-                'SELECT id, customer_code, name, phone, email, address, odc_id, odp_id, connection_type, status, latitude, longitude, pppoe_username, pppoe_password, area, odc_location, custom_payment_deadline, custom_isolate_days_after_deadline, balance, late_payment_count, created_at, updated_at FROM customers WHERE id = ?',
+                'SELECT id, loyalty_discount, customer_code, name, phone, email, address, odc_id, odp_id, connection_type, status, latitude, longitude, pppoe_username, pppoe_password, area, odc_location, custom_payment_deadline, custom_isolate_days_after_deadline, balance, late_payment_count, created_at, updated_at FROM customers WHERE id = ?',
                 [customerId]
             );
 
@@ -1258,6 +1324,32 @@ export class KasirController {
                 if (totalPaymentBuffer <= 0 && (!useBalance || currentBalance <= 0) && paymentType !== 'debt') break;
 
                 const invoiceRemaining = parseFloat(invoice.remaining_amount || invoice.total_amount);
+                // --- Apply Loyalty Bonus (Discount) ---
+                const loyaltyDiscount = parseFloat(customer.loyalty_discount || 0);
+                if (loyaltyDiscount > 0 && invoiceRemaining > 0 && paymentType !== 'debt') {
+                    const discountToApply = Math.min(loyaltyDiscount, invoiceRemaining);
+                    console.log(`[KasirController] Applying loyalty bonus of ${discountToApply} to invoice ${invoice.invoice_number}`);
+                    
+                    // Insert 'discount' payment record
+                    await conn.query(`
+                        INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at)
+                        VALUES (?, 'loyalty_bonus', ?, NOW(), 'completed', ?, ?, NOW())
+                    `, [invoice.id, discountToApply, 'Bonus Loyalitas (Potongan Selamanya)', kasirId]);
+                    
+                    // Update invoice paid_amount and remaining_amount
+                    await conn.query(`
+                        UPDATE invoices SET 
+                            paid_amount = paid_amount + ?, 
+                            remaining_amount = remaining_amount - ?,
+                            status = (CASE WHEN remaining_amount - ? <= 0 THEN 'paid' ELSE 'partial' END),
+                            updated_at = NOW()
+                        WHERE id = ?
+                    `, [discountToApply, discountToApply, discountToApply, invoice.id]);
+                    
+                    // Recalculate remaining for subsequent payments (cash/balance)
+                    invoice.remaining_amount = invoiceRemaining - discountToApply;
+                }
+
 
                 // 1. apply balance first if requested
                 let appliedFromBalance = 0;

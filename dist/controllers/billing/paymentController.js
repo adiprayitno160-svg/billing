@@ -410,13 +410,11 @@ class PaymentController {
             catch (accErr) {
                 console.error('[AdminPayment] Accounting Service Import/Sync Error:', accErr);
             }
-            // Check if customer qualifies for auto-restore after full payment
-            try {
-                await isolationService_1.IsolationService.restoreIfQualified(invoice.customer_id, conn);
-            }
-            catch (restoreErr) {
-                console.warn(`[PaymentController] Auto-restore check failed: ${restoreErr.message}`);
-            }
+            // Background restore check
+            const custId_full = invoice.customer_id;
+            setTimeout(() => {
+                isolationService_1.IsolationService.restoreIfQualified(custId_full).catch(err => console.warn('Auto-restore background failed (full):', err));
+            }, 500);
             // Release connection first before sending notification
             conn.release();
             // Reset PPPoE next_block_date and re-enable user if applicable ("Kesepakatan Final" Point 4 & 6)
@@ -666,13 +664,11 @@ class PaymentController {
             catch (accErr) {
                 console.error('[AdminPartialPayment] Accounting Sync Error:', accErr);
             }
-            // Check if customer qualifies for auto-restore after partial payment
-            try {
-                await isolationService_1.IsolationService.restoreIfQualified(invoice.customer_id, conn);
-            }
-            catch (restoreErr) {
-                console.warn(`[PaymentController] Auto-restore partial check failed: ${restoreErr.message}`);
-            }
+            // Background restore check
+            const custId_partial = invoice.customer_id;
+            setTimeout(() => {
+                isolationService_1.IsolationService.restoreIfQualified(custId_partial).catch(err => console.warn('Auto-restore background failed (partial):', err));
+            }, 500);
             // Release connection first before sending notification
             conn.release();
             // Send notification (Fire and forget)
@@ -1147,6 +1143,7 @@ class PaymentController {
      * Supports multi-invoice selection, partial payments, and discounts.
      */
     async processPayment(req, res) {
+        console.log(`[PaymentController] 💰 Handling processPayment request from ${req.ip} for invoice ${req.body.invoice_id}`);
         try {
             const { invoice_id, selectedInvoiceIds, payment_amount, payment_method, payment_type, notes, discount_amount, discount_reason, sla_discount_amount, manual_discount_value, manual_discount_type } = req.body;
             if (!invoice_id || !payment_method) {
@@ -1270,29 +1267,25 @@ class PaymentController {
                 }
             }
             await conn.commit();
-            // 4. Notifications
+            // 4. Notifications (Non-blocking)
             if (paymentType === 'debt') {
-                try {
-                    const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService')));
-                    await UnifiedNotificationService.broadcastToAdmins(`📌 *INFORMASI HUTANG BARU (ADMIN)*\n\n` +
+                Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService'))).then(({ UnifiedNotificationService }) => {
+                    UnifiedNotificationService.broadcastToAdmins(`📌 *INFORMASI HUTANG BARU (ADMIN)*\n\n` +
                         `👤 *Nama:* Pelanggan (ID: ${customerId})\n` +
                         `🧾 *Invoice IDs:* ${selectedInvoiceIds.join(', ')}\n` +
                         `💰 *Total Hutang:* Rp ${amount.toLocaleString('id-ID')}\n` +
                         `📝 *Keterangan:* Pembayaran ditunda via Admin Panel.\n\n` +
-                        `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`);
-                }
-                catch (notifErr) {
-                    console.error('Failed to notify admins about debt (Admin):', notifErr);
-                }
+                        `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`).catch(notifErr => console.error('Failed to notify admins about debt (Admin):', notifErr));
+                }).catch(err => console.error('Error importing notification service:', err));
             }
-            // 5. Auto-restore trigger
-            try {
-                await isolationService_1.IsolationService.restoreIfQualified(customerId, conn);
-            }
-            catch (e) {
-                console.warn('Auto-restore failed:', e.message);
-            }
+            // 5. Auto-restore trigger (Non-blocking)
+            // Release connection first, then run restore check in background with a new connection
             conn.release();
+            setTimeout(() => {
+                isolationService_1.IsolationService.restoreIfQualified(customerId).catch(e => {
+                    console.warn('Auto-restore background failed:', e.message);
+                });
+            }, 500);
             return {
                 success: true,
                 message: 'Pembayaran berhasil diproses selektif',

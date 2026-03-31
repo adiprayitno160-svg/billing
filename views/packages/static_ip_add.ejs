@@ -1,4 +1,4 @@
-﻿<div class="max-w-5xl mx-auto space-y-6">
+<div class="max-w-5xl mx-auto space-y-6">
     <!-- Breadcrumb & Title -->
     <div
         class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-6 rounded-3xl border border-white/20 shadow-sm transition-all duration-300">
@@ -440,13 +440,46 @@
                                                         class="w-full border rounded-lg py-1 px-2 text-xs font-bold" />
                                                 </div>
                                             </div>
-                                            <!-- Hidden burst fields for automatic calculator -->
-                                            <input type="hidden" name="child_burst_upload" />
-                                            <input type="hidden" name="child_burst_download" />
-                                            <input type="hidden" name="child_burst_threshold_upload" />
-                                            <input type="hidden" name="child_burst_threshold_download" />
-                                            <input type="hidden" name="child_burst_time_upload" value="20s" />
-                                            <input type="hidden" name="child_priority_upload" value="8" />
+                                            <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl mt-4">
+                                                <div class="flex items-center gap-3 mb-4">
+                                                    <input type="checkbox" name="enable_burst" id="enableBurst" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                                    <label for="enableBurst" class="text-xs font-black text-slate-700 uppercase tracking-tight">Aktifkan Fitur Burst</label>
+                                                </div>
+                                                
+                                                <div id="burstConfigSection" class="hidden space-y-4">
+                                                    <div class="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <span class="text-[9px] font-bold text-slate-400">BURST LIMIT UP</span>
+                                                            <input name="child_burst_upload" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
+                                                        </div>
+                                                        <div>
+                                                            <span class="text-[9px] font-bold text-slate-400">BURST LIMIT DN</span>
+                                                            <input name="child_burst_download" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
+                                                        </div>
+                                                    </div>
+                                                    <div class="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <span class="text-[9px] font-bold text-slate-400">THRESHOLD UP</span>
+                                                            <input name="child_burst_threshold_upload" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
+                                                        </div>
+                                                        <div>
+                                                            <span class="text-[9px] font-bold text-slate-400">THRESHOLD DN</span>
+                                                            <input name="child_burst_threshold_download" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
+                                                        </div>
+                                                    </div>
+                                                    <div class="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <span class="text-[9px] font-bold text-slate-400">BURST TIME UP</span>
+                                                            <input name="child_burst_time_upload" value="20s" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
+                                                        </div>
+                                                        <div>
+                                                            <span class="text-[9px] font-bold text-slate-400">BURST TIME DN</span>
+                                                            <input name="child_burst_time_download" value="20s" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
+                                                        </div>
+                                                    </div>
+                                                    <input type="hidden" name="child_priority_upload" value="8" />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

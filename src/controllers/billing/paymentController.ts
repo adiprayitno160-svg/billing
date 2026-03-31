@@ -441,12 +441,11 @@ export class PaymentController {
                 console.error('[AdminPayment] Accounting Service Import/Sync Error:', accErr);
             }
 
-            // Check if customer qualifies for auto-restore after full payment
-            try {
-                await IsolationService.restoreIfQualified(invoice.customer_id, conn);
-            } catch (restoreErr: any) {
-                console.warn(`[PaymentController] Auto-restore check failed: ${restoreErr.message}`);
-            }
+            // Background restore check
+            const custId_full = invoice.customer_id;
+            setTimeout(() => {
+                IsolationService.restoreIfQualified(custId_full).catch(err => console.warn('Auto-restore background failed (full):', err));
+            }, 500);
 
             // Release connection first before sending notification
             conn.release();
@@ -756,12 +755,11 @@ export class PaymentController {
                 console.error('[AdminPartialPayment] Accounting Sync Error:', accErr);
             }
 
-            // Check if customer qualifies for auto-restore after partial payment
-            try {
-                await IsolationService.restoreIfQualified(invoice.customer_id, conn);
-            } catch (restoreErr: any) {
-                console.warn(`[PaymentController] Auto-restore partial check failed: ${restoreErr.message}`);
-            }
+            // Background restore check
+            const custId_partial = invoice.customer_id;
+            setTimeout(() => {
+                IsolationService.restoreIfQualified(custId_partial).catch(err => console.warn('Auto-restore background failed (partial):', err));
+            }, 500);
 
             // Release connection first before sending notification
             conn.release();
@@ -1321,6 +1319,7 @@ export class PaymentController {
      * Supports multi-invoice selection, partial payments, and discounts.
      */
     async processPayment(req: Request, res: Response): Promise<void> {
+        console.log(`[PaymentController] 💰 Handling processPayment request from ${req.ip} for invoice ${req.body.invoice_id}`);
         try {
             const {
                 invoice_id,
@@ -1537,31 +1536,30 @@ export class PaymentController {
 
             await conn.commit();
 
-            // 4. Notifications
+            // 4. Notifications (Non-blocking)
             if (paymentType === 'debt') {
-                try {
-                    const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
-                    await UnifiedNotificationService.broadcastToAdmins(
+                import('../../services/notification/UnifiedNotificationService').then(({ UnifiedNotificationService }) => {
+                    UnifiedNotificationService.broadcastToAdmins(
                         `📌 *INFORMASI HUTANG BARU (ADMIN)*\n\n` +
                         `👤 *Nama:* Pelanggan (ID: ${customerId})\n` +
                         `🧾 *Invoice IDs:* ${selectedInvoiceIds.join(', ')}\n` +
                         `💰 *Total Hutang:* Rp ${amount.toLocaleString('id-ID')}\n` +
                         `📝 *Keterangan:* Pembayaran ditunda via Admin Panel.\n\n` +
                         `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`
-                    );
-                } catch (notifErr) {
-                    console.error('Failed to notify admins about debt (Admin):', notifErr);
-                }
+                    ).catch(notifErr => console.error('Failed to notify admins about debt (Admin):', notifErr));
+                }).catch(err => console.error('Error importing notification service:', err));
             }
 
-            // 5. Auto-restore trigger
-            try {
-                await IsolationService.restoreIfQualified(customerId, conn);
-            } catch (e) {
-                console.warn('Auto-restore failed:', (e as any).message);
-            }
-
+            // 5. Auto-restore trigger (Non-blocking)
+            // Release connection first, then run restore check in background with a new connection
             conn.release();
+            
+            setTimeout(() => {
+                IsolationService.restoreIfQualified(customerId).catch(e => {
+                    console.warn('Auto-restore background failed:', (e as any).message);
+                });
+            }, 500);
+
             return { 
                 success: true, 
                 message: 'Pembayaran berhasil diproses selektif',

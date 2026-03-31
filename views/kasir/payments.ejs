@@ -30,7 +30,13 @@
         </div>
     </div>
 
-    <!-- Main Workspace Grid -->
+
+    <!-- Filter Bar -->
+    <div class="flex items-center gap-4 mb-8">
+        <a href="/kasir/payments" class="px-6 py-3 rounded-2xl <%= !currentMonth ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50' %> font-black text-xs uppercase tracking-widest transition-all">SEMUA TAGIHAN</a>
+        <a href="/kasir/payments?month=current" class="px-6 py-3 rounded-2xl <%= currentMonth ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50' %> font-black text-xs uppercase tracking-widest transition-all">BULAN BERJALAN</a>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
         
         <!-- Action Center (Left) -->
@@ -243,7 +249,8 @@
                 
                 <!-- Category Tabs -->
                 <div class="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
-                    <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest active transition-all" data-tab="pending" onclick="switchTab('pending')">PENDING</button>
+                    <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest <%= !currentMonth ? 'active' : '' %>" data-tab="pending" onclick="switchTab('pending')">PENDING</button>
+                    <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest <%= currentMonth ? 'active' : '' %>" data-tab="current" onclick="filterCurrentMonth()">BULAN INI</button>
                     <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-tab="paid" onclick="switchTab('paid')">LUNAS</button>
                     <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-tab="isolated" onclick="switchTab('isolated')">ISOLIR</button>
                 </div>
@@ -311,6 +318,10 @@
                                         <!-- Quick Pay -->
                                         <button class="quick-pay-btn px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all">
                                             Pay
+                                        </button>
+                                        <!-- WhatsApp Notification -->
+                                        <button onclick="sendInvoiceNotification('<%= customer.id %>', this)" class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all ml-1" title="Send WhatsApp Reminder">
+                                            <i class="fab fa-whatsapp text-lg"></i>
                                         </button>
                                     </td>
                                 </tr>
@@ -404,12 +415,27 @@
     });
 
     function switchTab(tab) {
+        if (tab === 'current') {
+            filterCurrentMonth();
+            return;
+        }
+        
+        // If we were on 'current' month filter (server-side), redirect back to base payments
+        if (window.location.search.includes('month=current')) {
+            window.location.href = '/kasir/payments';
+            return;
+        }
+
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tab);
         });
         document.querySelectorAll('.customer-row').forEach(row => {
             row.classList.toggle('hidden', row.dataset.tabType !== tab);
         });
+    }
+
+    function filterCurrentMonth() {
+        window.location.href = '/kasir/payments?month=current';
     }
 
     async function searchCustomers(query) {
@@ -668,6 +694,38 @@
         document.getElementById('hiddenAmount').value = payAmount;
     }
 
+    async function sendInvoiceNotification(customerId, btn) {
+        if (!confirm('Kirim notifikasi tagihan melalui WhatsApp?')) return;
+        
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`/kasir/api/send-invoice-notification/${customerId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('✅ ' + data.message);
+                btn.classList.remove('bg-emerald-50', 'text-emerald-600');
+                btn.classList.add('bg-blue-500', 'text-white');
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+            } else {
+                alert('❌ ' + data.message);
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Gagal mengirim notifikasi');
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+
     function resetForm() {
         selectedCustomer = null;
         selectedPaymentType = null;
@@ -680,6 +738,31 @@
         document.querySelectorAll('.payment-type-btn').forEach(b => b.classList.remove('selected'));
         document.getElementById('selectedInvoiceInputs').innerHTML = '';
     }
+
+    // Auto-open Receipt if payment success
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentId = urlParams.get('success_payment_id');
+        if (paymentId) {
+            Swal.fire({
+                title: 'Pembayaran Berhasil!',
+                text: 'Apakah Anda ingin mencetak struk pembayaran?',
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: 'Cetak Struk',
+                cancelButtonText: 'Lanjutkan',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#64748b'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.open(`/kasir/receipt/${paymentId}`, '_blank', 'width=450,height=600');
+                }
+                // Clean up URL
+                const newUrl = window.location.pathname + (urlParams.get('month') ? '?month=' + urlParams.get('month') : '');
+                window.history.replaceState({}, document.title, newUrl);
+            });
+        }
+    };
 
     // Handle Form Submit
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {

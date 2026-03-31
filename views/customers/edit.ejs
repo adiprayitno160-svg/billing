@@ -452,7 +452,7 @@
                                 </div>
                             </label>
 
-                            <label class="group flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-200 cursor-pointer hover:border-emerald-300 hover:bg-white transition-all">
+                             <label class="group flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-200 cursor-pointer hover:border-emerald-300 hover:bg-white transition-all">
                                 <div class="flex items-center gap-3">
                                     <input type="checkbox" name="auto_pay_enabled" value="1" <%=customer.auto_pay_enabled ? 'checked' : '' %> class="w-5 h-5 text-emerald-600 rounded-lg border-emerald-300 focus:ring-emerald-500">
                                     <div>
@@ -461,6 +461,17 @@
                                     </div>
                                 </div>
                             </label>
+
+                            <div class="p-4 bg-blue-50 rounded-2xl border border-blue-200">
+                                <label class="block text-xs font-bold text-blue-700 uppercase tracking-widest mb-2 px-1">Bonus Loyalitas (Potongan Selamanya)</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center text-blue-400 pointer-events-none font-bold text-sm">Rp</div>
+                                    <input type="number" name="loyalty_discount" value="<%= customer.loyalty_discount || 0 %>"
+                                        class="w-full pl-12 rounded-xl border border-blue-200 px-4 py-2.5 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all font-bold text-blue-800 outline-none text-sm" />
+                                </div>
+                                <p class="text-[10px] text-blue-400 mt-1 font-medium italic">Potongan ini akan memotong tagihan bulanan pelanggan secara permanen.</p>
+                            </div>
+
                         </div>
 
                         <!-- Rental Options -->

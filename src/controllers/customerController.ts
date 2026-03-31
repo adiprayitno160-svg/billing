@@ -764,7 +764,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
             enable_billing,
             exclude_from_print,
             auto_pay_enabled,
-            auto_pay_date
+            auto_pay_date, loyalty_discount
         } = req.body;
 
         console.log('[DEBUG UPDATE] ODP ID from body:', odp_id);
@@ -855,6 +855,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
             if (req.body.grace_period !== undefined) {
                 updateFields.push('grace_period = ?');
                 updateValues.push(parseInt(req.body.grace_period) || 0);
+            }
+            if (loyalty_discount !== undefined) {
+                updateFields.push('loyalty_discount = ?');
+                updateValues.push(Number(loyalty_discount) || 0);
             }
             if (connection_type !== undefined) {
                 updateFields.push('connection_type = ?');
@@ -1141,9 +1145,11 @@ export const updateCustomer = async (req: Request, res: Response) => {
             // USER REQUEST: If expiry date is set, automatically enable billing
             const forceEnableBilling = (req.body.expiry_date && req.body.expiry_date !== '') || (enable_billing === '1' || enable_billing === 'on');
 
+            const currentConnType = connection_type || oldCustomer.connection_type;
+
             // ========== UPDATE SUBSCRIPTION KETIKA PAKET DIUBAH ==========
             // Handle package update for PPPoE customers
-            if (connection_type === 'pppoe' && pppoe_package) {
+            if (currentConnType === 'pppoe' && pppoe_package) {
                 const packageId = parseInt(pppoe_package);
                 if (!isNaN(packageId) && packageId > 0) {
                     console.log(`[Edit Customer] Updating subscription for customer ${customerId} to package ${packageId}`);
@@ -1240,6 +1246,11 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                         await createPppoeSecret(config, secretData);
                                         console.log(`[UpdateCustomer] ✅ PPPoE Secret created: ${finalUsername}`);
                                     }
+
+                                     // ========== AUTO-RESET (KICK) SESSION ==========
+                                     const { removeActivePppConnection } = await import('../services/mikrotikService');
+                                     await removeActivePppConnection(config, finalUsername).catch(() => {});
+                                 
                                 }
                             }
                         } catch (pppSyncErr: any) {

@@ -12,8 +12,8 @@ async function processYudiAndCleanup() {
 
         // Create a proper JS file on the remote server to execute
         const remoteScript = `
-const { databasePool } = require('./dist/db/pool');
-const { InvoiceService } = require('./dist/services/billing/invoiceService');
+const { databasePool } = require('/var/www/billing/dist/db/pool');
+const { InvoiceService } = require('/var/www/billing/dist/services/billing/invoiceService');
 
 async function run() {
   const conn = await databasePool.getConnection();

@@ -661,6 +661,7 @@ export class IsolationService {
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.status NOT IN ('paid', 'partial', 'cancelled')
+            AND i.period <= '2026-03'
             AND i.due_date < DATE_SUB(CURDATE(), INTERVAL ${GRACE_PERIOD_DAYS} DAY)
             AND c.is_isolated = FALSE
             AND c.is_deferred = FALSE
@@ -876,6 +877,8 @@ export class IsolationService {
         return { restored, failed };
     }
 
+
+
     /**
      * Restore specific customer if they have no more unpaid invoices
      */
@@ -894,9 +897,16 @@ export class IsolationService {
                 return false;
             }
 
-            // Check for any truly unpaid invoices (excluding draft/cancelled)
+            // Check for any TRULY unpaid and overdue invoices (excluding draft/cancelled)
+            // A 'sent' invoice is only considered blocking if it's actually overdue.
             const [unpaidResult] = await connection.query<RowDataPacket[]>(
-                "SELECT id, invoice_number, status, remaining_amount FROM invoices WHERE customer_id = ? AND status IN ('sent', 'partial', 'overdue') AND remaining_amount > 0",
+                `SELECT id, invoice_number, status, remaining_amount, due_date 
+                 FROM invoices 
+                 WHERE customer_id = ? 
+                 AND status != 'paid' 
+                 AND status != 'cancelled' 
+                 AND remaining_amount > 0 
+                 AND (status = 'overdue' OR status = 'partial' OR (status = 'sent' AND due_date <= CURDATE()))`,
                 [customerId]
             );
 
