@@ -1,0 +1,300 @@
+<div class="h-full flex flex-col space-y-6">
+    <!-- Page Header (Compact) -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 pb-4">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center shadow-sm">
+                <i class="fas fa-exclamation-triangle text-red-600 text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 leading-tight">Monitor Trouble</h1>
+                <p class="text-sm text-gray-500">Gangguan Pelanggan (Offline / Maintenance)</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span
+                class="text-[11px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                Last Update: <%= new Date(updatedAt).toLocaleTimeString('id-ID') %>
+            </span>
+            <button onclick="window.location.reload()"
+                class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-xs font-bold transition flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Stats (Compact Grid) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <% const stats={ total: troubleCustomers.length, offline: troubleCustomers.filter(c=> c.issue_type ===
+            'Offline').length,
+            maintenance: troubleCustomers.filter(c => c.trouble_type === 'maintenance').length,
+            sla: troubleCustomers.filter(c => c.trouble_type === 'sla_incident').length
+            };
+            %>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">TOTAL</p>
+                    <p class="text-2xl font-black text-slate-700 mt-1">
+                        <%= stats.total %>
+                    </p>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                    <i class="fas fa-list-ul text-xs"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-red-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-red-400 uppercase tracking-wider">OFFLINE</p>
+                    <p class="text-2xl font-black text-red-600 mt-1">
+                        <%= stats.offline %>
+                    </p>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500">
+                    <i class="fas fa-plug-circle-xmark text-xs"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-yellow-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-yellow-500 uppercase tracking-wider">MAINTENANCE</p>
+                    <p class="text-2xl font-black text-yellow-600 mt-1">
+                        <%= stats.maintenance %>
+                    </p>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-500">
+                    <i class="fas fa-tools text-xs"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-orange-400 uppercase tracking-wider">SLA ISSUE</p>
+                    <p class="text-2xl font-black text-orange-600 mt-1">
+                        <%= stats.sla %>
+                    </p>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
+                    <i class="fas fa-stopwatch text-xs"></i>
+                </div>
+            </div>
+    </div>
+
+    <!-- Full Width Table Container -->
+    <div class="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+        <div class="overflow-x-auto flex-1">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr
+                        class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                        <th class="px-6 py-4 w-[25%]">Pelanggan</th>
+                        <th class="px-6 py-4 w-[20%]">Lokasi Infrastruktur</th>
+                        <th class="px-6 py-4 w-[15%]">Jenis Masalah</th>
+                        <th class="px-6 py-4 w-[15%]">Status</th>
+                        <th class="px-6 py-4 w-[15%]">Durasi</th>
+                        <th class="px-6 py-4 w-[10%] text-right">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <% if (troubleCustomers && troubleCustomers.length> 0) { %>
+                        <% troubleCustomers.forEach(function(customer) { %>
+                            <tr class="hover:bg-slate-50/80 transition-colors group">
+                                <!-- CL 1: Customer Info -->
+                                <td class="px-6 py-4 align-top">
+                                    <div class="flex items-start gap-3">
+                                        <div
+                                            class="w-9 h-9 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0">
+                                            <%= customer.name.charAt(0).toUpperCase() %>
+                                        </div>
+                                        <div>
+                                            <div
+                                                class="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors">
+                                                <%= customer.name %>
+                                            </div>
+                                            <div class="text-[11px] text-slate-500 font-mono mt-0.5">
+                                                <%= customer.customer_code %>
+                                            </div>
+                                            <div class="mt-1 flex items-center gap-1.5">
+                                                <span
+                                                    class="px-1.5 py-0.5 rounded text-[10px] font-medium border <%= customer.connection_type === 'pppoe' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-green-50 text-green-700 border-green-100' %>">
+                                                    <%= customer.connection_type==='pppoe' ? 'PPPoE' : 'Static' %>
+                                                </span>
+                                                <span class="text-[10px] text-slate-400 truncate max-w-[100px]">
+                                                    <%= customer.pppoe_username || customer.ip_address %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- CL 2: Infra Location -->
+                                <td class="px-6 py-4 align-top">
+                                    <div class="space-y-1.5">
+                                        <% if (customer.odc_name) { %>
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                                <span class="text-xs text-slate-600 font-medium">
+                                                    <%= customer.odc_name %>
+                                                </span>
+                                            </div>
+                                            <% } %>
+                                                <% if (customer.odp_name || customer.odp_id) { %>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                                        <span class="text-xs text-slate-600 font-medium">
+                                                            <%= customer.odp_name || customer.odp_id %>
+                                                        </span>
+                                                    </div>
+                                                    <% } %>
+                                                        <% if (!customer.odc_name && !customer.odp_name &&
+                                                            !customer.odp_id) { %>
+                                                            <span class="text-xs text-slate-400 italic">Lokasi tidak
+                                                                terdata</span>
+                                                            <% } %>
+
+                                                                <% if (customer.address) { %>
+                                                                    <div
+                                                                        class="flex items-start gap-1.5 mt-2 pt-2 border-t border-slate-50">
+                                                                        <i
+                                                                            class="fas fa-map-marker-alt text-slate-300 text-[10px] mt-0.5"></i>
+                                                                        <p class="text-[10px] text-slate-500 leading-tight line-clamp-2"
+                                                                            title="<%= customer.address %>">
+                                                                            <%= customer.address %>
+                                                                        </p>
+                                                                    </div>
+                                                                    <% } %>
+                                    </div>
+                                </td>
+
+                                <!-- CL 3: Issue Type -->
+                                <td class="px-6 py-4 align-top">
+                                    <% if (customer.issue_type==='Offline' ) { %>
+                                        <div
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 border border-red-100 text-red-700">
+                                            <span class="relative flex h-2 w-2">
+                                                <span
+                                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                <span
+                                                    class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                            </span>
+                                            <span class="text-xs font-bold">OFFLINE</span>
+                                        </div>
+                                        <% } else if (customer.trouble_type==='maintenance' ) { %>
+                                            <div
+                                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-yellow-50 border border-yellow-100 text-yellow-700">
+                                                <i class="fas fa-tools text-[10px]"></i>
+                                                <span class="text-xs font-bold">MAINTENANCE</span>
+                                            </div>
+                                            <% } else { %>
+                                                <div
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-50 border border-orange-100 text-orange-700">
+                                                    <i class="fas fa-exclamation-circle text-[10px]"></i>
+                                                    <span class="text-xs font-bold">
+                                                        <%= customer.issue_type || 'Unknown Issue' %>
+                                                    </span>
+                                                </div>
+                                                <% } %>
+
+                                                    <!-- Modem/CPE Status -->
+                                                    <% if (customer.ont_status) { %>
+                                                        <div class="mt-2 text-[10px] flex items-center gap-1">
+                                                            <span class="text-slate-400">Modem:</span>
+                                                            <span
+                                                                class="<%= customer.ont_status === 'online' ? 'text-green-600 font-bold' : 'text-slate-500 font-medium' %> uppercase">
+                                                                <%= customer.ont_status %>
+                                                            </span>
+                                                        </div>
+                                                        <% } %>
+                                </td>
+
+                                <!-- CL 4: Status Penanganan -->
+                                <td class="px-6 py-4 align-top">
+                                    <% if (customer.maintenance_status==='in_progress' ) { %>
+                                        <span
+                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                                            <i class="fas fa-user-cog"></i> Sedang Perbaikan
+                                        </span>
+                                        <% } else if (customer.maintenance_status==='scheduled' ) { %>
+                                            <span
+                                                class="inline-flex items-center gap-1.5 text-xs font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded border border-purple-100">
+                                                <i class="fas fa-calendar-check"></i> Terjadwal
+                                            </span>
+                                            <% } else { %>
+                                                <span
+                                                    class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                                    <i class="fas fa-clock"></i> Menunggu
+                                                </span>
+                                                <% } %>
+                                </td>
+
+                                <!-- CL 5: Durasi -->
+                                <td class="px-6 py-4 align-top">
+                                    <% if (customer.trouble_since) { const since=new Date(customer.trouble_since); const
+                                        now=new Date(); const diffMs=now - since; const diffMins=Math.floor(diffMs /
+                                        60000); const diffHrs=Math.floor(diffMins / 60); let durStr=diffMins + 'm' ;
+                                        if(diffHrs> 0) durStr = diffHrs + 'j ' + (diffMins % 60) + 'm';
+                                        if(diffHrs > 24) durStr = Math.floor(diffHrs/24) + ' hari';
+                                        %>
+                                        <div class="font-bold text-red-600 text-sm">
+                                            <%= durStr %>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 mt-1">
+                                            Sejak <%= since.toLocaleTimeString('id-ID', {hour:'2-digit',
+                                                minute:'2-digit'}) %>
+                                        </div>
+                                        <% } else { %>
+                                            <span class="text-slate-400">-</span>
+                                            <% } %>
+                                </td>
+
+                                <!-- CL 6: Actions -->
+                                <td class="px-6 py-4 align-top text-right">
+                                    <a href="/customers/<%= customer.id %>"
+                                        class="inline-flex items-center justify-center w-8 h-8 bg-white border border-slate-200 rounded text-slate-600 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all shadow-sm"
+                                        title="Lihat Detail">
+                                        <i class="fas fa-arrow-right text-xs"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            <% }) %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-32 text-center">
+                                            <div class="max-w-xs mx-auto text-center">
+                                                <div
+                                                    class="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-100">
+                                                    <i class="fas fa-check text-2xl"></i>
+                                                </div>
+                                                <h3 class="text-lg font-bold text-gray-900">Semua Sistem Normal</h3>
+                                                <p class="text-sm text-gray-500 mt-1">Tidak ada pelanggan yang mengalami
+                                                    gangguan saat ini.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function checkStatus(id) {
+        // QUICK CHECK ANIMATION
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert('Fitur cek status cepat untuk ID ' + id + ' akan segera hadir.');
+        }, 1000);
+    }
+
+    // Auto refresh every 60 seconds
+    setInterval(() => {
+        window.location.reload();
+    }, 60000);
+</script>

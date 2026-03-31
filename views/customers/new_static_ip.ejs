@@ -1,0 +1,799 @@
+<div class="space-y-6">
+    <!-- Header with clean breadcrumb look -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 text-white shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Pelanggan IP Statis</h2>
+                <div class="flex items-center gap-2 text-sm text-slate-500 font-medium">
+                    <span>Pelanggan</span>
+                    <span class="text-slate-300">•</span>
+                    <span class="text-indigo-600">Buat Baru</span>
+                </div>
+            </div>
+        </div>
+        <a href="/customers/list"
+            class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-semibold text-sm shadow-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Kembali
+        </a>
+    </div>
+
+    <!-- Feedback Messages -->
+    <% if (typeof error !=='undefined' && error) { %>
+        <div
+            class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 shadow-sm animate-fade-in relative z-10">
+            <div class="shrink-0 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center mt-0.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <h4 class="text-red-800 font-bold text-sm">Gagal Menyimpan</h4>
+                <p class="text-red-600 text-sm mt-0.5">
+                    <%= error %>
+                </p>
+            </div>
+        </div>
+        <% } %>
+
+            <form method="post" action="/customers/new-static-ip" id="static-ip-form">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+                    <!-- LEFT COLUMN: Identity & Settings (7) -->
+                    <div class="lg:col-span-7 space-y-6">
+
+                        <!-- CARD 1: Identity -->
+                        <div
+                            class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+                            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
+                                        </path>
+                                    </svg>
+                                </div>
+                                <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide">Identitas Pelanggan
+                                </h3>
+                            </div>
+                            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <!-- ID (Readonly) -->
+                                <div class="md:col-span-2 relative">
+                                    <label
+                                        class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">ID
+                                        Pelanggan</label>
+                                    <div
+                                        class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+                                        <span class="text-slate-400 mr-2 font-mono">#</span>
+                                        <input name="customer_code" readonly
+                                            value="<%= typeof initial_customer_code !== 'undefined' ? initial_customer_code : '' %>"
+                                            class="bg-transparent border-none p-0 w-full text-sm font-mono text-slate-500 focus:ring-0 cursor-default" />
+                                    </div>
+                                </div>
+
+                                <!-- Nama -->
+                                <div class="md:col-span-1">
+                                    <label
+                                        class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Nama
+                                        Lengkap <span class="text-red-500">*</span></label>
+                                    <input name="client_name" required placeholder="Nama Pelanggan"
+                                        class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 transition-all placeholder:text-slate-300" />
+                                </div>
+
+                                <!-- Phone -->
+                                <div class="md:col-span-1">
+                                    <label
+                                        class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">WhatsApp
+                                        / Telepon</label>
+                                    <div class="relative">
+                                        <span
+                                            class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">+62</span>
+                                        <input name="phone_number" placeholder="812xxx" type="tel"
+                                            class="w-full rounded-xl border-slate-200 pl-12 pr-4 py-2.5 text-sm font-mono font-semibold text-slate-700 focus:border-green-500 focus:ring-4 focus:ring-green-50/50 transition-all placeholder:text-slate-300" />
+                                    </div>
+                                </div>
+
+                                <!-- Alamat -->
+                                <div class="md:col-span-2">
+                                    <label
+                                        class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Alamat
+                                        Pemasangan</label>
+                                    <textarea name="address" id="address" placeholder="Alamat lengkap..." rows="2"
+                                        class="w-full rounded-xl border-slate-200 px-4 py-3 text-sm text-slate-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 transition-all resize-none"></textarea>
+                                </div>
+
+                                <!-- Tanggal Aktivasi -->
+                                <div class="md:col-span-2">
+                                    <label
+                                        class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Tanggal Aktivasi <span class="text-red-500">*</span></label>
+                                    <% 
+                                        const d = new Date();
+                                        const todayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                                    %>
+                                    <input type="date" name="activation_date" required
+                                        value="<%= todayStr %>"
+                                        class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 transition-all" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CARD 2: Network Configuration -->
+                        <div
+                            class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+                            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide">Konfigurasi
+                                    Jaringan & Paket</h3>
+                            </div>
+                            <div class="p-6 space-y-5">
+                                <!-- IP Config -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label
+                                            class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">IP
+                                            Router Pelanggan <span class="text-red-500">*</span></label>
+                                        <input name="ip_address" id="ip_address_input" required
+                                            placeholder="192.168.239.2"
+                                            class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-mono font-bold text-blue-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all" />
+                                        <p class="text-[10px] text-slate-400 mt-1 ml-1">Masukkan IP untuk router
+                                            pelanggan (tanpa /xx)</p>
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Gateway
+                                            MikroTik
+                                            <span class="text-green-500 text-[9px]">(Otomatis)</span></label>
+                                        <input name="gateway_ip" id="gateway_ip_input" readonly
+                                            placeholder="Otomatis dihitung..."
+                                            class="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-mono text-green-600 font-bold cursor-not-allowed" />
+                                        <p class="text-[10px] text-slate-400 mt-1 ml-1">Gateway otomatis akan
+                                            ditambahkan ke MikroTik IP Address</p>
+                                    </div>
+                                </div>
+
+                                <!-- Interface Selection -->
+                                <div>
+                                    <label
+                                        class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Interface
+                                        MikroTik <span class="text-red-500">*</span></label>
+                                    <select name="interface" required
+                                        class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all cursor-pointer bg-white">
+                                        <option value="">-- Pilih Interface --</option>
+                                        <% if (typeof interfaces !=='undefined' && interfaces) {
+                                            interfaces.forEach(function(ifc){ %>
+                                            <option value="<%= ifc.name %>">
+                                                <%= ifc.name %> (<%= ifc.type %>)
+                                            </option>
+                                            <% }) } %>
+                                    </select>
+                                </div>
+
+                                <div class="h-px bg-slate-100 w-full my-4"></div>
+
+                                <!-- Package & Billing -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div class="md:col-span-2">
+                                        <label
+                                            class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Paket
+                                            Layanan <span class="text-red-500">*</span></label>
+                                        <select name="package_id" required
+                                            class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all cursor-pointer bg-white">
+                                            <option value="">-- Pilih Paket IP Statis --</option>
+                                            <% (packages || []).forEach(function(pkg){ %>
+                                                <option value="<%= pkg.id %>">
+                                                    <%= pkg.name %> (<%= pkg.current_clients || 0 %>/<%= pkg.max_clients
+                                                                || 1 %> plg) — Rp <%= pkg.price.toLocaleString('id-ID')
+                                                                    %>
+                                                </option>
+                                                <% }) %>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Metode
+                                            Tagihan</label>
+                                        <select name="billing_mode"
+                                            class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm text-slate-700 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 transition-all cursor-pointer">
+                                            <option value="postpaid" selected>📅 Pascabayar (Bulanan)</option>
+                                            <option value="prepaid">💰 Prabayar (Voucher)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Custom
+                                            Jatuh Tempo (Tanggal)</label>
+                                        <input type="number" name="custom_payment_deadline" min="1" max="31"
+                                            placeholder="Bawaan: Tanggal Aktivasi"
+                                            class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 transition-all bg-white" />
+                                        <p class="text-[9px] text-slate-400 mt-1 italic font-medium px-1">Kosongkan untuk mengikuti tanggal aktivasi.</p>
+                                    </div>
+                                    <div class="flex items-end gap-3 pb-1">
+                                        <label
+                                            class="flex items-center gap-2 cursor-pointer bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors select-none">
+                                            <input type="checkbox" name="enable_billing" value="1" checked
+                                                class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-blue-300">
+                                            <span class="text-xs font-bold text-blue-700">✅ Aktifkan Tagihan
+                                                Otomatis</span>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-end gap-3 pb-1">
+                                        <label
+                                            class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors select-none">
+                                            <input type="checkbox" name="is_taxable" value="1"
+                                                class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-slate-300">
+                                            <span class="text-xs font-bold text-slate-600">PPN (Tax)</span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors select-none">
+                                            <input type="checkbox" name="use_device_rental" value="1"
+                                                class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-slate-300">
+                                            <span class="text-xs font-bold text-slate-600">Sewa Alat</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CARD 3: Infrastructure (ODC/ODP) -->
+                        <div
+                            class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+                            <div
+                                class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide">Infrastruktur
+                                        Jalur</h3>
+                                </div>
+                                <!-- Wireless Toggle Small -->
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <span
+                                        class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Wireless
+                                        Mode</span>
+                                    <div class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="is_wireless" id="is_wireless" class="sr-only peer">
+                                        <div
+                                            class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500">
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="p-6">
+                                <div id="infra_wrapper" class="space-y-4 transition-all duration-300">
+                                    <!-- ODC & ODP Row -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <!-- ODC -->
+                                        <div class="relative">
+                                            <label
+                                                class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">1.
+                                                Pilih ODC</label>
+                                            <div class="flex gap-2">
+                                                <div class="relative w-full">
+                                                    <input type="text" id="odc_search" placeholder="Cari nama ODC..."
+                                                        autocomplete="off"
+                                                        class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-cyan-800 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-50/50 transition-all placeholder:text-slate-300" />
+                                                    <input type="hidden" name="odc_id" id="odc_id">
+                                                    <!-- Results -->
+                                                    <div id="odc_search_results"
+                                                        class="absolute z-20 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl max-h-48 overflow-y-auto hidden">
+                                                    </div>
+                                                </div>
+                                                <button type="button" id="reset_odc_btn"
+                                                    class="px-3 border border-slate-200 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors">✕</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- ODP -->
+                                        <div id="odp_section_wrapper"
+                                            class="relative opacity-50 pointer-events-none grayscale transition-all duration-300">
+                                            <label
+                                                class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">2.
+                                                Pilih ODP</label>
+                                            <input type="text" id="odp_search" placeholder="Pilih ODP..."
+                                                autocomplete="off"
+                                                class="w-full rounded-xl border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-50/50 transition-all placeholder:text-slate-300" />
+                                            <input type="hidden" name="odp_id" id="odp_id" required>
+                                            <!-- Results -->
+                                            <div id="odp_search_results"
+                                                class="absolute z-20 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl max-h-48 overflow-y-auto hidden">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- RIGHT COLUMN: Map & Save (5) -->
+                    <div class="lg:col-span-5 h-full space-y-6">
+
+                        <!-- Map Card (Sticky) -->
+                        <div class="sticky top-6">
+                            <div
+                                class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow">
+                                <div
+                                    class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                                                </path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide">Lokasi</h3>
+                                    </div>
+                                    <button type="button" id="btnGetLocation"
+                                        class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 bg-green-600 text-white rounded-lg shadow-lg shadow-green-200 hover:bg-green-700 transition-colors">
+                                        Auto GPS
+                                    </button>
+                                </div>
+
+                                <div class="p-6">
+                                    <!-- Search Location Box -->
+                                    <div class="relative mb-3">
+                                        <div
+                                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24"
+                                                stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                        <input type="text" id="map_search" placeholder="Cari desa, jalan, atau kota..."
+                                            class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-green-100 focus:border-green-400 outline-none transition-all placeholder:text-slate-300"
+                                            autocomplete="off">
+                                    </div>
+
+                                    <!-- Map Container -->
+                                    <div
+                                        class="w-full aspect-square bg-slate-100 rounded-2xl border-2 border-slate-100 overflow-hidden relative mb-5">
+                                        <div id="map" class="w-full h-full z-0"></div>
+                                    </div>
+
+                                    <!-- Coords Inputs -->
+                                    <div class="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label
+                                                class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Koordinat
+                                                (Lat, Long)</label>
+                                            <input name="coordinates" id="coordinates" placeholder="-6.xxxx, 106.xxxx"
+                                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-700 focus:ring-2 focus:ring-green-100 outline-none" />
+                                            <input type="hidden" name="latitude" id="latitude">
+                                            <input type="hidden" name="longitude" id="longitude">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Actions -->
+                            <div class="mt-6">
+                                <button type="submit"
+                                    class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-blue-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 group">
+                                    <span>🚀</span> Aktifkan Pelanggan
+                                </button>
+                                <div class="text-center mt-3">
+                                    <a href="/customers/list"
+                                        class="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-red-500 transition-colors">Batalkan</a>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // === 1. Search Logic (ODC, ODP) ===
+        const setupSearch = (inputId, resultsId, apiPath, onSelect) => {
+            const input = document.getElementById(inputId);
+            const results = document.getElementById(resultsId);
+            let t;
+
+            if (!input) return;
+
+            input.addEventListener('input', (e) => {
+                clearTimeout(t);
+                const q = e.target.value.trim();
+
+                if (inputId === 'odc_search') {
+                    document.getElementById('odc_id').value = '';
+                    document.getElementById('odp_section_wrapper').classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+                }
+
+                if (q.length < 2) { results.classList.add('hidden'); return; }
+
+                let url = apiPath + '?q=' + encodeURIComponent(q);
+                if (inputId === 'odp_search') {
+                    const odcId = document.getElementById('odc_id').value;
+                    if (!odcId) return;
+                    url += '&odc_id=' + odcId;
+                }
+
+                t = setTimeout(() => {
+                    fetch(url).then(r => r.json()).then(data => {
+                        if (data.results && data.results.length) {
+                            results.innerHTML = data.results.map(item => `
+                                <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 text-sm" 
+                                     data-item='${JSON.stringify(item)}'>
+                                    <div class="font-bold text-slate-800">${item.name || item.odp_name}</div>
+                                    <div class="text-[10px] text-slate-400">${item.location || item.available_ports + ' Ports' || ''}</div>
+                                </div>
+                            `).join('');
+                            results.classList.remove('hidden');
+
+                            results.querySelectorAll('div[data-item]').forEach(el => {
+                                el.addEventListener('click', () => {
+                                    const item = JSON.parse(el.dataset.item);
+                                    onSelect(item);
+                                    results.classList.add('hidden');
+                                });
+                            });
+                        } else {
+                            results.innerHTML = '<div class="px-4 py-2 text-xs text-slate-400 italic text-center">Tidak ditemukan</div>';
+                            results.classList.remove('hidden');
+                        }
+                    });
+                }, 300);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#' + inputId)) results.classList.add('hidden');
+            });
+        };
+
+        // ODC Search
+        setupSearch('odc_search', 'odc_search_results', '/api/ftth/odc/search', (item) => {
+            document.getElementById('odc_search').value = item.name;
+            document.getElementById('odc_id').value = item.id;
+            const odpWrapper = document.getElementById('odp_section_wrapper');
+            odpWrapper.classList.remove('opacity-50', 'pointer-events-none', 'grayscale');
+            document.getElementById('odp_search').focus();
+            document.getElementById('odp_search').value = '';
+            document.getElementById('odp_id').value = '';
+        });
+
+        // ODP Search
+        setupSearch('odp_search', 'odp_search_results', '/api/ftth/odp/search', (item) => {
+            document.getElementById('odp_search').value = item.odp_name;
+            document.getElementById('odp_id').value = item.id;
+        });
+
+        // Reset ODC
+        const resetOdc = document.getElementById('reset_odc_btn');
+        if (resetOdc) {
+            resetOdc.addEventListener('click', () => {
+                document.getElementById('odc_search').value = '';
+                document.getElementById('odc_id').value = '';
+                document.getElementById('odp_section_wrapper').classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+            });
+        }
+
+        // === 2. Wireless Toggle Logic ===
+        const isWireless = document.getElementById('is_wireless');
+        const infraWrapper = document.getElementById('infra_wrapper');
+        const odpInput = document.getElementById('odp_id');
+
+        if (isWireless) {
+            isWireless.addEventListener('change', () => {
+                if (isWireless.checked) {
+                    infraWrapper.classList.add('opacity-40', 'pointer-events-none', 'grayscale');
+                    if (odpInput) odpInput.required = false;
+                } else {
+                    infraWrapper.classList.remove('opacity-40', 'pointer-events-none', 'grayscale');
+                    if (odpInput) odpInput.required = true;
+                }
+            });
+        }
+
+        // === 2.5. Auto-calculate Gateway from Customer IP ===
+        const ipAddressInput = document.getElementById('ip_address_input');
+        const gatewayInput = document.getElementById('gateway_ip_input');
+
+        if (ipAddressInput && gatewayInput) {
+            const calculateGateway = () => {
+                let ip = ipAddressInput.value.trim();
+
+                // Remove any CIDR prefix if user accidentally entered it
+                if (ip.includes('/')) {
+                    ip = ip.split('/')[0];
+                    ipAddressInput.value = ip; // Clean the input
+                }
+
+                // Validate IP format
+                const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+                const match = ip.match(ipRegex);
+
+                if (!match) {
+                    gatewayInput.value = '';
+                    return;
+                }
+
+                const parts = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
+
+                // Validate each octet
+                if (parts.some(p => p < 0 || p > 255)) {
+                    gatewayInput.value = '';
+                    return;
+                }
+
+                // For /30 subnet, calculate the gateway
+                // Given IP like 192.168.239.2, calculate network address and then gateway (.1)
+                // Network = IP & mask for /30 (255.255.255.252)
+                // For /30: usable hosts are network+1 and network+2
+                // Gateway is typically the first usable (.1), client is the second (.2)
+
+                const ipInt = (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
+                const mask30 = 0xFFFFFFFC; // 255.255.255.252
+                const networkInt = ipInt & mask30;
+                const firstHost = networkInt + 1;
+                const secondHost = networkInt + 2;
+
+                // Gateway is the "other" host in the /30 subnet
+                let gatewayInt;
+                if (ipInt === firstHost) {
+                    // Customer IP is .1, so gateway is .2 (unusual but possible)
+                    gatewayInt = secondHost;
+                } else if (ipInt === secondHost) {
+                    // Customer IP is .2, gateway is .1 (typical case)
+                    gatewayInt = firstHost;
+                } else {
+                    // IP is network or broadcast address for /30
+                    gatewayInput.value = 'IP tidak valid untuk /30';
+                    return;
+                }
+
+                // Convert back to dotted notation
+                const gatewayIp = [
+                    (gatewayInt >>> 24) & 255,
+                    (gatewayInt >>> 16) & 255,
+                    (gatewayInt >>> 8) & 255,
+                    gatewayInt & 255
+                ].join('.');
+
+                gatewayInput.value = gatewayIp + '/30';
+            };
+
+            ipAddressInput.addEventListener('input', calculateGateway);
+            ipAddressInput.addEventListener('blur', calculateGateway);
+
+            // Calculate on page load if value exists
+            if (ipAddressInput.value) {
+                calculateGateway();
+            }
+        }
+
+        // === 3. Maps Integration ===
+        const btnGetLocation = document.getElementById('btnGetLocation');
+        const coordInput = document.getElementById('coordinates');
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+
+        if (document.getElementById('map')) {
+            if (typeof L === 'undefined') {
+                console.error('Leaflet JS is not loaded!');
+                document.getElementById('map').innerHTML = '<div class="flex items-center justify-center h-full text-red-500 text-xs text-center p-4">Gagal memuat peta.<br>Periksa koneksi internet Anda.</div>';
+            } else {
+                try {
+                    const map = L.map('map').setView([-6.200000, 106.816666], 5);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap'
+                    }).addTo(map);
+
+                    let marker;
+
+                    // Function to update address from coords (Reverse Geocoding)
+                    const updateAddress = (lat, lng) => {
+                        const addressInput = document.querySelector('textarea[name="address"]') || document.getElementById('address');
+                        if (addressInput) {
+                            addressInput.placeholder = 'Mengambil alamat...';
+                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data && data.display_name) {
+                                        // Make it cleaner: Road, Village, District
+                                        const addr = data.address;
+                                        const parts = [];
+                                        if (addr.road) parts.push(addr.road);
+                                        if (addr.village || addr.suburb || addr.hamlet) parts.push(addr.village || addr.suburb || addr.hamlet);
+                                        if (addr.city || addr.town || addr.county) parts.push(addr.city || addr.town || addr.county);
+
+                                        const cleanAddr = parts.length > 0 ? parts.join(', ') : data.display_name;
+                                        addressInput.value = cleanAddr;
+                                    }
+                                })
+                                .catch(e => console.warn('Reverse geocode failed:', e))
+                                .finally(() => addressInput.placeholder = 'Alamat lengkap...');
+                        }
+                    };
+
+                    const setMarker = (lat, lng, zoom = 15) => {
+                        if (marker) marker.setLatLng([lat, lng]);
+                        else {
+                            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                            marker.on('dragend', (e) => {
+                                const p = e.target.getLatLng();
+                                latInput.value = p.lat.toFixed(6);
+                                lngInput.value = p.lng.toFixed(6);
+                                coordInput.value = `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
+                                updateAddress(p.lat, p.lng);
+                            });
+                        }
+                        map.setView([lat, lng], zoom);
+                        updateAddress(lat, lng);
+                    };
+
+                    map.on('click', (e) => {
+                        latInput.value = e.latlng.lat.toFixed(6);
+                        lngInput.value = e.latlng.lng.toFixed(6);
+                        coordInput.value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+                        setMarker(e.latlng.lat, e.latlng.lng, map.getZoom());
+                        updateAddress(e.latlng.lat, e.latlng.lng); // Update address field
+                    });
+
+                    // Manual Type Listener
+                    if (coordInput) {
+                        coordInput.addEventListener('change', () => {
+                            const parts = coordInput.value.split(',').map(s => s.trim());
+                            if (parts.length === 2) {
+                                const lat = parseFloat(parts[0]);
+                                const lng = parseFloat(parts[1]);
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                    latInput.value = lat;
+                                    lngInput.value = lng;
+                                    setMarker(lat, lng);
+                                }
+                            }
+                        });
+                    }
+
+                    // Map Search Logic
+                    const searchInput = document.getElementById('map_search');
+                    if (searchInput) {
+                        searchInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const q = searchInput.value.trim();
+                                if (q.length > 2) {
+                                    searchInput.classList.add('opacity-50');
+                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            if (data && data.length > 0) {
+                                                const res = data[0];
+                                                const lat = parseFloat(res.lat);
+                                                const lon = parseFloat(res.lon);
+                                                latInput.value = lat.toFixed(6);
+                                                lngInput.value = lon.toFixed(6);
+                                                coordInput.value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+                                                setMarker(lat, lon, 16);
+                                                searchInput.value = res.display_name;
+                                                updateAddress(lat, lon); // Update address field
+                                            } else {
+                                                alert('Lokasi tidak ditemukan');
+                                            }
+                                        })
+                                        .catch(err => console.error('Map search err:', err))
+                                        .finally(() => searchInput.classList.remove('opacity-50'));
+                                }
+                            }
+                        });
+                    }
+
+                    if (btnGetLocation) {
+                        const fallbackToIP = () => {
+                            btnGetLocation.textContent = 'IP Loc...';
+                            // Use server-side proxy to avoid Mixed Content / CORS / AdBlockers
+                            fetch('/api/proxy/ip-location')
+                                .then(r => {
+                                    if (!r.ok) throw new Error('Proxy API Error: ' + r.status);
+                                    return r.json();
+                                })
+                                .then(data => {
+                                    if (data && (data.status === 'success' || data.lat)) {
+                                        latInput.value = data.lat;
+                                        lngInput.value = data.lon;
+                                        coordInput.value = `${data.lat}, ${data.lon}`;
+                                        setMarker(data.lat, data.lon, 13);
+                                        btnGetLocation.textContent = 'IP OK';
+                                        alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
+                                    } else {
+                                        console.error('IP-API response invalid:', data);
+                                        throw new Error('IP API Data Invalid');
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('Fallback IP Failed:', err);
+                                    btnGetLocation.textContent = 'Gagal';
+                                    alert('Gagal mendapatkan lokasi (GPS & IP Fallback).\n\nPenyebab:\n1. Browser memblokir GPS (Non-HTTPS)\n2. Server gagal koneksi ke IP-API (No Internet?)\n\nSilakan klik lokasi manual di peta.');
+                                })
+                                .finally(() => {
+                                    setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 3000);
+                                });
+                        };
+
+                        btnGetLocation.addEventListener('click', () => {
+                            btnGetLocation.textContent = '...';
+                            if ("geolocation" in navigator) {
+                                navigator.geolocation.getCurrentPosition(pos => {
+                                    const { latitude, longitude } = pos.coords;
+                                    latInput.value = latitude.toFixed(6);
+                                    lngInput.value = longitude.toFixed(6);
+                                    coordInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                                    setMarker(latitude, longitude);
+                                    updateAddress(latitude, longitude); // Update address field
+                                    btnGetLocation.textContent = 'OK';
+                                    setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
+                                }, (err) => {
+                                    console.warn('GPS Failed, trying IP fallback...');
+                                    fallbackToIP();
+                                }, {
+                                    enableHighAccuracy: true,
+                                    timeout: 5000,
+                                    maximumAge: 0
+                                });
+                            } else {
+                                fallbackToIP();
+                            }
+                        });
+                    }
+                    setTimeout(() => map.invalidateSize(), 500);
+                } catch (e) {
+                    console.error('Map init error', e);
+                    document.getElementById('map').innerHTML = `<div class="p-4 text-center text-red-500 text-xs">Error Map: ${e.message}</div>`;
+                }
+            }
+        }
+    });
+
+    // Prevent Double Submit
+    const form = document.getElementById('static-ip-form');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn && !btn.disabled) {
+                btn.disabled = true;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Memproses...
+                `;
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
+            }
+        });
+    }
+</script>

@@ -1,0 +1,690 @@
+<!-- WhatsApp Settings - Clean Modular Design -->
+<div class="max-w-7xl mx-auto">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <div class="flex items-center gap-4 mb-3">
+            <div
+                class="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <i class="fab fa-whatsapp text-white text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Pengaturan WhatsApp</h1>
+                <p class="text-sm text-gray-500 mt-1">Kelola koneksi dan pengujian layanan notifikasi</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- LEFT COLUMN: Connection Status -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <!-- Status Header -->
+                <div class="p-6 border-b border-gray-50">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Status Koneksi</h3>
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-2 h-2 rounded-full <%= status.ready ? 'bg-green-500 animate-pulse' : 'bg-red-500' %>">
+                            </div>
+                            <span class="text-xs font-medium text-gray-500">
+                                <%= status.ready ? 'Online' : 'Offline' %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connection Icon & State -->
+                <div class="p-8 text-center">
+                    <div class="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gray-50 flex items-center justify-center">
+                        <i
+                            class="fab fa-whatsapp text-5xl <%= status.ready ? 'text-green-500' : 'text-gray-300' %>"></i>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-900 mb-2">
+                        <%= status.ready ? 'Terhubung' : 'Tidak Terhubung' %>
+                    </h4>
+                    <p class="text-sm text-gray-500 mb-6">
+                        <%= status.ready ? 'Sistem siap mengirim pesan' : 'Scan QR untuk menghubungkan' %>
+                    </p>
+
+                    <% if (status.ready) { %>
+                        <!-- Connected State -->
+                        <div class="space-y-3">
+                            <div class="p-4 bg-green-50 rounded-xl">
+                                <div class="flex items-center justify-center gap-2 text-green-700">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span class="text-sm font-semibold">Autentikasi Berhasil</span>
+                                </div>
+                            </div>
+                            <button onclick="regenerateQRCode()"
+                                class="w-full py-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors">
+                                Putuskan Koneksi
+                            </button>
+                            <button onclick="clearSession()"
+                                class="w-full py-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors">
+                                Hapus Session & Regenerate QR
+                            </button>
+                        </div>
+                        <% } else { %>
+                            <!-- Disconnected State - QR Code -->
+                            <div id="qrCodeContainer">
+                                <div id="qrCodeLoading" class="hidden py-8">
+                                    <div
+                                        class="w-12 h-12 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin mx-auto mb-4">
+                                    </div>
+                                    <p class="text-xs text-gray-500">Membuat QR Code...</p>
+                                </div>
+
+                                <div id="qrCodeDisplay" class="<%= (qrCode && qrCodeUrl) ? '' : 'hidden' %>">
+                                    <div class="p-4 bg-white border border-gray-200 rounded-2xl mb-4 inline-block">
+                                        <img id="qrCodeImage"
+                                            src="<%= qrCodeUrl ? qrCodeUrl + '?t=' + Date.now() : '' %>" alt="QR Code"
+                                            class="w-48 h-48 rounded-xl" />
+                                    </div>
+                                    <p class="text-xs text-gray-400 mb-6">Scan dengan aplikasi WhatsApp</p>
+                                </div>
+
+                                <div id="qrCodeEmpty"
+                                    class="<%= (!qrCode || !qrCodeUrl) ? '' : 'hidden' %> py-8 opacity-50">
+                                    <i class="fas fa-qrcode text-6xl text-gray-300 mb-3"></i>
+                                    <p class="text-xs text-gray-400">QR Code belum tersedia</p>
+                                </div>
+
+                                <button onclick="regenerateQRCode()"
+                                    class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold shadow-sm transition-all">
+                                    <i class="fas fa-qrcode mr-2"></i>
+                                    Generate QR Code
+                                </button>
+                            </div>
+                            <% } %>
+                </div>
+
+                <!-- Statistics -->
+                <div class="p-6 border-t border-gray-50 bg-gray-50/50">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-gray-900">
+                                <%= stats.sent || 0 %>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">Terkirim</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-gray-900">
+                                <%= stats.failed || 0 %>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">Gagal</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Foonte Configuration (Backup Provider) -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-gray-50">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                            <i class="fas fa-shield-alt text-blue-500 mr-2"></i> Backup Provider (Foonte)
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-2 h-2 rounded-full <%= status.secondaryConfigured ? 'bg-green-500' : 'bg-gray-300' %>">
+                            </div>
+                            <span class="text-xs font-medium text-gray-500">
+                                <%= status.secondaryConfigured ? 'Active' : 'Inactive' %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <p class="text-xs text-gray-500 mb-4">
+                        Sistem backup otomatis yang akan digunakan jika koneksi utama (WhatsApp Web) gagal.
+                    </p>
+                    <form id="foonteConfigForm" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Foonte Token</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="foonteToken" name="foonteToken"
+                                    value="<%= status.secondaryConfigured ? '••••••••••••••••' : '' %>"
+                                    placeholder="Token Foonte"
+                                    class="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-full">
+                                <button type="submit"
+                                    class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap">
+                                    Simpan
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Test & Logs -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Test Message Module -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-gray-50">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Uji Kirim Pesan</h3>
+                            <p class="text-xs text-gray-500 mt-1">Validasi koneksi dengan mengirim pesan percobaan</p>
+                        </div>
+                        <% if (!status.ready) { %>
+                            <span class="px-3 py-1 bg-red-50 text-red-600 text-xs font-semibold rounded-lg">
+                                Offline
+                            </span>
+                            <% } %>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <form id="testSendForm" class="space-y-5">
+                        <!-- Phone Input -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Tujuan</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="fas fa-phone text-gray-400"></i>
+                                </div>
+                                <input type="text" id="testPhone" name="phone" placeholder="628123456789"
+                                    class="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all">
+                            </div>
+                        </div>
+
+                        <!-- Message Input -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Isi Pesan</label>
+                                <button type="button" onclick="fillTestMessage()"
+                                    class="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                                    <i class="fas fa-magic mr-1"></i>
+                                    Isi Otomatis
+                                </button>
+                            </div>
+                            <textarea id="testMessage" name="message" rows="5"
+                                placeholder="Tulis pesan pengujian di sini..."
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none transition-all"></textarea>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="relative">
+                            <button type="submit" id="submitBtn"
+                                class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-paper-plane mr-2"></i>
+                                Kirim Pesan Test
+                            </button>
+
+                            <button type="button" onclick="testSendPDF()"
+                                class="mt-3 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm transition-all disabled:opacity-50">
+                                <i class="fas fa-file-pdf mr-2"></i>
+                                Test Kirim PDF
+                            </button>
+
+                            <!-- Result Toast -->
+                            <div id="testSendResult" class="absolute -top-16 inset-x-0 hidden">
+                                <div id="resultToast"
+                                    class="mx-auto w-fit px-6 py-3 rounded-xl shadow-lg font-semibold text-sm"></div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Failed Notifications Log -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-gray-50">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                            <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+                            Notifikasi Gagal
+                        </h3>
+                        <span class="text-xs text-gray-500">
+                            <%= (typeof failedNotifications !=='undefined' && failedNotifications) ?
+                                failedNotifications.length : 0 %> item
+                        </span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <tbody class="divide-y divide-gray-50">
+                            <% if (typeof failedNotifications !=='undefined' && failedNotifications &&
+                                failedNotifications.length> 0) { %>
+                                <% failedNotifications.forEach(notif=> { %>
+                                    <tr class="hover:bg-red-50/30 transition-colors">
+                                        <td class="px-6 py-4">
+                                            <div class="font-medium text-gray-900">
+                                                <%= notif.customer_name || 'Unknown' %>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-1">
+                                                <%= new Date(notif.created_at).toLocaleString('id-ID') %>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span
+                                                class="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-lg">Failed</span>
+                                        </td>
+                                    </tr>
+                                    <% }) %>
+                                        <% } else { %>
+                                            <tr>
+                                                <td colspan="2" class="px-6 py-12 text-center">
+                                                    <div class="text-gray-300 mb-2">
+                                                        <i class="fas fa-check-circle text-4xl"></i>
+                                                    </div>
+                                                    <p class="text-sm text-gray-500">Tidak ada kegagalan pengiriman</p>
+                                                </td>
+                                            </tr>
+                                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pending Queue -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-gray-50">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                            <i class="fas fa-clock text-blue-500 mr-2"></i>
+                            Antrian Pending
+                        </h3>
+                        <span class="text-xs text-gray-500">
+                            <%= (typeof pendingNotifications !=='undefined' && pendingNotifications) ?
+                                pendingNotifications.length : 0 %> item
+                        </span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <tbody class="divide-y divide-gray-50">
+                            <% if (typeof pendingNotifications !=='undefined' && pendingNotifications &&
+                                pendingNotifications.length> 0) { %>
+                                <% pendingNotifications.forEach(notif=> { %>
+                                    <tr class="hover:bg-blue-50/30 transition-colors">
+                                        <td class="px-6 py-4">
+                                            <div class="font-medium text-gray-900">
+                                                <%= notif.customer_name || 'Unknown' %>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-1">
+                                                <%= new Date(notif.created_at).toLocaleString('id-ID') %>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span
+                                                class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-lg">Pending</span>
+                                        </td>
+                                    </tr>
+                                    <% }) %>
+                                        <% } else { %>
+                                            <tr>
+                                                <td colspan="2" class="px-6 py-12 text-center">
+                                                    <div class="text-gray-300 mb-2">
+                                                        <i class="fas fa-inbox text-4xl"></i>
+                                                    </div>
+                                                    <p class="text-sm text-gray-500">Antrian kosong</p>
+                                                </td>
+                                            </tr>
+                                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    <!-- Unified Features Menu -->
+    <div class="mt-8 mb-6">
+        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <i class="fas fa-grid-2 text-indigo-600"></i>
+            Menu & Fitur WhatsApp
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Broadcast -->
+            <a href="/whatsapp/broadcast"
+                class="group p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col items-center text-center">
+                <div
+                    class="w-12 h-12 mb-3 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+                <h4 class="font-bold text-gray-900 mb-1">Broadcast Massal</h4>
+                <p class="text-xs text-gray-500">Kirim pesan massal ke pelanggan</p>
+            </a>
+
+            <!-- QRIS -->
+            <a href="/whatsapp/qris"
+                class="group p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all flex flex-col items-center text-center">
+                <div
+                    class="w-12 h-12 mb-3 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <h4 class="font-bold text-gray-900 mb-1">Kirim QRIS</h4>
+                <p class="text-xs text-gray-500">Kirim tagihan QRIS instan</p>
+            </a>
+
+            <!-- Monitor & Verification -->
+            <a href="/settings/whatsapp/monitor"
+                class="group p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all flex flex-col items-center text-center">
+                <div
+                    class="w-12 h-12 mb-3 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fas fa-desktop"></i>
+                </div>
+                <h4 class="font-bold text-gray-900 mb-1">Monitor & Verifikasi</h4>
+                <p class="text-xs text-gray-500">Pantau chat & validasi bayar</p>
+            </a>
+
+            <!-- Templates -->
+            <a href="/notification/templates"
+                class="group p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-300 transition-all flex flex-col items-center text-center">
+                <div
+                    class="w-12 h-12 mb-3 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <h4 class="font-bold text-gray-900 mb-1">Template Pesan</h4>
+                <p class="text-xs text-gray-500">Atur template notifikasi</p>
+            </a>
+
+            <!-- Notification History (NEW) -->
+            <a href="/notification/history"
+                class="group p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col items-center text-center">
+                <div
+                    class="w-12 h-12 mb-3 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h4 class="font-bold text-gray-900 mb-1">Riwayat Notifikasi</h4>
+                <p class="text-xs text-gray-500">Log semua pesan terkirim</p>
+            </a>
+
+            <!-- WhatsApp Old Page (NEW) -->
+            <a href="/whatsapp"
+                class="group p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-green-300 transition-all flex flex-col items-center text-center">
+                <div
+                    class="w-12 h-12 mb-3 bg-green-100 text-green-700 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i class="fab fa-whatsapp"></i>
+                </div>
+                <h4 class="font-bold text-gray-900 mb-1">Status Detail</h4>
+                <p class="text-xs text-gray-500">Halaman Status Lama</p>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    let lastSeenQR = '';
+
+    function startStatusCheck() {
+        const isReady = <%= status.ready ? 'true' : 'false' %>;
+        if (!isReady) {
+            statusCheckInterval = setInterval(refreshStatus, 3000);
+        }
+    }
+
+    startStatusCheck();
+
+    // Removed redundant refreshQRCodeImage to verify if it causes conflicts
+
+    async function refreshStatus() {
+        try {
+            // Add timestamp to prevent caching (304 Not Modified issues)
+            const response = await fetch('/settings/whatsapp/status?t=' + Date.now());
+            if (!response.ok) return;
+            const result = await response.json();
+
+            if (result.success) {
+                const data = result.data;
+                const status = data.status || data;
+
+                if (status.ready) {
+                    clearInterval(statusCheckInterval);
+                    window.location.reload();
+                    return;
+                }
+
+                const img = document.getElementById('qrCodeImage');
+                // Only update image if QR code string has changed
+                if (data.qrCodeUrl && data.qrCode && img) {
+                    if (data.qrCode !== lastSeenQR) {
+                        lastSeenQR = data.qrCode;
+                        console.log('New QR Code detected, updating image...');
+                        img.onload = () => {
+                            document.getElementById('qrCodeLoading')?.classList.add('hidden');
+                            document.getElementById('qrCodeEmpty')?.classList.add('hidden');
+                            document.getElementById('qrCodeDisplay')?.classList.remove('hidden');
+                            isRegenerating = false;
+                        };
+                        img.onerror = () => {
+                            console.error('Failed to load QR image, retrying in 1s...');
+                            setTimeout(() => { img.src = data.qrCodeUrl + '?t=' + Date.now(); }, 1000);
+                        };
+                        img.src = data.qrCodeUrl + '?t=' + Date.now();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Status refresh error:', error);
+        }
+    }
+
+    async function clearSession() {
+        if (!confirm('Session akan dihapus. Lanjutkan?')) return;
+        isRegenerating = true;
+        document.getElementById('qrCodeLoading')?.classList.remove('hidden');
+        document.getElementById('qrCodeDisplay')?.classList.add('hidden');
+        document.getElementById('qrCodeEmpty')?.classList.add('hidden');
+        try {
+            const response = await fetch('/whatsapp/clear-session', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                window.location.reload(); // Force login
+                return;
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                // Wait a bit for new QR generation
+                setTimeout(refreshStatus, 2000);
+            } else {
+                alert('Gagal menghapus session: ' + (result.error || 'Unknown error'));
+                isRegenerating = false;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error menghapus session');
+            isRegenerating = false;
+        }
+    }
+
+    // Regenerate QR Code (clears session and generates new QR)
+    async function regenerateQRCode() {
+        if (!confirm('Session saat ini akan dihapus. Device harus scan ulang QR code baru. Lanjutkan?')) return;
+
+        isRegenerating = true;
+        // Hide button to prevent multiple clicks
+        const btn = document.querySelector('button[onclick="regenerateQRCode()"]');
+        if (btn) btn.classList.add('hidden');
+
+        document.getElementById('qrCodeLoading')?.classList.remove('hidden');
+        document.getElementById('qrCodeDisplay')?.classList.add('hidden');
+        document.getElementById('qrCodeEmpty')?.classList.add('hidden');
+
+        try {
+            // Use settings endpoint which is consistent with other settings actions
+            const response = await fetch('/settings/whatsapp/regenerate-qr', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                window.location.reload(); // Force login
+                return;
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                // If success but no QR yet (timeout), refreshStatus will handle it
+                // If immediate QR, it will also handle it
+                setTimeout(refreshStatus, 2000);
+            } else {
+                alert('Gagal: ' + (result.error || 'Unknown error'));
+                isRegenerating = false;
+                document.getElementById('qrCodeLoading')?.classList.add('hidden');
+                document.getElementById('qrCodeEmpty')?.classList.remove('hidden');
+                if (btn) btn.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error(error);
+            isRegenerating = false;
+            alert('Error: Connection failed. Silakan refresh halaman.');
+            document.getElementById('qrCodeLoading')?.classList.add('hidden');
+            document.getElementById('qrCodeEmpty')?.classList.remove('hidden');
+            if (btn) btn.classList.remove('hidden');
+        }
+    }
+
+    function fillTestMessage() {
+        const messageInput = document.getElementById('testMessage');
+        const now = new Date().toLocaleTimeString('id-ID');
+        messageInput.value = `*TEST SISTEM WHATSAPP*\n\nStatus: ONLINE\nWaktu: ${now}\n\nPesan ini adalah test otomatis untuk memvalidasi koneksi WhatsApp Business API. Sistem berfungsi dengan baik! ✅`;
+        messageInput.focus();
+    }
+
+    document.getElementById('testSendForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        // Allow testing even if offline (to test Foonte backup)
+        // const isOnline = <%= status.ready ? 'true' : 'false' %>;
+        // if (!isOnline) {
+        //     showToast('Sistem offline. Hubungkan device terlebih dahulu.', 'bg-red-600 text-white');
+        //     return;
+        // }
+
+        const submitBtn = document.getElementById('submitBtn');
+        const phone = document.getElementById('testPhone').value.trim();
+        const message = document.getElementById('testMessage').value.trim();
+
+        if (!phone || !message) {
+            showToast('Nomor dan pesan harus diisi', 'bg-orange-500 text-white');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        const originalContent = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
+
+        try {
+            const response = await fetch('/settings/whatsapp/test-send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, message })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('✓ Pesan berhasil dikirim!', 'bg-green-600 text-white');
+                document.getElementById('testPhone').value = '';
+                document.getElementById('testMessage').value = '';
+            } else {
+                showToast('✗ Gagal: ' + result.error, 'bg-red-600 text-white');
+            }
+        } catch (error) {
+            showToast('✗ Error koneksi', 'bg-red-600 text-white');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+        }
+    });
+
+    function showToast(text, classes) {
+        const resultDiv = document.getElementById('testSendResult');
+        const resultToast = document.getElementById('resultToast');
+        resultToast.className = `mx-auto w-fit px-6 py-3 rounded-xl shadow-lg font-semibold text-sm ${classes}`;
+        resultToast.innerText = text;
+        resultDiv.classList.remove('hidden');
+        setTimeout(() => resultDiv.classList.add('hidden'), 4000);
+    }
+
+    async function testSendPDF() {
+        const phone = document.getElementById('testPhone').value.trim();
+        if (!phone) {
+            showToast('Nomor harus diisi', 'bg-orange-500 text-white');
+            return;
+        }
+
+        const btn = document.querySelector('button[onclick="testSendPDF()"]');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim PDF...';
+
+        try {
+            const response = await fetch('/whatsapp/test-send-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('✓ PDF berhasil dikirim!', 'bg-green-600 text-white');
+            } else {
+                showToast('✗ Gagal: ' + result.error, 'bg-red-600 text-white');
+            }
+        } catch (error) {
+            showToast('✗ Error koneksi', 'bg-red-600 text-white');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
+
+    document.getElementById('foonteConfigForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const tokenInput = document.getElementById('foonteToken');
+        const token = tokenInput.value.trim();
+
+        if (!token) {
+            alert('Token tidak boleh kosong');
+            return;
+        }
+
+        try {
+            const btn = this.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = '...';
+            btn.disabled = true;
+
+            const response = await fetch('/settings/whatsapp/update-foonte', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Token berhasil disimpan! Reload sistem mungkin diperlukan agar perubahan efektif.');
+                window.location.reload();
+            } else {
+                alert('Gagal menyimpan token: ' + result.error);
+            }
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        } catch (error) {
+            alert('Error saving token');
+            console.error(error);
+        }
+    });
+</script>

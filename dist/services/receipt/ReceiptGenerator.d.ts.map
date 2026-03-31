@@ -1,0 +1,1 @@
+{"version":3,"file":"ReceiptGenerator.d.ts","sourceRoot":"","sources":["../../../src/services/receipt/ReceiptGenerator.ts"],"names":[],"mappings":"AAGA,qBAAa,gBAAgB;WAEZ,QAAQ,CAAC,IAAI,EAAE;QACxB,IAAI,EAAE,MAAM,CAAC;QACb,KAAK,EAAE,MAAM,CAAC;QACd,IAAI,EAAE,MAAM,CAAC;QACb,MAAM,EAAE,MAAM,CAAC;QACf,IAAI,EAAE,MAAM,CAAC;QACb,aAAa,EAAE,MAAM,CAAC;KACzB,GAAG,OAAO,CAAC,MAAM,CAAC;CAkFtB"}

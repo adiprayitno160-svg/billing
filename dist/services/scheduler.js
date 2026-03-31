@@ -1,0 +1,833 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SchedulerService = void 0;
+const cron = __importStar(require("node-cron"));
+const invoiceService_1 = require("./billing/invoiceService");
+// WhatsApp service removed
+const isolationService_1 = require("./billing/isolationService");
+const pool_1 = require("../db/pool");
+const backupService_1 = require("./backupService");
+class SchedulerService {
+    /**
+     * Initialize all scheduled tasks
+     */
+    static initialize() {
+        if (this.isInitialized) {
+            console.log('Scheduler already initialized');
+            return;
+        }
+        console.log('Initializing billing scheduler...');
+        // ========== ALUR BILLING BARU ==========
+        // 1. Tanggal 1: Generate tagihan otomatis untuk bulan berjalan
+        // 2. Jatuh tempo: Tanggal 28 bulan tersebut
+        // 3. Tanggal 25-31: Kirim notifikasi peringatan blokir
+        // 4. Tanggal 1 bulan berikutnya: Blokir otomatis yang belum bayar
+        // Generate monthly invoices - tanggal 1 jam 00:10
+        this.applyInvoiceScheduleFromDb().catch((err) => {
+            console.error('Failed to apply Invoice Generation schedule, fallback to default (day 1 00:10):', err);
+            this.scheduleInvoiceGeneration([1], 0, 10);
+        });
+        // Send payment reminders - controlled by settings
+        this.applyReminderScheduleFromDb().catch((err) => {
+            console.error('Failed to apply Payment Reminder schedule, fallback enabling at 08:00 daily:', err);
+            this.schedulePaymentReminders(true);
+        });
+        // Auto isolate - DISABLED (Handled by processAutoBlocking individually)
+        /* this.applyAutoIsolationScheduleFromDb().catch((err) => {
+            console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
+            this.scheduleAutoIsolation([1], 0, 0); // Tanggal 1 jam 00:00
+        }); */
+        // Auto restore paid customers - DISABLED (Payments now trigger real-time restore)
+        /* cron.schedule('0 6 * * *', async () => {
+            console.log('Running auto restore for paid customers...');
+            try {
+                const result = await IsolationService.autoRestorePaidCustomers();
+                console.log(`Auto restored ${result.restored} customers, failed ${result.failed}`);
+            } catch (error) {
+                console.error('Error auto restoring customers:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        }); */
+        // Calculate SLA and apply discounts - setiap tanggal 1 jam 06:00
+        cron.schedule('0 6 1 * *', async () => {
+            console.log('Running SLA calculation and discount application...');
+            try {
+                await this.calculateSlaAndApplyDiscounts();
+            }
+            catch (error) {
+                console.error('Error calculating SLA and applying discounts:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Send monthly finance report to Head of Finance - setiap tanggal 1 jam 08:30
+        cron.schedule('30 8 1 * *', async () => {
+            console.log('[Scheduler] Running Monthly Finance Report for Head of Finance...');
+            try {
+                const { MonthlyReportService } = await Promise.resolve().then(() => __importStar(require('./billing/MonthlyReportService')));
+                await MonthlyReportService.generateAndSendMonthlyReport();
+            }
+            catch (error) {
+                console.error('[Scheduler] Error sending monthly finance report:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Send overdue notifications - controlled by settings
+        this.applyOverdueScheduleFromDb().catch((err) => {
+            console.error('Failed to apply Overdue Notification schedule, fallback enabling at 10:00 daily:', err);
+            this.scheduleOverdueNotifications(true);
+        });
+        // processAutoBlocking at 01:00 AM daily (Requested by User)
+        cron.schedule('0 1 * * *', async () => {
+            console.log('[Scheduler] Running 01:00 AM auto blocking check...');
+            try {
+                const { pppoeActivationService } = await Promise.resolve().then(() => __importStar(require('./pppoe/pppoeActivationService')));
+                await pppoeActivationService.processAutoBlocking();
+            }
+            catch (error) {
+                console.error('[Scheduler] Error in 01:00 AM auto blocking:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // SPECIAL ONE-TIME MASS ISOLATION (April 1st, 01:00 AM)
+        // Targeted for period 2026-03 only.
+        cron.schedule('0 1 1 4 *', async () => {
+            console.log('[Scheduler] 🚨 Running ONE-TIME mass isolation for period 2026-03...');
+            try {
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const result = await IsolationService.massIsolateSpecificPeriod('2026-03');
+                console.log(`[Scheduler] Mass isolation completed: ${result.isolated} isolated, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('[Scheduler] Error in mass isolation job:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Auto-Lunas Admin at 01:30 AM daily
+        cron.schedule('30 1 * * *', async () => {
+            console.log('[Scheduler] Running 01:30 AM Auto-Lunas Admin check...');
+            try {
+                const { processAutoPayAdmin } = await Promise.resolve().then(() => __importStar(require('./billing/invoiceService'))).then(m => m.InvoiceService);
+                const result = await processAutoPayAdmin();
+                console.log(`[Scheduler] Auto-Lunas Admin completed: ${result.paid} paid, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('[Scheduler] Error in 01:30 AM Auto-Lunas Admin:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Send isolation warnings 3 days before isolation - daily at 09:00
+        // ALSO send warnings from 25th-31st of each month (before blocking on 1st)
+        // ALSO send H-1 warnings (1 day before mass isolation date)
+        cron.schedule('0 9 * * *', async () => {
+            const today = new Date();
+            const dayOfMonth = today.getDate();
+            console.log('Running daily PPPoE maintenance tasks...');
+            try {
+                const { pppoeActivationService } = await Promise.resolve().then(() => __importStar(require('./pppoe/pppoeActivationService')));
+                // Send H-7 reminders
+                await pppoeActivationService.sendH7Reminders();
+                // Send reminders 3 days before block date ("Kesepakatan Final" Point 3)
+                await pppoeActivationService.sendReminders();
+            }
+            catch (pppoeError) {
+                console.error('Error in daily PPPoE maintenance:', pppoeError);
+            }
+            /*
+            // DISABLED: Legacy "1st of month" mass isolation warnings.
+            // We now use anniversary-based warnings (sendIsolationWarnings below).
+            if (dayOfMonth >= 25) {
+                console.log(`[Pre-Block Warning] Running on day ${dayOfMonth} - sending block warnings...`);
+                try {
+                    const { IsolationService } = await import('./billing/isolationService');
+                    // Send warnings for unpaid invoices that will be blocked on 1st
+                    const result = await IsolationService.sendPreBlockWarnings();
+                    console.log(`[Pre-Block Warning] Sent: ${result.warned} warned, ${result.failed} failed`);
+                } catch (error) {
+                    console.error('Error sending pre-block warnings:', error);
+                }
+            }
+            */
+            // Also send regular isolation warnings (3 days before deadline)
+            console.log('Running isolation warnings (3 days before deadline)...');
+            try {
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const result = await IsolationService.sendIsolationWarnings(3);
+                console.log(`Isolation warnings sent: ${result.warned} warned, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('Error sending isolation warnings:', error);
+            }
+            /*
+            // DISABLED: Hardcoded H1 isolation warnings.
+            // We now handle this in IsolationService by checking individual invoice due dates.
+            console.log('[H-1 Isolation Warning] Checking if H-1 warnings should be sent...');
+            try {
+                const { IsolationService } = await import('./billing/isolationService');
+                const result = await IsolationService.sendIsolationH1Warnings();
+                if (result.skipped) {
+                    console.log(`[H-1 Isolation Warning] Skipped: ${result.skipped}`);
+                } else {
+                    console.log(`[H-1 Isolation Warning] Sent: ${result.warned} warned, ${result.failed} failed`);
+                }
+            } catch (error) {
+                console.error('Error in H-1 isolation warnings:', error);
+            }
+            */
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Send payment shortage warnings - daily at 10:00 (for payments overdue >= 14 days)
+        cron.schedule('0 10 * * *', async () => {
+            console.log('Running payment shortage warnings (14+ days overdue)...');
+            try {
+                const { PaymentShortageService } = await Promise.resolve().then(() => __importStar(require('./billing/PaymentShortageService')));
+                const result = await PaymentShortageService.checkAndNotifyShortages(14);
+                console.log(`Payment shortage warnings: ${result.checked} checked, ${result.notified} notified, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('Error sending payment shortage warnings:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Daily late payment recalculation - every day at 00:30
+        cron.schedule('30 0 * * *', async () => {
+            console.log('Running daily late payment recalculation...');
+            try {
+                const { LatePaymentTrackingService } = await Promise.resolve().then(() => __importStar(require('./billing/LatePaymentTrackingService')));
+                const result = await LatePaymentTrackingService.dailyRecalculation();
+                console.log(`Late payment recalculation: ${result.processed} processed, ${result.errors} errors`);
+            }
+            catch (error) {
+                console.error('Error in daily late payment recalculation:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Auto isolate overdue (>= 2 unpaid invoices) - daily at 02:00
+        cron.schedule('0 2 * * *', async () => {
+            console.log('Running auto isolate overdue customers (>= 2 unpaid)...');
+            try {
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const result = await IsolationService.autoIsolateOverdueCustomers();
+                console.log(`Auto isolate overdue: ${result.isolated} isolated, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('Error running auto isolate overdue:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Auto delete blocked customers (> 7 days) - daily at 03:00
+        cron.schedule('0 3 * * *', async () => {
+            console.log('Running auto delete blocked customers (> 7 days)...');
+            try {
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const result = await IsolationService.autoDeleteBlockedCustomers();
+                console.log(`Auto delete blocked: ${result.deleted} deleted, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('Error running auto delete blocked:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Auto migrate arrears customers (3x arrears -> Prepaid) - daily at 05:00
+        cron.schedule('0 5 * * *', async () => {
+            console.log('Running auto migration check for arrears customers...');
+            try {
+                const { AutoMigrationService } = await Promise.resolve().then(() => __importStar(require('./billing/AutoMigrationService')));
+                await AutoMigrationService.runDailyArrearsCheck();
+            }
+            catch (error) {
+                console.error('Error running auto migration check:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Weekly database backup with 90-day retention - every Sunday at 04:00 Asia/Jakarta
+        cron.schedule('0 4 * * 0', async () => {
+            console.log('[Scheduler] Running weekly database backup...');
+            const backup = new backupService_1.BackupService();
+            try {
+                const file = await backup.backupDatabase();
+                const deleted = await backup.cleanOldBackups(90);
+                console.log(`[Scheduler] Backup created: ${file}. Old backups deleted: ${deleted}`);
+            }
+            catch (error) {
+                console.error('[Scheduler] Weekly backup failed:', error);
+            }
+        }, { scheduled: true, timezone: 'Asia/Jakarta' });
+        // Deferment expiration check - every day at 23:00 (Malam)
+        cron.schedule('0 23 * * *', async () => {
+            console.log('Running expired deferment check...');
+            try {
+                const { DefermentService } = await Promise.resolve().then(() => __importStar(require('./billing/DefermentService')));
+                const result = await DefermentService.processExpiredDeferments();
+                console.log(`Processed ${result.processed} expired deferments`);
+            }
+            catch (error) {
+                console.error('Error processing expired deferments:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Static IP Ping Monitoring - Enabled
+        cron.schedule('* * * * *', async () => {
+            // Quiet logging to avoid spam
+            try {
+                const pingServiceModule = await Promise.resolve().then(() => __importStar(require('./pingService')));
+                const pingService = pingServiceModule.default || pingServiceModule;
+                if (typeof pingService.monitorAllStaticIPs === 'function') {
+                    await pingService.monitorAllStaticIPs();
+                }
+                else {
+                    console.error('monitorAllStaticIPs function not found in PingService');
+                }
+            }
+            catch (error) {
+                console.error('Error running static IP monitoring:', error);
+            }
+        });
+        // Daily WhatsApp Service Restart - 04:30 AM
+        cron.schedule('30 4 * * *', async () => {
+            console.log('[Scheduler] 🔄 Running daily WhatsApp Service restart...');
+            try {
+                const { whatsappService } = await Promise.resolve().then(() => __importStar(require('./whatsapp/WhatsAppService')));
+                await whatsappService.restart();
+                console.log('[Scheduler] ✅ WhatsApp Service restarted successfully');
+            }
+            catch (error) {
+                console.error('[Scheduler] ❌ Error restarting WhatsApp Service:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+        // Self-Healing Network Anomaly Detection - Every 3 minutes
+        cron.schedule('*/3 * * * *', async () => {
+            console.log('[Scheduler] 🛡️ Running Self-Healing Network Anomaly Detection...');
+            try {
+                const { SelfHealingNotificationService } = await Promise.resolve().then(() => __importStar(require('./notification/SelfHealingNotificationService')));
+                const selfHealingService = new SelfHealingNotificationService();
+                await selfHealingService.runAnomalyDetection();
+            }
+            catch (error) {
+                console.error('[Scheduler] ❌ Error in Self-Healing Network Detection:', error);
+            }
+        });
+        // Smart PPPoE Monitoring for Prepaid Customers - Every 2 minutes
+        // cron.schedule('*/2 * * * *', async () => {
+        //     console.log('[Scheduler] 🚀 Running Smart PPPoE Monitoring for Prepaid Customers...');
+        //     try {
+        //         const { SmartPPPoEMonitoringService } = await import('./notification/SmartPPPoEMonitoringService');
+        //         const smartMonitoringService = new SmartPPPoEMonitoringService();
+        //         await smartMonitoringService.runSmartMonitoring();
+        //     } catch (error) {
+        //         console.error('[Scheduler] ❌ Error in Smart PPPoE Monitoring:', error);
+        //     }
+        // });
+        // Smart Static IP Monitoring for Prepaid Customers - Every 15 minutes (for normal ping)
+        // cron.schedule('*/15 * * * *', async () => {
+        //     console.log('[Scheduler] 🚀 Running Smart Static IP Monitoring for Prepaid Customers...');
+        //     try {
+        //         const { SmartStaticIPMonitoringService } = await import('./notification/SmartStaticIPMonitoringService');
+        //         const smartStaticIPService = new SmartStaticIPMonitoringService();
+        //         await smartStaticIPService.runSmartMonitoring();
+        //     } catch (error) {
+        //         console.error('[Scheduler] ❌ Error in Smart Static IP Monitoring:', error);
+        //     }
+        // });
+        this.isInitialized = true;
+        console.log('Billing scheduler initialized successfully');
+    }
+    /**
+     * Send invoice notifications via WhatsApp
+     */
+    static async sendInvoiceNotifications(invoiceIds) {
+        try {
+            // WhatsApp service removed
+            // const whatsappService = new WhatsappService();
+            // 
+            // for (const invoiceId of invoiceIds) {
+            //     const invoice = await InvoiceService.getInvoiceById(invoiceId);
+            //     if (invoice && invoice.phone) {
+            //         await whatsappService.sendInvoiceNotification(invoice);
+            //     }
+            // }
+        }
+        catch (error) {
+            console.error('Error sending invoice notifications:', error);
+        }
+    }
+    /**
+     * Send payment reminders
+     */
+    static async sendPaymentReminders() {
+        try {
+            // WhatsApp service removed
+            // const whatsappService = new WhatsappService();
+            // Get invoices due in 3 days
+            const dueIn3Days = new Date();
+            dueIn3Days.setDate(dueIn3Days.getDate() + 3);
+            const { databasePool } = await Promise.resolve().then(() => __importStar(require('../db/pool')));
+            const query = `
+                SELECT i.*, c.name as customer_name, c.phone
+                FROM invoices i
+                JOIN customers c ON i.customer_id = c.id
+                WHERE i.status IN ('sent', 'partial')
+                AND i.due_date = ?
+                AND c.phone IS NOT NULL
+            `;
+            const [result] = await databasePool.query(query, [dueIn3Days.toISOString().split('T')[0]]);
+            for (const invoice of result) {
+                // WhatsApp notification removed
+                // await whatsappService.sendPaymentReminder(invoice);
+            }
+        }
+        catch (error) {
+            console.error('Error sending payment reminders:', error);
+        }
+    }
+    /**
+     * Send overdue notifications
+     */
+    static async sendOverdueNotifications() {
+        try {
+            // WhatsApp service removed
+            // const whatsappService = new WhatsappService();
+            const overdueInvoices = await invoiceService_1.InvoiceService.getOverdueInvoices();
+            for (const invoice of overdueInvoices) {
+                // WhatsApp notification removed
+                // if (invoice.phone) {
+                //     await whatsappService.sendOverdueNotification(invoice);
+                // }
+            }
+        }
+        catch (error) {
+            console.error('Error sending overdue notifications:', error);
+        }
+    }
+    /**
+     * Calculate SLA and apply discounts
+     */
+    static async calculateSlaAndApplyDiscounts() {
+        try {
+            const { DiscountService } = await Promise.resolve().then(() => __importStar(require('./billing/discountService')));
+            // Get previous month
+            const currentDate = new Date();
+            const previousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+            const period = `${previousMonth.getFullYear()}-${(previousMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+            // Calculate SLA for all customers
+            const slaResults = [];
+            // Apply discounts based on SLA
+            /*for (const result of slaResults) {
+                if (result.compensation_amount > 0) {
+                    await DiscountService.applySLADiscount(result.customer_id, period);
+                }
+            }*/
+        }
+        catch (error) {
+            console.error('Error calculating SLA and applying discounts:', error);
+        }
+    }
+    /**
+     * Manual trigger for invoice generation
+     */
+    static async triggerMonthlyInvoices(period) {
+        try {
+            const invoiceIds = await invoiceService_1.InvoiceService.generateMonthlyInvoices(period);
+            await this.sendInvoiceNotifications(invoiceIds);
+            return invoiceIds;
+        }
+        catch (error) {
+            console.error('Error triggering monthly invoices:', error);
+            throw error;
+        }
+    }
+    /**
+     * Manual trigger for auto isolation
+     */
+    static async triggerAutoIsolation() {
+        try {
+            // IsolationService removed - functionality disabled
+            // return await IsolationService.autoIsolateOverdueCustomers();
+            return { isolated: 0, failed: 0 };
+        }
+        catch (error) {
+            console.error('Error triggering auto isolation:', error);
+            throw error;
+        }
+    }
+    /**
+     * Manual trigger for auto restore
+     */
+    static async triggerAutoRestore() {
+        try {
+            // IsolationService removed - functionality disabled
+            // return await IsolationService.autoRestorePaidCustomers();
+            return { restored: 0, failed: 0 };
+        }
+        catch (error) {
+            console.error('Error triggering auto restore:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get scheduler status
+     */
+    static getStatus() {
+        return {
+            isRunning: this.isInitialized,
+            initialized: this.isInitialized,
+            lastRun: this.isInitialized ? 'Just now' : 'Never',
+            nextRun: this.isInitialized ? 'Next scheduled run' : 'Not scheduled',
+            totalJobs: 10,
+            tasks: [
+                'Monthly invoice generation (configurable days/time)',
+                'Payment reminders (daily 08:00)',
+                'Auto isolation (configurable days at 01:00)',
+                'Auto restore (daily 06:00)',
+                'SLA calculation (1st day 06:00)',
+                'Overdue notifications (daily 10:00)',
+                'ONT status check (every 5 minutes)',
+                'Customer isolation check (every 5 minutes)',
+                'Daily system summary (daily 18:00)'
+            ]
+        };
+    }
+    // =============== INVOICE GENERATION SCHEDULING ===============
+    static scheduleInvoiceGeneration(daysOfMonth, hour = 0, minute = 10) {
+        // Clear previous jobs
+        for (const job of this.invoiceGenerationJobs) {
+            try {
+                job.stop();
+            }
+            catch { }
+        }
+        this.invoiceGenerationJobs = [];
+        const h = Math.max(0, Math.min(23, Number(hour)));
+        const m = Math.max(0, Math.min(59, Number(minute)));
+        // USER REQUEST: Always run daily to check for per-customer activation dates
+        const expression = `${m} ${h} * * *`;
+        const task = cron.schedule(expression, async () => {
+            console.log(`[Invoice Generation] Running daily at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+            try {
+                const currentDate = new Date();
+                const period = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+                // IMPORTANT: generateMonthlyInvoices internally filters by DAY(start_date) = DAY(CURDATE())
+                const invoiceIds = await invoiceService_1.InvoiceService.generateMonthlyInvoices(period);
+                console.log(`Generated ${invoiceIds.length} invoices for period ${period}`);
+                await this.sendInvoiceNotifications(invoiceIds);
+            }
+            catch (error) {
+                console.error('Error generating monthly invoices:', error);
+            }
+        }, { scheduled: true, timezone: 'Asia/Jakarta' });
+        this.invoiceGenerationJobs.push(task);
+        console.log(`[Invoice Generation] Scheduled DAILY at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+    static async applyInvoiceScheduleFromDb() {
+        const [rows] = await pool_1.databasePool.execute(`SELECT cron_schedule, is_enabled FROM scheduler_settings WHERE task_name = 'monthly_invoice' LIMIT 1`);
+        let days = null;
+        let hour = 0;
+        let minute = 10;
+        let isActive = true;
+        if (Array.isArray(rows) && rows.length > 0) {
+            const row = rows[0];
+            isActive = row.is_enabled !== 0 && row.is_enabled !== false;
+            if (row.cron_schedule && typeof row.cron_schedule === 'string') {
+                const [daysPart, timePart] = String(row.cron_schedule).split('|');
+                days = (daysPart || '').split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !Number.isNaN(n));
+                if (timePart) {
+                    const [hStr, mStr] = timePart.split(':');
+                    const h = parseInt(hStr || '0', 10);
+                    const m = parseInt(mStr || '0', 10);
+                    if (!Number.isNaN(h))
+                        hour = Math.max(0, Math.min(23, h));
+                    if (!Number.isNaN(m))
+                        minute = Math.max(0, Math.min(59, m));
+                }
+            }
+        }
+        if (!isActive) {
+            for (const job of this.invoiceGenerationJobs) {
+                try {
+                    job.stop();
+                }
+                catch { }
+            }
+            this.invoiceGenerationJobs = [];
+            console.log('[Invoice Generation] Disabled via settings');
+            return;
+        }
+        this.scheduleInvoiceGeneration(days && days.length ? days : [1], hour, minute);
+    }
+    static async updateInvoiceSchedule(daysOfMonth, isActive = true, hour = 0, minute = 10) {
+        const validDays = Array.from(new Set(daysOfMonth.filter(d => Number.isInteger(d) && d >= 1 && d <= 31)));
+        const daysToSave = validDays.length ? validDays : [1];
+        const h = Math.max(0, Math.min(23, Number(hour)));
+        const m = Math.max(0, Math.min(59, Number(minute)));
+        await pool_1.databasePool.execute(`INSERT INTO scheduler_settings (task_name, cron_schedule, description, is_enabled)
+             VALUES ('monthly_invoice', ?, 'Generate monthly invoices', ?)
+             ON DUPLICATE KEY UPDATE cron_schedule = VALUES(cron_schedule), is_enabled = VALUES(is_enabled), updated_at = CURRENT_TIMESTAMP`, [`${daysToSave.join(',')}|${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`, isActive ? 1 : 0]);
+        if (isActive) {
+            this.scheduleInvoiceGeneration(daysToSave, h, m);
+        }
+        else {
+            for (const job of this.invoiceGenerationJobs) {
+                try {
+                    job.stop();
+                }
+                catch { }
+            }
+            this.invoiceGenerationJobs = [];
+            console.log('[Invoice Generation] Disabled');
+        }
+        return { days: daysToSave, isActive, hour: h, minute: m };
+    }
+    // =============== REMINDER/OVERDUE TOGGLES ===============
+    static schedulePaymentReminders(enable) {
+        if (this.paymentReminderJob) {
+            try {
+                this.paymentReminderJob.stop();
+            }
+            catch { }
+            this.paymentReminderJob = null;
+        }
+        if (!enable) {
+            console.log('[Payment Reminders] Disabled');
+            return;
+        }
+        this.paymentReminderJob = cron.schedule('0 8 * * *', async () => {
+            console.log('Running payment reminders...');
+            try {
+                await this.sendPaymentReminders();
+            }
+            catch (error) {
+                console.error('Error sending payment reminders:', error);
+            }
+        }, { scheduled: true, timezone: 'Asia/Jakarta' });
+        console.log('[Payment Reminders] Enabled at 08:00 daily');
+    }
+    static scheduleOverdueNotifications(enable) {
+        if (this.overdueNotificationJob) {
+            try {
+                this.overdueNotificationJob.stop();
+            }
+            catch { }
+            this.overdueNotificationJob = null;
+        }
+        if (!enable) {
+            console.log('[Overdue Notifications] Disabled');
+            return;
+        }
+        this.overdueNotificationJob = cron.schedule('0 10 * * *', async () => {
+            console.log('Running overdue notifications...');
+            try {
+                await this.sendOverdueNotifications();
+            }
+            catch (error) {
+                console.error('Error sending overdue notifications:', error);
+            }
+        }, { scheduled: true, timezone: 'Asia/Jakarta' });
+        console.log('[Overdue Notifications] Enabled at 10:00 daily');
+    }
+    static async applyReminderScheduleFromDb() {
+        const [rows] = await pool_1.databasePool.execute(`SELECT is_enabled FROM scheduler_settings WHERE task_name = 'payment_reminder' LIMIT 1`);
+        let active = true;
+        if (Array.isArray(rows) && rows.length > 0) {
+            const row = rows[0];
+            active = row.is_enabled !== 0 && row.is_enabled !== false;
+        }
+        this.schedulePaymentReminders(active);
+    }
+    static async applyOverdueScheduleFromDb() {
+        const [rows] = await pool_1.databasePool.execute(`SELECT is_enabled FROM scheduler_settings WHERE task_name = 'overdue_notification' LIMIT 1`);
+        let active = true;
+        if (Array.isArray(rows) && rows.length > 0) {
+            const row = rows[0];
+            active = row.is_enabled !== 0 && row.is_enabled !== false;
+        }
+        this.scheduleOverdueNotifications(active);
+    }
+    static async updateNotificationSettings({ paymentReminderActive, overdueNotificationActive }) {
+        if (typeof paymentReminderActive === 'boolean') {
+            await pool_1.databasePool.execute(`INSERT INTO scheduler_settings (task_name, cron_schedule, description, is_enabled)
+                 VALUES ('payment_reminder', '0 8 * * *', 'Send payment reminders - daily 08:00', ?)
+                 ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled), updated_at = CURRENT_TIMESTAMP`, [paymentReminderActive ? 1 : 0]);
+            this.schedulePaymentReminders(paymentReminderActive);
+        }
+        if (typeof overdueNotificationActive === 'boolean') {
+            await pool_1.databasePool.execute(`INSERT INTO scheduler_settings (task_name, cron_schedule, description, is_enabled)
+                 VALUES ('overdue_notification', '0 10 * * *', 'Send overdue notifications - daily 10:00', ?)
+                 ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled), updated_at = CURRENT_TIMESTAMP`, [overdueNotificationActive ? 1 : 0]);
+            this.scheduleOverdueNotifications(overdueNotificationActive);
+        }
+    }
+    /**
+     * Schedule Auto Isolation jobs for given days of month (default 00:00 Asia/Jakarta)
+     * HARUS dijalankan SEBELUM generate tagihan baru
+     */
+    static scheduleAutoIsolation(daysOfMonth, hour = 0, minute = 0) {
+        // Clear previous jobs
+        for (const job of this.autoIsolationJobs) {
+            try {
+                job.stop();
+            }
+            catch { }
+        }
+        this.autoIsolationJobs = [];
+        const uniqueDays = Array.from(new Set(daysOfMonth.filter(d => Number.isInteger(d) && d >= 1 && d <= 31)));
+        if (uniqueDays.length === 0) {
+            uniqueDays.push(1);
+        }
+        const h = Math.max(0, Math.min(23, Number(hour)));
+        const m = Math.max(0, Math.min(59, Number(minute)));
+        for (const day of uniqueDays) {
+            const expression = `${m} ${h} ${day} * *`;
+            const task = cron.schedule(expression, async () => {
+                console.log(`[Auto Isolation] Running for day ${day} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                try {
+                    // Isolir pelanggan dengan tagihan bulan sebelumnya yang belum lunas
+                    const result = await isolationService_1.IsolationService.autoIsolatePreviousMonthUnpaid();
+                    console.log(`[Auto Isolation] Completed: ${result.isolated} isolated, ${result.failed} failed`);
+                }
+                catch (error) {
+                    console.error('Error auto isolating customers:', error);
+                }
+            }, { scheduled: true, timezone: 'Asia/Jakarta' });
+            this.autoIsolationJobs.push(task);
+        }
+        console.log(`[Auto Isolation] Scheduled for days: ${uniqueDays.join(', ')} at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+    /**
+     * Read Auto Isolation schedule from DB and apply
+     * We store comma-separated days in scheduler_settings.cron_schedule for task_name='auto_isolation'
+     */
+    static async applyAutoIsolationScheduleFromDb() {
+        const [rows] = await pool_1.databasePool.execute(`SELECT cron_schedule, is_enabled FROM scheduler_settings WHERE task_name = 'auto_isolation' LIMIT 1`);
+        let days = null;
+        let isActive = true;
+        let hour = 1;
+        let minute = 0;
+        if (Array.isArray(rows) && rows.length > 0) {
+            const row = rows[0];
+            isActive = row.is_enabled !== 0 && row.is_enabled !== false;
+            if (row.cron_schedule && typeof row.cron_schedule === 'string') {
+                // Support format: "days|HH:MM" or legacy "days"
+                const [daysPart, timePart] = String(row.cron_schedule).split('|');
+                days = (daysPart || '').split(',')
+                    .map((s) => parseInt(s.trim(), 10))
+                    .filter((n) => !Number.isNaN(n));
+                if (timePart) {
+                    const [hStr, mStr] = timePart.split(':');
+                    const h = parseInt(hStr || '0', 10);
+                    const m = parseInt(mStr || '0', 10);
+                    if (!Number.isNaN(h))
+                        hour = Math.max(0, Math.min(23, h));
+                    if (!Number.isNaN(m))
+                        minute = Math.max(0, Math.min(59, m));
+                }
+            }
+        }
+        if (!isActive) {
+            // If disabled, clear jobs
+            for (const job of this.autoIsolationJobs) {
+                try {
+                    job.stop();
+                }
+                catch { }
+            }
+            this.autoIsolationJobs = [];
+            console.log('[Auto Isolation] Disabled via settings');
+            return;
+        }
+        this.scheduleAutoIsolation(days && days.length ? days : [1], hour, minute);
+    }
+    /**
+     * Update Auto Isolation schedule and re-schedule jobs
+     */
+    static async updateAutoIsolationSchedule(daysOfMonth, isActive = true, hour = 1, minute = 0) {
+        const validDays = Array.from(new Set(daysOfMonth.filter(d => Number.isInteger(d) && d >= 1 && d <= 31)));
+        const daysToSave = validDays.length ? validDays : [1];
+        const h = Math.max(0, Math.min(23, Number(hour)));
+        const m = Math.max(0, Math.min(59, Number(minute)));
+        await pool_1.databasePool.execute(`INSERT INTO scheduler_settings (task_name, cron_schedule, description, is_enabled)
+             VALUES ('auto_isolation', ?, 'Auto isolate overdue customers', ?)
+             ON DUPLICATE KEY UPDATE cron_schedule = VALUES(cron_schedule), is_enabled = VALUES(is_enabled), updated_at = CURRENT_TIMESTAMP`, [`${daysToSave.join(',')}|${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`, isActive ? 1 : 0]);
+        if (isActive) {
+            this.scheduleAutoIsolation(daysToSave, h, m);
+        }
+        else {
+            for (const job of this.autoIsolationJobs) {
+                try {
+                    job.stop();
+                }
+                catch { }
+            }
+            this.autoIsolationJobs = [];
+            console.log('[Auto Isolation] Disabled');
+        }
+        return { days: daysToSave, isActive, hour: h, minute: m };
+    }
+}
+exports.SchedulerService = SchedulerService;
+SchedulerService.isInitialized = false;
+SchedulerService.autoIsolationJobs = [];
+SchedulerService.invoiceGenerationJobs = [];
+SchedulerService.paymentReminderJob = null;
+SchedulerService.overdueNotificationJob = null;
+//# sourceMappingURL=scheduler.js.map

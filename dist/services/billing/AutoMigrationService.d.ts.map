@@ -1,0 +1,1 @@
+{"version":3,"file":"AutoMigrationService.d.ts","sourceRoot":"","sources":["../../../src/services/billing/AutoMigrationService.ts"],"names":[],"mappings":"AAMA,qBAAa,oBAAoB;IAE7B,OAAO,CAAC,MAAM,CAAC,KAAK,CAAmC;IACvD,OAAO,CAAC,MAAM,CAAC,KAAK,CAAa;mBAEZ,YAAY;IAWjC;;;;;;;OAOG;WACU,oBAAoB;mBA6CZ,eAAe;mBA+Df,gBAAgB;mBAwDhB,kBAAkB;CAa1C"}

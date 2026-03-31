@@ -1,0 +1,1 @@
+{"version":3,"file":"PackageApiController.d.ts","sourceRoot":"","sources":["../../../src/controllers/api/PackageApiController.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAK5C,qBAAa,oBAAoB;IAC7B;;;OAGG;WACU,qBAAqB,CAAC,GAAG,EAAE,OAAO,EAAE,GAAG,EAAE,QAAQ;IAuB9D;;;OAGG;WACU,iBAAiB,CAAC,GAAG,EAAE,OAAO,EAAE,GAAG,EAAE,QAAQ;CA6B7D"}

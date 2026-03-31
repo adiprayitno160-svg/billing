@@ -1,0 +1,241 @@
+<!-- Actions Row -->
+<div class="flex justify-end mb-4">
+    <a href="/admin/technician/payments/summary"
+        class="inline-flex items-center px-4 py-2 bg-white text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-50 transition-all font-semibold shadow-sm text-sm">
+        <i class="fas fa-history mr-2"></i> Lihat Riwayat Pembayaran &rarr;
+    </a>
+</div>
+
+<!-- Filter Form -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <form class="flex flex-wrap gap-4 items-end" method="GET">
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Pilih Teknisi</label>
+            <select name="technician_id"
+                class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                onchange="this.form.submit()">
+                <option value="">-- Pilih Teknisi --</option>
+                <% if (technicians) { %>
+                    <% technicians.forEach(function(t) { %>
+                        <option value="<%= t.id %>" <%=(selectedTech && selectedTech.id===t.id) ? 'selected' : '' %>>
+                            <%= t.full_name %>
+                        </option>
+                        <% }); %>
+                            <% } %>
+            </select>
+        </div>
+        <div class="w-32">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+            <select name="month" class="w-full border-gray-300 rounded-lg">
+                <% for(let i=1; i <=12; i++) { %>
+                    <option value="<%= i %>" <%=month==i ? 'selected' : '' %>><%= i %>
+                    </option>
+                    <% } %>
+            </select>
+        </div>
+        <div class="w-32">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+            <input type="number" name="year" value="<%= year %>" class="w-full border-gray-300 rounded-lg">
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-search mr-2"></i> Tampilkan
+        </button>
+    </form>
+</div>
+
+<% if (locals.selectedTech && locals.report) { %>
+
+    <% let totalDays=report.attendance.length; let totalWageVal=report.attendance.reduce(function(sum, a) { return sum +
+        Number(a.daily_wage || 0); }, 0); let totalJobsVal=report.jobs.length; %>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <div class="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+                <div class="text-sm text-gray-500">Total Kehadiran</div>
+                <div class="text-3xl font-bold text-gray-900 mt-2">
+                    <%= totalDays %> Hari
+                </div>
+                <div class="text-sm text-green-600 mt-1">
+                    <i class="fas fa-check-circle"></i> Terverifikasi
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+                <div class="text-sm text-gray-500">Total Pekerjaan Selesai</div>
+                <div class="text-3xl font-bold text-blue-600 mt-2">
+                    <%= totalJobsVal %> Job
+                </div>
+                <div class="text-sm text-gray-400 mt-1">Periode ini</div>
+            </div>
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 shadow-sm">
+                <div class="text-sm text-green-800 font-medium">Estimasi Gaji Pokok</div>
+                <div class="text-3xl font-bold text-green-700 mt-2">
+                    Rp <%= Number(totalWageVal).toLocaleString('id-ID') %>
+                </div>
+                <p class="text-xs text-green-600 mt-1">*Belum termasuk bonus/potongan manual</p>
+            </div>
+        </div>
+
+        <!-- Detail Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-6">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="font-bold text-gray-900">Rincian Harian</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+                        <tr>
+                            <th class="px-6 py-3">Tanggal</th>
+                            <th class="px-6 py-3">Status</th>
+                            <th class="px-6 py-3 text-right">Gaji Harian</th>
+                            <th class="px-6 py-3">Jam Masuk</th>
+                            <th class="px-6 py-3">Pekerjaan Selesai</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <% report.attendance.forEach(function(day) { %>
+                            <% let dayDate=new Date(day.date).toISOString().split('T')[0]; let
+                                dayJobs=report.jobs.filter(function(j) { return new
+                                Date(j.completed_at).toISOString().split('T')[0]===dayDate; }); %>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-3 font-medium text-gray-900">
+                                        <%= new Date(day.date).toLocaleDateString('id-ID', { weekday: 'long' ,
+                                            day: 'numeric' , month: 'short' }) %>
+                                    </td>
+                                    <td class="px-6 py-3">
+                                        <span
+                                            class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            <%= day.status %>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 text-right text-gray-900 font-mono">
+                                        Rp <%= Number(day.daily_wage).toLocaleString('id-ID') %>
+                                    </td>
+                                    <td class="px-6 py-3 text-gray-500">
+                                        <%= day.check_in_time ? new Date(day.check_in_time).toLocaleTimeString('id-ID')
+                                            : '-' %>
+                                    </td>
+                                    <td class="px-6 py-3">
+                                        <% if (dayJobs.length> 0) { %>
+                                            <div class="flex flex-col gap-1">
+                                                <% dayJobs.forEach(function(j) { %>
+                                                    <span
+                                                        class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100 truncate max-w-[200px]"
+                                                        title="<%= j.title %>">
+                                                        <%= j.ticket_number %>
+                                                    </span>
+                                                    <% }); %>
+                                            </div>
+                                            <% } else { %>
+                                                <span class="text-gray-400">-</span>
+                                                <% } %>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Approval Actions -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+            <h3 class="font-bold text-gray-900 mb-4">Proses Penggajian</h3>
+            <form id="approvalForm" class="space-y-4 max-w-lg">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Total Gaji Pokok</label>
+                        <input type="text" readonly value="Rp <%= Number(totalWageVal).toLocaleString('id-ID') %>"
+                            class="w-full bg-gray-50 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Tambahan Bonus (Opsional)</label>
+                        <input type="number" id="bonusAmount"
+                            class="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            placeholder="0">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label>
+                    <textarea id="approvalNotes" rows="2" class="w-full border-gray-300 rounded-lg"
+                        placeholder="Contoh: Gaji bulan Januari 2026 fully approved."></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="approveSalary()"
+                        class="flex-1 bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700 transition-all shadow-sm">
+                        <i class="fas fa-check-double mr-2"></i> Setujui & Bayar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <input type="hidden" id="rawTotalWage" value="<%= totalWageVal %>">
+        <input type="hidden" id="rawTotalDays" value="<%= totalDays %>">
+        <input type="hidden" id="rawTotalJobs" value="<%= totalJobsVal %>">
+
+        <% } else if (locals.technician_id) { %>
+            <div class="p-8 text-center bg-white rounded-xl border border-gray-100 shadow-sm text-gray-500 mt-6">
+                <i class="fas fa-search-minus text-4xl mb-3 text-gray-300"></i>
+                <p>Data tidak ditemukan untuk periode ini.</p>
+            </div>
+            <% } else { %>
+                <div class="p-8 text-center bg-white rounded-xl border border-gray-100 shadow-sm text-gray-500 mt-6">
+                    <i class="fas fa-user-clock text-4xl mb-3 text-gray-300"></i>
+                    <p>Silakan pilih teknisi dan periode untuk melihat rekapitulasi.</p>
+                </div>
+                <% } %>
+
+                    <script>
+                        async function approveSalary() {
+                            if (!confirm('Anda yakin ingin menyetujui dan memproses gaji ini?')) return;
+
+                            const btn = document.querySelector('button[onclick="approveSalary()"]');
+                            const originalContent = btn.innerHTML;
+                            btn.disabled = true;
+                            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...';
+
+                            const params = new URLSearchParams(window.location.search);
+                            const technician_id = params.get('technician_id');
+                            const month = params.get('month');
+                            const year = params.get('year');
+
+                            const bonus = document.getElementById('bonusAmount').value || '0';
+                            const notes = document.getElementById('approvalNotes').value || '';
+
+                            const total_attendance = Number(document.getElementById('rawTotalDays').value || 0);
+                            const total_jobs = Number(document.getElementById('rawTotalJobs').value || 0);
+                            const base_salary = Number(document.getElementById('rawTotalWage').value || 0);
+
+                            try {
+                                const res = await fetch('/admin/technician/salary/approve', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        technician_id: technician_id,
+                                        month: month,
+                                        year: year,
+                                        total_attendance: total_attendance,
+                                        total_jobs: total_jobs,
+                                        base_salary: base_salary,
+                                        bonus: bonus,
+                                        notes: notes
+                                    })
+                                });
+
+                                const result = await res.json();
+
+                                if (result.success) {
+                                    alert(result.message);
+                                    window.location.reload();
+                                } else {
+                                    alert(result.error || 'Terjadi kesalahan.');
+                                    btn.disabled = false;
+                                    btn.innerHTML = originalContent;
+                                }
+                            } catch (error) {
+                                console.error(error);
+                                alert('Gagal memproses.');
+                                btn.disabled = false;
+                                btn.innerHTML = originalContent;
+                            }
+                        }
+                    </script>

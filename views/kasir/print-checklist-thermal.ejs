@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Checklist Thermal</title>
+    <style>
+        @page { size: 58mm auto; margin: 0; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; width: 58mm; margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8.5pt;
+            line-height: 1.1;
+            color: #000;
+            width: 48mm;
+            max-width: 58mm;
+            margin: 0 auto;
+            font-weight: normal;
+        }
+        .header { text-align: center; padding-bottom: 3mm; border-bottom: 2px solid #000; margin-bottom: 2mm; text-transform: uppercase; font-weight: bold; font-size: 10pt; }
+        .checklist-item { margin-bottom: 3mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 8pt; }
+        .row .val { font-weight: bold; text-align: right; word-break: break-word; max-width: 60%; }
+        .footer { text-align: center; font-size: 6.5pt; margin-top: 5mm; }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align: center; padding: 10px;">
+        <button onclick="window.print()" style="padding: 10px 20px; cursor: pointer; color: white; background: blue; border: none; border-radius: 4px;">🖨️ Print Checklist</button>
+        <button onclick="window.close()" style="padding: 10px 20px; cursor: pointer; margin-left: 10px; border-radius: 4px;">✖️ Tutup</button>
+    </div>
+
+    <div class="header" style="margin-top: 2mm;">CHECKLIST PEMBAYARAN</div>
+
+    <% if (invoices && invoices.length > 0) {
+        invoices.forEach(invoice => { %>
+            <div class="checklist-item">
+                <div class="row"><span>[ ] LUNAS</span><span class="val">#<%= invoice.invoice_number %></span></div>
+                <div class="row"><span>Nama:</span><span class="val"><%= invoice.customer_name %></span></div>
+                <div class="row"><span>Total:</span><span class="val">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span></div>
+            </div>
+        <% }); %>
+    <% } %>
+
+    <div class="footer">Dicetak pada: <%= new Date().toLocaleString('id-ID') %></div>
+</body>
+</html>

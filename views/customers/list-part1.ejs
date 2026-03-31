@@ -1,0 +1,65 @@
+<div class="max-w-7xl mx-auto space-y-6 pb-20 md:pb-6">
+    <!-- Premium Header -->
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm transition-all duration-300">
+        <div class="flex items-center gap-4">
+            <div
+                class="w-14 h-14 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center text-white">
+                <i class="fas fa-users text-2xl"></i>
+            </div>
+            <div>
+                <nav class="flex text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1"
+                    aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center text-blue-600">Pelanggan</li>
+                        <i class="fas fa-chevron-right mx-2 text-[8px]"></i>
+                        <li class="text-slate-400">Database</li>
+                    </ol>
+                </nav>
+                <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Data Pelanggan</h2>
+            </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="grid grid-cols-2 sm:flex sm:items-center gap-2">
+            <button id="showImportModalBtn"
+                class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 shadow-sm transition-all active:scale-95">
+                <i class="fas fa-file-import"></i> <span class="hidden sm:inline">Import</span>
+            </button>
+            <button id="exportExcelBtn"
+                class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 font-bold text-xs hover:bg-emerald-100 transition-all active:scale-95">
+                <i class="fas fa-file-excel"></i> <span class="hidden sm:inline">Export</span>
+            </button>
+            <div class="col-span-2 sm:col-span-1 flex gap-2">
+                <a href="/customers/new-pppoe"
+                    class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 text-nowrap">
+                    <i class="fas fa-plus"></i> PPPoE
+                </a>
+                <a href="/customers/new-static-ip"
+                    class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-900 shadow-md shadow-slate-200 transition-all active:scale-95 text-nowrap">
+                    <i class="fas fa-plus"></i> IP Statis
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <% let totalVal=0; let activeVal=0; let inactiveVal=0; let isolirVal=0; if (typeof pagination !=='undefined' &&
+            pagination) { totalVal=pagination.total; } else if (typeof stats !=='undefined' && stats) {
+            totalVal=stats.total; } else if (typeof customers !=='undefined' && customers) { totalVal=customers.length;
+            } if (typeof stats !=='undefined' && stats) { activeVal=stats.active; inactiveVal=stats.inactive;
+            isolirVal=stats.isolir; } %>
+            <div class="bg-white/70 backdrop-blur-sm p-5 rounded-3xl border border-white/50 shadow-sm group">
+                <div class="flex items-center gap-4">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm transition-all group-hover:bg-blue-600 group-hover:text-white">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</p>
+                        <p class="text-xl font-black text-slate-800 tracking-tight">
+                            <%= totalVal %>
+                        </p>
+                    </div>
+                </div>
+            </div>

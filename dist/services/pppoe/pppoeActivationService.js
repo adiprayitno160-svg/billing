@@ -1,0 +1,582 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.pppoeActivationService = exports.PPPoEActivationService = void 0;
+const pool_1 = require("../../db/pool");
+const MikrotikService_1 = require("../mikrotik/MikrotikService");
+const UnifiedNotificationService_1 = require("../notification/UnifiedNotificationService");
+const NotificationTemplateService_1 = require("../notification/NotificationTemplateService");
+const invoiceService_1 = require("../billing/invoiceService");
+class PPPoEActivationService {
+    constructor() {
+        // Note: We'll initialize mikrotikService when needed since it requires async initialization
+        this.notificationService = new UnifiedNotificationService_1.UnifiedNotificationService();
+    }
+    async getMikrotikService() {
+        if (!this.mikrotikService) {
+            this.mikrotikService = await MikrotikService_1.MikrotikService.getInstance();
+        }
+        return this.mikrotikService;
+    }
+    /**
+     * Send reminders for upcoming PPPoE blocks (Point 3)
+     */
+    async sendReminders() {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            // Get subscriptions that will be blocked in 3 days
+            const [subscriptions] = await connection.execute(`SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 LEFT JOIN (
+                     SELECT subscription_id, MAX(id) as invoice_id 
+                     FROM invoices 
+                     WHERE status != 'paid' 
+                     GROUP BY subscription_id
+                 ) inv ON s.id = inv.subscription_id
+                 WHERE s.status = 'active' 
+                 AND s.is_activated = TRUE
+                 AND s.next_block_date = DATE_ADD(CURDATE(), INTERVAL 3 DAY)`);
+            console.log(`[PPPoEActivationService] Sending reminders for ${subscriptions.length} subscriptions`);
+            for (const sub of subscriptions) {
+                try {
+                    await UnifiedNotificationService_1.UnifiedNotificationService.queueNotification({
+                        customer_id: sub.customer_id,
+                        notification_type: 'payment_reminder',
+                        variables: {
+                            customer_name: sub.customer_name,
+                            service_type: 'PPPoE',
+                            block_date: new Date(sub.next_block_date).toLocaleDateString('id-ID'),
+                            amount: NotificationTemplateService_1.NotificationTemplateService.formatCurrency(sub.price),
+                            total_amount: NotificationTemplateService_1.NotificationTemplateService.formatCurrency(sub.price),
+                            customer_code: sub.customer_code
+                        },
+                        attachment_path: sub.invoice_id ? await UnifiedNotificationService_1.UnifiedNotificationService.generateInvoicePdf(sub.invoice_id) : undefined,
+                        channels: ['whatsapp']
+                    });
+                }
+                catch (err) {
+                    console.error(`[PPPoEActivationService] Error sending reminder for sub ${sub.id}:`, err);
+                }
+            }
+        }
+        finally {
+            connection.release();
+        }
+    }
+    /**
+     * Send H-7 reminders for upcoming PPPoE blocks
+     */
+    async sendH7Reminders() {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            // Get subscriptions that will be blocked in 7 days
+            const [subscriptions] = await connection.execute(`SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 LEFT JOIN (
+                     SELECT subscription_id, MAX(id) as invoice_id 
+                     FROM invoices 
+                     WHERE status != 'paid' 
+                     GROUP BY subscription_id
+                 ) inv ON s.id = inv.subscription_id
+                 WHERE s.status = 'active' 
+                 AND s.is_activated = TRUE
+                 AND s.next_block_date = DATE_ADD(CURDATE(), INTERVAL 7 DAY)`);
+            console.log(`[PPPoEActivationService] Sending H-7 reminders for ${subscriptions.length} subscriptions`);
+            for (const sub of subscriptions) {
+                try {
+                    await UnifiedNotificationService_1.UnifiedNotificationService.queueNotification({
+                        customer_id: sub.customer_id,
+                        notification_type: 'payment_reminder',
+                        variables: {
+                            customer_name: sub.customer_name,
+                            service_type: 'PPPoE',
+                            block_date: new Date(sub.next_block_date).toLocaleDateString('id-ID'),
+                            amount: NotificationTemplateService_1.NotificationTemplateService.formatCurrency(sub.price),
+                            total_amount: NotificationTemplateService_1.NotificationTemplateService.formatCurrency(sub.price),
+                            customer_code: sub.customer_code,
+                            note: 'Peringatan H-7 sebelum isolir otomatis.'
+                        },
+                        attachment_path: sub.invoice_id ? await UnifiedNotificationService_1.UnifiedNotificationService.generateInvoicePdf(sub.invoice_id) : undefined,
+                        channels: ['whatsapp']
+                    });
+                }
+                catch (err) {
+                    console.error(`[PPPoEActivationService] Error sending H-7 reminder for sub ${sub.id}:`, err);
+                }
+            }
+        }
+        finally {
+            connection.release();
+        }
+    }
+    /**
+     * Activate PPPoE subscription manually
+     * @param subscriptionId
+     * @param userId
+     * @returns
+     */
+    async activateSubscription(subscriptionId, userId, customActivationDate) {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Get subscription details
+            const [subscriptionRows] = await connection.execute(`SELECT s.*, c.name as customer_name, c.phone, c.customer_code, 
+                        c.pppoe_username, c.pppoe_password, c.connection_type,
+                        pp.name as package_name, pp.max_limit_upload, pp.max_limit_download
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 JOIN pppoe_packages pp ON s.package_id = pp.id
+                 WHERE s.id = ? AND s.status = 'inactive'`, [subscriptionId]);
+            const subscription = subscriptionRows[0];
+            if (!subscription) {
+                throw new Error('Subscription tidak ditemukan atau sudah aktif');
+            }
+            if (subscription.connection_type !== 'pppoe') {
+                throw new Error('Hanya paket PPPoE yang bisa diaktifkan');
+            }
+            // --- 0. Mark Invoice as PAID (Consolidated logic for prepaid flow) ---
+            // Check for unpaid invoices for this subscription
+            const [unpaidInvoices] = await connection.execute('SELECT id, total_amount, invoice_number FROM invoices WHERE subscription_id = ? AND status != "paid"', [subscriptionId]);
+            for (const inv of unpaidInvoices) {
+                // Get current date for payment_date
+                const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                // Record payment
+                const [payResult] = await connection.execute(`INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_by, created_at)
+                     VALUES (?, 'cash', ?, NOW(), 'Aktivasi Layanan', ?, NOW())`, [inv.id, inv.total_amount, userId]);
+                // Update invoice
+                await connection.execute(`UPDATE invoices SET status = 'paid', paid_amount = total_amount, remaining_amount = 0, 
+                     last_payment_date = NOW(), updated_at = NOW() WHERE id = ?`, [inv.id]);
+                console.log(`[PPPoEActivationService] Invoice ${inv.invoice_number} automatically marked as PAID during activation.`);
+                // Trigger notification (PDF Receipt)
+                try {
+                    await UnifiedNotificationService_1.UnifiedNotificationService.notifyPaymentReceived(payResult.insertId, true);
+                }
+                catch (notifErr) {
+                    console.error('[PPPoEActivationService] Error sending paid notification:', notifErr);
+                }
+            }
+            // Generate PPPoE credentials if not exists
+            let pppoeUsername = subscription.pppoe_username;
+            let pppoePassword = subscription.pppoe_password;
+            if (!pppoeUsername || !pppoePassword) {
+                pppoeUsername = `${subscription.customer_code}_${Date.now().toString().slice(-4)}`;
+                pppoePassword = Math.random().toString(36).slice(-8);
+            }
+            // Set activation date and next block date
+            const activationDate = customActivationDate ? new Date(customActivationDate) : new Date();
+            const nextBlockDate = new Date(activationDate);
+            nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
+            // Handle end-of-month dates
+            if (activationDate.getDate() > 28) {
+                const lastDay = new Date(nextBlockDate.getFullYear(), nextBlockDate.getMonth() + 1, 0).getDate();
+                nextBlockDate.setDate(Math.min(activationDate.getDate(), lastDay));
+            }
+            else {
+                nextBlockDate.setDate(activationDate.getDate());
+            }
+            // Update subscription
+            await connection.execute(`UPDATE subscriptions 
+                 SET activation_date = ?, is_activated = TRUE, next_block_date = ?, status = 'active',
+                     updated_at = NOW()
+                 WHERE id = ?`, [activationDate.toISOString().split('T')[0], nextBlockDate.toISOString().split('T')[0], subscriptionId]);
+            // Update customer PPPoE credentials
+            await connection.execute(`UPDATE customers 
+                 SET pppoe_username = ?, pppoe_password = ?, status = 'active', updated_at = NOW()
+                 WHERE id = ?`, [pppoeUsername, pppoePassword, subscription.customer_id]);
+            // Create PPPoE account in MikroTik
+            const mikrotikResult = await this.createPPPoEAccountInMikrotik(subscription.customer_id, pppoeUsername, pppoePassword, subscription.max_limit_upload, subscription.max_limit_download, subscription.package_name);
+            // Log activation
+            await connection.execute(`INSERT INTO activation_logs (customer_id, subscription_id, action, reason, performed_by, mikrotik_response, created_at)
+                 VALUES (?, ?, 'activate', 'Manual activation by admin', ?, ?, NOW())`, [subscription.customer_id, subscriptionId, userId, JSON.stringify(mikrotikResult)]);
+            await connection.commit();
+            console.log(`[PPPoEActivationService] ✅ Transaction committed for subscription ${subscriptionId}`);
+            // Generate invoice immediately after activation
+            try {
+                const { InvoiceService } = await Promise.resolve().then(() => __importStar(require('../billing/invoiceService')));
+                const currentDate = new Date();
+                const period = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+                console.log(`[PPPoEActivationService] 🧾 Generating immediate invoice for customer ${subscription.customer_id} period ${period}`);
+                const invoiceIds = await InvoiceService.generateMonthlyInvoices(period, subscription.customer_id);
+                if (invoiceIds && invoiceIds.length > 0) {
+                    console.log(`[PPPoEActivationService] ✅ Immediate invoice created: ${invoiceIds[0]}`);
+                    // Send notification for the newly created invoice
+                    await UnifiedNotificationService_1.UnifiedNotificationService.notifyInvoiceCreated(invoiceIds[0], true);
+                }
+            }
+            catch (invErr) {
+                console.error('[PPPoEActivationService] ❌ Failed to generate immediate invoice:', invErr);
+            }
+            // Send notification to customer (Account creation info)
+            await UnifiedNotificationService_1.UnifiedNotificationService.queueNotification({
+                customer_id: subscription.customer_id,
+                notification_type: 'service_unblocked',
+                variables: {
+                    customer_name: subscription.customer_name,
+                    service_type: 'PPPoE',
+                    package_name: subscription.package_name,
+                    activation_date: activationDate.toLocaleDateString('id-ID'),
+                    next_payment_date: nextBlockDate.toLocaleDateString('id-ID'),
+                    pppoe_username: pppoeUsername,
+                    pppoe_password: pppoePassword
+                },
+                channels: ['whatsapp'],
+                send_immediately: true
+            });
+            return {
+                success: true,
+                message: `Subscription ${subscriptionId} berhasil diaktifkan. Akun PPPoE: ${pppoeUsername}`
+            };
+        }
+        catch (error) {
+            await connection.rollback();
+            console.error('Error activating subscription:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Gagal mengaktifkan subscription'
+            };
+        }
+        finally {
+            connection.release();
+        }
+    }
+    /**
+     * Send activation invoice
+     */
+    async sendActivationInvoice(subscriptionId, userId) {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Get subscription and customer info
+            const [rows] = await connection.execute(`SELECT s.*, c.name as customer_name, c.phone, c.customer_code, 
+                        pp.name as package_name, pp.price as package_price
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 JOIN pppoe_packages pp ON s.package_id = pp.id
+                 WHERE s.id = ?`, [subscriptionId]);
+            const subscription = rows[0];
+            if (!subscription)
+                throw new Error('Subscription tidak ditemukan');
+            // 1. Check if unpaid invoice already exists
+            const [existing] = await connection.execute('SELECT id FROM invoices WHERE subscription_id = ? AND status != "paid" LIMIT 1', [subscriptionId]);
+            let invoiceId;
+            if (existing.length > 0) {
+                invoiceId = existing[0].id;
+                console.log(`[PPPoEActivationService] Unpaid invoice already exists for sub ${subscriptionId}: ${invoiceId}`);
+            }
+            else {
+                // 2. Create new invoice via InvoiceService
+                const { InvoiceService } = await Promise.resolve().then(() => __importStar(require('../billing/invoiceService')));
+                const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+                invoiceId = await InvoiceService.createInvoice({
+                    customer_id: subscription.customer_id,
+                    subscription_id: subscriptionId,
+                    period: period,
+                    due_date: new Date().toISOString().split('T')[0],
+                    subtotal: subscription.package_price,
+                    total_amount: subscription.package_price,
+                    notes: 'Tagihan Aktivasi Perdana',
+                    status: 'sent'
+                }, [{
+                        description: `Aktivasi Paket ${subscription.package_name}`,
+                        quantity: 1,
+                        unit_price: subscription.package_price,
+                        total_price: subscription.package_price
+                    }]);
+            }
+            await connection.commit();
+            // 3. Trigger WhatsApp notification (which will include PDF link if configured)
+            await UnifiedNotificationService_1.UnifiedNotificationService.notifyInvoiceCreated(invoiceId, true);
+            return {
+                success: true,
+                message: 'Tagihan aktivasi berhasil dikirim via WhatsApp',
+                invoiceId
+            };
+        }
+        catch (error) {
+            await connection.rollback();
+            console.error('Error sending activation invoice:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Gagal mengirim tagihan'
+            };
+        }
+        finally {
+            connection.release();
+        }
+    }
+    /**
+     * Deactivate PPPoE subscription
+     * @param subscriptionId
+     * @param userId
+     * @param reason
+     * @returns
+     */
+    async deactivateSubscription(subscriptionId, userId, reason) {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Get subscription details
+            const [subscriptionRows] = await connection.execute(`SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 WHERE s.id = ? AND s.status = 'active'`, [subscriptionId]);
+            const subscription = subscriptionRows[0];
+            if (!subscription) {
+                throw new Error('Subscription tidak ditemukan atau tidak aktif');
+            }
+            // Remove PPPoE account from MikroTik
+            const mikrotikResult = await this.removePPPoEAccountFromMikrotik(subscription.pppoe_username);
+            // Update subscription
+            await connection.execute(`UPDATE subscriptions 
+                 SET status = 'inactive', is_activated = FALSE, activation_date = NULL, next_block_date = NULL,
+                     updated_at = NOW()
+                 WHERE id = ?`, [subscriptionId]);
+            // Update customer
+            await connection.execute(`UPDATE customers 
+                 SET pppoe_username = NULL, pppoe_password = NULL, status = 'inactive', updated_at = NOW()
+                 WHERE id = ?`, [subscription.customer_id]);
+            // Log deactivation
+            await connection.execute(`INSERT INTO activation_logs (customer_id, subscription_id, action, reason, performed_by, mikrotik_response, created_at)
+                 VALUES (?, ?, 'deactivate', ?, ?, ?, NOW())`, [subscription.customer_id, subscriptionId, reason, userId, JSON.stringify(mikrotikResult)]);
+            await connection.commit();
+            // Send notification to customer
+            await UnifiedNotificationService_1.UnifiedNotificationService.queueNotification({
+                customer_id: subscription.customer_id,
+                notification_type: 'service_blocked',
+                variables: {
+                    customer_name: subscription.customer_name,
+                    service_type: 'PPPoE',
+                    reason: reason,
+                    customer_code: subscription.customer_code,
+                    pppoe_username: subscription.pppoe_username
+                },
+                channels: ['whatsapp']
+            });
+            return {
+                success: true,
+                message: `Subscription ${subscriptionId} berhasil dinonaktifkan`
+            };
+        }
+        catch (error) {
+            await connection.rollback();
+            console.error('Error deactivating subscription:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Gagal menonaktifkan subscription'
+            };
+        }
+        finally {
+            connection.release();
+        }
+    }
+    /**
+     * Check and process automatic blocking based on activation date
+     */
+    async processAutoBlocking() {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            // Get subscriptions that need to be blocked
+            const [subscriptions] = await connection.execute(`SELECT s.*, c.name as customer_name, c.phone, c.customer_code, c.pppoe_username, 
+                        GREATEST(COALESCE(c.grace_period, 0), COALESCE(c.custom_isolate_days_after_deadline, 0)) as effective_grace
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 WHERE s.status = 'active' 
+                 AND s.is_activated = TRUE
+                 AND DATE_ADD(s.next_block_date, INTERVAL GREATEST(COALESCE(c.grace_period, 0), COALESCE(c.custom_isolate_days_after_deadline, 0)) DAY) <= CURDATE()
+                 -- Skip if already paid for current month
+                 AND s.customer_id NOT IN (
+                     SELECT DISTINCT customer_id 
+                     FROM invoices 
+                     WHERE status = 'paid' 
+                     AND (period = DATE_FORMAT(CURDATE(), '%Y-%m') OR period = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m'))
+                 )
+                 -- Only auto-block if the customer has an active unpaid invoice!
+                 -- If all unpaid invoices were deleted by the admin, they should NOT be blocked.
+                 AND EXISTS (
+                     SELECT 1 FROM invoices i
+                     WHERE i.customer_id = s.customer_id 
+                     AND i.status NOT IN ('paid', 'cancelled')
+                 )
+                 -- Skip if there is a pending manual verification ("Kesepakatan Final" Point 2)
+                 AND s.customer_id NOT IN (
+                     SELECT DISTINCT customer_id FROM manual_payment_verifications WHERE status = 'pending'
+                 )`);
+            console.log(`[PPPoEActivationService] Found ${subscriptions.length} subscriptions to block`);
+            for (const sub of subscriptions) {
+                try {
+                    console.log(`[PPPoEActivationService] Blocking subscription ${sub.id} for customer ${sub.customer_name}`);
+                    // Block the customer by disabling PPPoE user
+                    const mikrotikService = await this.getMikrotikService();
+                    if (sub.pppoe_username) {
+                        await mikrotikService.updatePPPoEUserByUsername(sub.pppoe_username, { disabled: true });
+                    }
+                    // Update next block date
+                    const nextBlockDate = new Date(sub.next_block_date);
+                    nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
+                    // Handle end-of-month dates
+                    if (new Date(sub.activation_date).getDate() > 28) {
+                        const lastDay = new Date(nextBlockDate.getFullYear(), nextBlockDate.getMonth() + 1, 0).getDate();
+                        nextBlockDate.setDate(Math.min(new Date(sub.activation_date).getDate(), lastDay));
+                    }
+                    else {
+                        nextBlockDate.setDate(new Date(sub.activation_date).getDate());
+                    }
+                    await connection.execute(`UPDATE subscriptions 
+                         SET next_block_date = ?
+                         WHERE id = ?`, [nextBlockDate.toISOString().split('T')[0], sub.id]);
+                    // Log the auto-blocking action
+                    await connection.execute(`INSERT INTO activation_logs (subscription_id, customer_id, action, reason)
+                         VALUES (?, ?, 'auto_block', ?)`, [sub.id, sub.customer_id, 'Automatic block due to late payment']);
+                    // Fetch unpaid months for notification info
+                    const [unpaidInvoices] = await connection.execute(`SELECT period, total_amount, remaining_amount FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled') ORDER BY period ASC`, [sub.customer_id]);
+                    const periods = unpaidInvoices.map(inv => invoiceService_1.InvoiceService.getMonthName(inv.period));
+                    const periodList = periods.join(', ');
+                    // Send notification to customer
+                    await UnifiedNotificationService_1.UnifiedNotificationService.queueNotification({
+                        customer_id: sub.customer_id,
+                        notification_type: 'service_blocked',
+                        variables: {
+                            customer_name: sub.customer_name,
+                            service_type: 'PPPoE',
+                            reason: `Tunggakan pembayaran bulan: ${periodList}`,
+                            customer_code: sub.customer_code,
+                            pppoe_username: sub.pppoe_username
+                        },
+                        channels: ['whatsapp']
+                    });
+                    // [Fix] ADD NOTIFICATION TO ADMIN
+                    const adminMsg = `🚨 *NOTIFIKASI AUTO-ISOLIR*\n\n` +
+                        `👤 Pelanggan: *${sub.customer_name}*\n` +
+                        `🆔 Kode: ${sub.customer_code}\n` +
+                        `📦 Layanan: PPPoE (${sub.pppoe_username})\n` +
+                        `📅 Tunggakan: *${periodList}*\n\n` +
+                        `Sistem telah memblokir akses internet pelanggan di MikroTik secara otomatis.`;
+                    await UnifiedNotificationService_1.UnifiedNotificationService.broadcastToAdmins(adminMsg).catch(e => console.error('Failed to notify admin about block:', e));
+                }
+                catch (error) {
+                    console.error(`[PPPoEActivationService] Error blocking subscription ${sub.id}:`, error);
+                }
+            }
+        }
+        finally {
+            connection.release();
+        }
+    }
+    /**
+     * Reset next block date when customer pays
+     * @param customerId
+     */
+    async resetNextBlockDate(customerId) {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            // Get active subscription
+            const [subscriptionRows] = await connection.execute(`SELECT id, activation_date, c.pppoe_username 
+                 FROM subscriptions s
+                 JOIN customers c ON s.customer_id = c.id
+                 WHERE s.customer_id = ? AND s.status = 'active' AND s.is_activated = TRUE`, [customerId]);
+            const subscription = subscriptionRows[0];
+            if (!subscription)
+                return;
+            // Calculate new next block date
+            const activationDate = new Date(subscription.activation_date);
+            const nextBlockDate = new Date();
+            nextBlockDate.setMonth(nextBlockDate.getMonth() + 1);
+            // Set to same day as activation date
+            if (activationDate.getDate() > 28) {
+                const lastDay = new Date(nextBlockDate.getFullYear(), nextBlockDate.getMonth() + 1, 0).getDate();
+                nextBlockDate.setDate(Math.min(activationDate.getDate(), lastDay));
+            }
+            else {
+                nextBlockDate.setDate(activationDate.getDate());
+            }
+            await connection.execute(`UPDATE subscriptions 
+                 SET next_block_date = ?
+                 WHERE id = ?`, [nextBlockDate.toISOString().split('T')[0], subscription.id]);
+            // Log the date reset action
+            await connection.execute(`INSERT INTO activation_logs (subscription_id, customer_id, action, reason)
+                 VALUES (?, ?, 'reset_date', ?)`, [subscription.id, customerId, `Date reset to ${nextBlockDate.toISOString().split('T')[0]} after payment`]);
+            // Re-enable the PPPoE user if it was disabled
+            if (subscription.pppoe_username) {
+                const mikrotikService = await this.getMikrotikService();
+                await mikrotikService.updatePPPoEUserByUsername(subscription.pppoe_username, { disabled: false });
+                // Also force disconnect to apply changes immediately
+                try {
+                    await mikrotikService.disconnectPPPoEUser(subscription.pppoe_username);
+                }
+                catch (e) {
+                    // Ignore if fail to disconnect, user will connect eventually
+                }
+            }
+            console.log(`[PPPoEActivationService] Reset next block date for customer ${customerId} to ${nextBlockDate.toISOString().split('T')[0]}`);
+        }
+        finally {
+            connection.release();
+        }
+    }
+    // --- Private Methods ---
+    async createPPPoEAccountInMikrotik(customerId, username, password, maxLimitUpload, maxLimitDownload, packageName) {
+        try {
+            const mikrotikService = await this.getMikrotikService();
+            const result = await mikrotikService.createPPPoEUser({
+                name: username,
+                password: password,
+                profile: maxLimitUpload + '/' + maxLimitDownload, // Combine upload/download as profile
+                comment: `Customer: ${packageName} (ID: ${customerId})`
+            });
+            return { success: result, message: result ? 'PPPoE account created successfully' : 'Failed to create PPPoE account' };
+        }
+        catch (error) {
+            console.error('Error creating PPPoE account in MikroTik:', error);
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        }
+    }
+    async removePPPoEAccountFromMikrotik(username) {
+        try {
+            const mikrotikService = await this.getMikrotikService();
+            const result = await mikrotikService.updatePPPoEUserByUsername(username, { disabled: true });
+            return { success: result, message: result ? 'PPPoE account disabled successfully' : 'Failed to disable PPPoE account' };
+        }
+        catch (error) {
+            console.error('Error disabling PPPoE account in MikroTik:', error);
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        }
+    }
+}
+exports.PPPoEActivationService = PPPoEActivationService;
+// Export singleton instance
+exports.pppoeActivationService = new PPPoEActivationService();
+//# sourceMappingURL=pppoeActivationService.js.map

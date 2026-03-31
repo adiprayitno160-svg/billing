@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice Template</title>
+    <style>
+        @page { size: 58mm auto; margin: 0; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; width: 58mm; margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8pt;
+            line-height: 1.1;
+            color: #000;
+            width: 55mm;
+            max-width: 58mm;
+            font-weight: normal;
+            padding-left: 2.5mm; /* Fix left cutoff */
+        }
+        .header { text-align: center; padding-bottom: 2mm; text-transform: uppercase; font-weight: bold; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 7.5pt; }
+        .row .val { font-weight: bold; text-align: right; }
+        .items-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+        .items-table th { border-bottom: 1px dashed #000; padding: 1mm 0; text-align: left; }
+        .items-table td { padding: 1mm 0; }
+        .grand-total { border-top: 2px solid #000; padding-top: 1mm; margin-top: 1mm; font-weight: bold; font-size: 9.5pt; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="header">INVOICE</div>
+
+    <div class="row"><span>Nama:</span><span class="val"><%= invoice.customer_name %></span></div>
+    <div class="row"><span>No. Ref:</span><span class="val">#<%= invoice.invoice_number %></span></div>
+
+    <hr style="border: none; border-top: 1px dashed #000; margin: 2mm 0;">
+
+    <table class="items-table">
+        <thead><tr><th>Deskripsi</th><th style="text-align: right;">Total</th></tr></thead>
+        <tbody>
+            <% (invoice.items || []).forEach(item => { %>
+                <tr><td><%= item.description %></td><td style="text-align: right;">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %></td></tr>
+            <% }); %>
+        </tbody>
+    </table>
+
+    <div class="grand-total"><span>TOTAL</span><span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span></div>
+</body>
+</html>

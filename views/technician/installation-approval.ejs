@@ -1,0 +1,348 @@
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-6 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-green-900">✅ Approval Pemasangan</h1>
+                <p class="text-green-600 mt-1">Verifikasi hasil pemasangan & kirim tagihan aktivasi</p>
+            </div>
+            <a href="/technician"
+                class="px-4 py-2 bg-white border border-green-200 text-green-700 rounded-lg hover:bg-green-50 transition-all">
+                ← Dashboard Teknisi
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl border border-yellow-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-yellow-600">Menunggu Approval</p>
+                    <p class="text-3xl font-bold text-yellow-900">
+                        <%= stats.pending_approval || 0 %>
+                    </p>
+                </div>
+                <div class="p-3 bg-yellow-100 rounded-lg">⏳</div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-green-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-green-600">Disetujui Hari Ini</p>
+                    <p class="text-3xl font-bold text-green-900">
+                        <%= stats.approved_today || 0 %>
+                    </p>
+                </div>
+                <div class="p-3 bg-green-100 rounded-lg">✅</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Installation List -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-900">Pemasangan Selesai - Menunggu Approval</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Tiket</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Pelanggan</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Alamat</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Teknisi</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase">Fee</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase">Bukti</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <% if (installations && installations.length> 0) { %>
+                        <% installations.forEach(inst=> { %>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-4 py-3">
+                                    <span class="text-sm font-mono font-bold text-blue-600">
+                                        <%= inst.ticket_number %>
+                                    </span>
+                                    <p class="text-xs text-slate-500">
+                                        <%= inst.job_type_name || 'Pemasangan' %>
+                                    </p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <p class="font-semibold text-slate-900">
+                                        <%= inst.customer_name %>
+                                    </p>
+                                    <p class="text-xs text-slate-500">
+                                        <%= inst.customer_phone %>
+                                    </p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <p class="text-sm text-slate-700 max-w-xs truncate">
+                                        <%= inst.address %>
+                                    </p>
+                                    <% if (inst.coordinates) { %>
+                                        <a href="https://maps.google.com/?q=<%= inst.coordinates %>" target="_blank"
+                                            class="text-xs text-blue-500 hover:underline">📍 Lihat Map</a>
+                                        <% } %>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="text-sm font-medium text-slate-900">
+                                        <%= inst.technician_name || '-' %>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="font-bold text-green-600">Rp <%=
+                                            Number(inst.total_fee).toLocaleString('id-ID') %></span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <% if (inst.completion_proof) { %>
+                                        <a href="<%= inst.completion_proof %>" target="_blank" class="inline-block">
+                                            <img src="<%= inst.completion_proof %>"
+                                                class="h-12 w-12 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform">
+                                        </a>
+                                        <% } else { %>
+                                            <span class="text-xs text-slate-400 italic">No img</span>
+                                            <% } %>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <button
+                                        onclick="openApprovalModal(<%= inst.job_id %>, '<%= inst.ticket_number %>', '<%= inst.customer_name %>', <%= inst.total_fee %>)"
+                                        class="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-all">
+                                        ✅ Approve
+                                    </button>
+                                </td>
+                            </tr>
+                            <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-8 text-center text-slate-500">
+                                            Tidak ada pemasangan yang menunggu approval
+                                        </td>
+                                    </tr>
+                                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Approval Modal -->
+<div id="approvalModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeApprovalModal()"></div>
+    <div
+        class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-slate-900">✅ Approval Pemasangan</h2>
+            <button onclick="closeApprovalModal()" class="text-slate-400 hover:text-slate-600"><i
+                    class="fas fa-times"></i></button>
+        </div>
+
+        <form id="approvalForm" onsubmit="submitApproval(event)">
+            <input type="hidden" id="modalJobId">
+
+            <!-- Customer Info -->
+            <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                <p class="text-sm text-blue-600">Tiket: <span id="modalTicket" class="font-bold"></span></p>
+                <p class="text-lg font-bold text-blue-900" id="modalCustomerName"></p>
+            </div>
+
+            <!-- Activation & Package -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Paket Internet</label>
+                    <select id="packageSelect" required
+                        class="w-full border-slate-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <option value="">-- Pilih Paket --</option>
+                        <% if (packages) { %>
+                            <% packages.forEach(pkg=> { %>
+                                <option value="<%= pkg.id %>">
+                                    <%= pkg.name %> - Rp <%= Number(pkg.price).toLocaleString('id-ID') %>
+                                </option>
+                                <% }); %>
+                                    <% } %>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Biaya Aktivasi (Registrasi)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2.5 text-slate-400">Rp</span>
+                        <input type="number" id="activationFee" value="100000" required
+                            class="w-full pl-10 border-slate-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee Distribution -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-sm font-medium text-slate-700">Pembagian Fee Teknisi</label>
+                    <span class="text-sm text-green-600">Total: Rp <span id="totalFeeDisplay">0</span></span>
+                </div>
+                <div id="technicianAssignments" class="space-y-2">
+                    <!-- Dynamically added -->
+                </div>
+                <button type="button" onclick="addTechnicianRow()" class="mt-2 text-sm text-blue-600 hover:underline">+
+                    Tambah Teknisi</button>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Catatan QC (Opsional)</label>
+                <textarea id="approvalNotes" rows="2" class="w-full border-slate-300 rounded-lg"
+                    placeholder="Catatan tambahan hasil QC..."></textarea>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+                <button type="button" onclick="rejectInstallation()"
+                    class="px-6 py-2.5 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200 transition-all">
+                    ❌ Tolak
+                </button>
+                <button type="submit"
+                    class="flex-1 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-green-200">
+                    ✅ Setujui & Kirim Tagihan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentJobId = null;
+    let totalFee = 0;
+    const technicians = <% - JSON.stringify(technicians || []) %>;
+
+    function openApprovalModal(jobId, ticket, customerName, fee) {
+        currentJobId = jobId;
+        totalFee = fee;
+        document.getElementById('modalJobId').value = jobId;
+        document.getElementById('modalTicket').textContent = ticket;
+        document.getElementById('modalCustomerName').textContent = customerName;
+        document.getElementById('totalFeeDisplay').textContent = Number(fee).toLocaleString('id-ID');
+
+        // Clear and add one technician row
+        document.getElementById('technicianAssignments').innerHTML = '';
+        addTechnicianRow();
+
+        document.getElementById('approvalModal').classList.remove('hidden');
+    }
+
+    function closeApprovalModal() {
+        document.getElementById('approvalModal').classList.add('hidden');
+        currentJobId = null;
+    }
+
+    function addTechnicianRow() {
+        const container = document.getElementById('technicianAssignments');
+        const rowIndex = container.children.length;
+
+        let options = '<option value="">-- Pilih Teknisi --</option>';
+        technicians.forEach(t => {
+            options += `<option value="${t.id}">${t.full_name}</option>`;
+        });
+
+        const row = document.createElement('div');
+        row.className = 'tech-row flex gap-2 items-center';
+        row.innerHTML = `
+            <select class="tech-select flex-1 border-slate-300 rounded-lg text-sm" required>
+                ${options}
+            </select>
+            <select class="role-select w-24 border-slate-300 rounded-lg text-sm">
+                <option value="leader">Leader</option>
+                <option value="member" selected>Member</option>
+            </select>
+            <input type="number" class="fee-input w-28 border-slate-300 rounded-lg text-sm" placeholder="Fee" required>
+            <button type="button" onclick="this.parentElement.remove();" class="text-red-500 hover:text-red-700 px-2">✕</button>
+        `;
+        container.appendChild(row);
+
+        // Auto-fill fee if only one tech
+        if (container.children.length === 1) {
+            row.querySelector('.fee-input').value = totalFee;
+            row.querySelector('.role-select').value = 'leader';
+        }
+    }
+
+    async function submitApproval(e) {
+        e.preventDefault();
+        const jobId = document.getElementById('modalJobId').value;
+        const packageId = document.getElementById('packageSelect').value;
+        const activationFee = document.getElementById('activationFee').value;
+        const notes = document.getElementById('approvalNotes').value;
+
+        // Collect technician assignments
+        const container = document.getElementById('technicianAssignments');
+        const rows = container.querySelectorAll('.tech-row');
+        const assignments = [];
+        let sumFee = 0;
+
+        rows.forEach(row => {
+            const techId = row.querySelector('.tech-select').value;
+            const role = row.querySelector('.role-select').value;
+            const fee = row.querySelector('.fee-input').value;
+            if (techId) {
+                assignments.push({ technician_id: techId, role, fee_amount: Number(fee) });
+                sumFee += Number(fee);
+            }
+        });
+
+        if (assignments.length === 0) {
+            alert('Pilih minimal 1 teknisi');
+            return;
+        }
+
+        if (sumFee !== totalFee) {
+            if (!confirm(`Total pembagian fee (Rp ${sumFee.toLocaleString()}) tidak sama dengan fee tiket (Rp ${totalFee.toLocaleString()}). Lanjutkan?`)) {
+                return;
+            }
+        }
+
+        try {
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '⌛ Memproses...';
+
+            const res = await fetch('/api/technician/installations/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jobId, packageId, activationFee, technicianAssignments: assignments, notes })
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('Pemasangan disetujui! Tagihan aktivasi telah dikirim ke pelanggan.');
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+                btn.disabled = false;
+                btn.innerHTML = '✅ Setujui & Kirim Tagihan';
+            }
+        } catch (err) {
+            alert('Gagal menghubungi server');
+        }
+    }
+
+    async function rejectInstallation() {
+        const reason = prompt('Alasan penolakan:');
+        if (!reason) return;
+
+        try {
+            const res = await fetch('/api/technician/installations/reject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jobId: currentJobId, reason })
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('Pemasangan ditolak');
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (err) {
+            alert('Gagal menghubungi server');
+        }
+    }
+</script>
+
+<%- include('../partials/footer') %>

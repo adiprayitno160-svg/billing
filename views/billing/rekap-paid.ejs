@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>REKAP PEMBAYARAN - <%= new Date().toLocaleDateString('id-ID') %></title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #333; margin: 20mm 15mm; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 3px double #333; padding-bottom: 10px; }
+        .header h1 { margin: 0; font-size: 18pt; text-transform: uppercase; }
+        .header p { margin: 5px 0 0; font-size: 10pt; color: #666; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f2f2f2; color: #000; font-weight: bold; text-transform: uppercase; font-size: 9pt; border: 1px solid #ccc; padding: 8px; }
+        td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        .footer { margin-top: 30px; text-align: right; font-size: 9pt; }
+        .method-badge { font-family: 'Courier New', monospace; font-size: 8pt; background: #eee; padding: 2px 5px; border-radius: 4px; }
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; padding: 10mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 20px; text-align: center;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">PRINT PDF / REKAP</button>
+        <button onclick="window.close()" style="padding: 10px 20px; background: #ccc; color: #333; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">TUTUP</button>
+    </div>
+
+    <div class="header">
+        <h1>REKAP RIWAYAT PEMBAYARAN</h1>
+        <p>TANGGAL REKAP: <%= new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th width="30">NO</th>
+                <th width="120">WAKTU (TGL/JAM)</th>
+                <th width="100">ID PEL</th>
+                <th>PELANGGAN</th>
+                <th width="110">INVOICE</th>
+                <th width="70">METODE</th>
+                <th width="100">JUMLAH</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% 
+                let grandTotal = 0;
+                if (transactions && transactions.length > 0) { 
+                    transactions.forEach((tx, index) => { 
+                        grandTotal += parseFloat(tx.amount || 0);
+            %>
+                <tr>
+                    <td class="text-center"><%= index + 1 %></td>
+                    <td class="text-center font-bold" style="font-size: 9pt;">
+                        <%= new Date(tx.payment_date).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
+                    </td>
+                    <td class="text-center"><%= tx.customer_code || '-' %></td>
+                    <td><%= tx.customer_name %></td>
+                    <td class="text-center"><%= tx.invoice_number %></td>
+                    <td class="text-center"><span class="method-badge"><%= (tx.payment_method || 'CASH').toUpperCase() %></span></td>
+                    <td class="text-right font-bold">Rp <%= new Intl.NumberFormat('id-ID').format(tx.amount) %></td>
+                </tr>
+            <% 
+                    }); 
+                } else { 
+            %>
+                <tr><td colspan="7" class="text-center py-20">Tidak ada riwayat pembayaran</td></tr>
+            <% } %>
+        </tbody>
+        <tfoot>
+            <tr style="background: #f9f9f9;">
+                <td colspan="6" class="text-right font-bold">TOTAL PENDAPATAN TERREKAP:</td>
+                <td class="text-right font-bold" style="font-size: 11pt; border-left: 2px solid #333;">Rp <%= new Intl.NumberFormat('id-ID').format(grandTotal) %></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="footer">
+        <p>Dicetak oleh Sistem Billing pada <%= new Date().toLocaleString('id-ID') %></p>
+        <div style="margin-top: 50px;">
+            <p>( __________________________ )</p>
+            <p>Admin / Kasir</p>
+        </div>
+    </div>
+</body>
+</html>

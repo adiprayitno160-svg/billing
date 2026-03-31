@@ -1,0 +1,93 @@
+﻿<!-- Modern Footer -->
+<footer id="main-footer"
+    class="w-full mt-auto py-6 px-8 border-t border-slate-200 bg-white/50 backdrop-blur-md transition-all duration-300">
+    <div class="max-w-[1920px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500">
+        <div class="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+            <div class="font-bold text-indigo-600 tracking-tight flex items-center">
+                <i class="fas fa-microchip mr-2 text-xs opacity-70"></i>
+                BILLING <span class="text-slate-400 font-normal ml-1">SYSTEM</span>
+            </div>
+            <div class="hidden md:block w-px h-4 bg-slate-300"></div>
+            <div class="text-xs font-medium">
+                &copy; <%= new Date().getFullYear() %>
+                    <%= typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_name ?
+                        companyInfo.company_name : 'Core Network Solutions' %>.
+                        <span
+                            class="inline-flex items-center ml-2 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] border border-slate-200 uppercase tracking-widest font-bold">
+                            v<%= typeof fullVersion !=='undefined' ? fullVersion : '2.4.16' %>
+                        </span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <!-- Connection Status -->
+            <div id="footer-status"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-slate-200 shadow-sm transition-all duration-300 group">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-slow"></div>
+                <span class="text-xs font-bold text-slate-700 tracking-wide">SERVER ACTIVE</span>
+                <span id="footer-latency"
+                    class="text-[10px] text-slate-400 font-mono hidden md:inline opacity-0 group-hover:opacity-100 transition-opacity">--ms</span>
+            </div>
+
+            <!-- Scroll to top -->
+            <button onclick="document.getElementById('main-content').scrollTo({top:0, behavior:'smooth'})"
+                class="p-2 rounded-xl bg-white hover:bg-slate-50 text-indigo-600 border border-slate-200 shadow-sm transition-all hover:scale-110 active:scale-95">
+                <i class="fas fa-chevron-up text-sm"></i>
+            </button>
+        </div>
+    </div>
+</footer>
+
+<style>
+    .animate-pulse-slow {
+        animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-slow {
+
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: .7;
+            transform: scale(0.9);
+        }
+    }
+</style>
+
+<script>
+    // System health check
+    (function () {
+        const latencyEl = document.getElementById('footer-latency');
+        const statusEl = document.getElementById('footer-status');
+
+        const checkHealth = () => {
+            const start = performance.now();
+            fetch('/api/server-time', { method: 'HEAD', cache: 'no-cache' })
+                .then(response => {
+                    const latency = Math.round(performance.now() - start);
+                    if (latencyEl) {
+                        latencyEl.innerText = `${latency}ms`;
+                    }
+                    if (!response.ok && statusEl) {
+                        statusEl.querySelector('div').className = 'w-2 h-2 rounded-full bg-amber-500';
+                        statusEl.querySelector('span').innerText = 'SERVER ISSUES';
+                    }
+                })
+                .catch(() => {
+                    if (statusEl) {
+                        statusEl.innerHTML = `
+                            <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                            <span class="text-xs font-bold text-rose-700">OFFLINE</span>
+                        `;
+                    }
+                });
+        };
+
+        checkHealth();
+        setInterval(checkHealth, 30000);
+    })();
+</script>

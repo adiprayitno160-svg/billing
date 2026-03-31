@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Wireless Invoice</title>
+    <style>
+        @page { size: 58mm auto; margin: 0; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; width: 58mm; margin: 0; padding: 0; } }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.1; width: 55mm; max-width: 58mm; padding-left: 2.5mm; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 7.5pt; }
+        .val { font-weight: bold; text-align: right; }
+        .total { border-top: 1px solid #000; padding-top: 2mm; margin-top: 2mm; font-weight: bold; display: flex; justify-content: space-between; font-size: 10pt; }
+    </style>
+</head>
+<body>
+    <div style="text-align: center; font-weight: bold; font-size: 10pt; margin-bottom: 2mm;"><%= company.company_name %></div>
+    <div class="row"><span>Nama:</span><span class="val"><%= invoice.customer_name %></span></div>
+    <div class="row"><span>Ref:</span><span class="val">#<%= invoice.invoice_number %></span></div>
+    <hr style="border: none; border-top: 1px dashed #000; margin: 2mm 0;">
+    <div class="row"><span>Internet:</span><span class="val">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span></div>
+    <div class="total"><span>TOTAL</span><span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span></div>
+</body>
+</html>

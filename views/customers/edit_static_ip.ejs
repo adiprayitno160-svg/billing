@@ -1,0 +1,834 @@
+﻿<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Edit Pelanggan IP Static</h1>
+                <p class="text-sm text-gray-500 font-medium">Perbarui data pelanggan dan konfigurasi jaringan</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <a href="/packages/static-ip/clients"
+                class="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-all font-semibold text-sm shadow-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Kembali
+            </a>
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    <% if (error && error.length> 0) { %>
+        <div class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 shadow-sm animate-fade-in">
+            <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0 text-red-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <h4 class="font-bold text-red-800 text-sm">Gagal Menyimpan</h4>
+                <p class="text-xs text-red-600">
+                    <%= error[0] %>
+                </p>
+            </div>
+        </div>
+        <% } %>
+
+            <% if (success && success.length> 0) { %>
+                <div
+                    class="p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 shadow-sm animate-fade-in">
+                    <div
+                        class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 text-green-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
+                            </path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-green-800 text-sm">Berhasil</h4>
+                        <p class="text-xs text-green-600">
+                            <%= success[0] %>
+                        </p>
+                    </div>
+                </div>
+                <% } %>
+
+                    <!-- Current Package Info -->
+                    <div class="rounded-2xl bg-blue-50 border border-blue-100 p-5 shadow-sm">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div
+                                class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm">
+                                ℹ️</div>
+                            <h3 class="font-bold text-blue-900 text-sm uppercase tracking-wide">Informasi Paket Saat Ini
+                            </h3>
+                        </div>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-blue-800">
+                            <div class="bg-white/50 p-2.5 rounded-lg border border-blue-100">
+                                <span class="block text-xs text-blue-500 uppercase font-bold mb-1">Paket</span>
+                                <span class="font-semibold block truncate">
+                                    <%= package.name %>
+                                </span>
+                            </div>
+                            <div class="bg-white/50 p-2.5 rounded-lg border border-blue-100">
+                                <span class="block text-xs text-blue-500 uppercase font-bold mb-1">Limit</span>
+                                <span class="font-mono font-semibold block">
+                                    <%= package.max_limit_download %> DL / <%= package.max_limit_upload %> UL
+                                </span>
+                            </div>
+                            <div class="bg-white/50 p-2.5 rounded-lg border border-blue-100">
+                                <span class="block text-xs text-blue-500 uppercase font-bold mb-1">Max Clients</span>
+                                <span class="font-semibold block">
+                                    <%= package.max_clients || 1 %> User
+                                </span>
+                            </div>
+                            <div class="bg-white/50 p-2.5 rounded-lg border border-blue-100">
+                                <span class="block text-xs text-blue-500 uppercase font-bold mb-1">Parent</span>
+                                <span class="font-semibold block truncate">
+                                    <%= package.parent_download_name || '-' %>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" action="/customers/edit-static-ip/<%= client.id %>">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+
+                            <!-- LEFT COLUMN (7): Identity & Configuration -->
+                            <div class="lg:col-span-7 space-y-6">
+
+                                <!-- Card: Identity -->
+                                <div
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    <div
+                                        class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
+                                                    </path>
+                                                </svg>
+                                            </div>
+                                            <h3 class="font-bold text-slate-800">Identitas Pelanggan</h3>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 grid grid-cols-1 gap-5">
+                                        <div>
+                                            <label
+                                                class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nama
+                                                Lengkap <span class="text-red-500">*</span></label>
+                                            <input name="client_name" value="<%= client.client_name %>" required
+                                                placeholder="Nama Pelanggan"
+                                                class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none" />
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                            <div>
+                                                <label
+                                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">No.
+                                                    Telepon</label>
+                                                <input name="phone_number" value="<%= client.phone_number || '' %>"
+                                                    placeholder="0812..."
+                                                    class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-mono font-bold text-slate-700 focus:border-green-500 focus:ring-4 focus:ring-green-50 transition-all outline-none" />
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Pelanggan
+                                                    ID</label>
+                                                <input value="#<%= client.id %>" readonly
+                                                    class="w-full rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3 text-sm text-slate-400 font-mono cursor-not-allowed" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Alamat
+                                                Pemasangan</label>
+                                            <textarea name="address" rows="2" placeholder="Alamat Lengkap..."
+                                                class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"><%= client.address || '' %></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Card: Technical Config -->
+                                <div
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    <div
+                                        class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                                    </path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <h3 class="font-bold text-slate-800">Konfigurasi Jaringan</h3>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 space-y-5">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                            <div>
+                                                <label
+                                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">IP
+                                                    Address <span class="text-red-500">*</span></label>
+                                                <input name="ip_address" value="<%= client.ip_address %>" required
+                                                    placeholder="192.168.x.x/xx"
+                                                    class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-mono font-bold text-blue-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none" />
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Interface
+                                                    MikroTik <span class="text-red-500">*</span></label>
+                                                <select name="interface" required
+                                                    class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none">
+                                                    <% (interfaces || []).forEach(function(ifc){ %>
+                                                        <option value="<%= ifc.name %>" <%=client.interface===ifc.name
+                                                            ? 'selected' : '' %>>
+                                                            <%= ifc.name %>
+                                                        </option>
+                                                        <% }) %>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Paket
+                                                Layanan <span class="text-red-500">*</span></label>
+                                            <select name="package_id" required
+                                                class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none">
+                                                <% (packages || []).forEach(function(pkg){ %>
+                                                    <option value="<%= pkg.id %>" <%=client.package_id==pkg.id
+                                                        ? 'selected' : '' %>>
+                                                        <%= pkg.name %> (<%= pkg.max_limit_download %>) [<%=
+                                                                    pkg.current_clients || 0 %> plg] - Rp <%=
+                                                                        parseInt(pkg.price || 0).toLocaleString('id-ID')
+                                                                        %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+
+                                        <!-- Preview Packet Mark -->
+                                        <div>
+                                            <label
+                                                class="block text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 ml-1">Packet
+                                                Mark (Preview)</label>
+                                            <input id="editPacketMarkPreview" readonly
+                                                class="w-full rounded-xl bg-slate-50 border border-slate-100 px-4 py-2 text-xs text-slate-500 font-mono" />
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                                <!-- Card: Infrastructure (Moved here but logic remains) -->
+                                <div
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    <div
+                                        class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                                    </path>
+                                                </svg>
+                                            </div>
+                                            <h3 class="font-bold text-slate-800">Infrastruktur (ODC/ODP)</h3>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 space-y-6">
+                                        <!-- Wireless Toggle -->
+                                        <div
+                                            class="flex items-center justify-between p-4 bg-cyan-50/50 border border-cyan-100 rounded-2xl group">
+                                            <span class="text-sm font-bold text-cyan-900 ml-2">Koneksi Wireless / Tanpa
+                                                ODP</span>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" id="is_wireless" <%=(!client.odp_id &&
+                                                    !client.odc_id) ? 'checked' : '' %> class="sr-only peer">
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600">
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        <div id="infra_wrapper" class="space-y-5 transition-all duration-300">
+                                            <!-- ODC -->
+                                            <div>
+                                                <label
+                                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">1.
+                                                    ODC Cabinet</label>
+                                                <div class="flex gap-2 relative">
+                                                    <input type="text" id="odc_search"
+                                                        value="<%= client.odc_name || '' %>"
+                                                        placeholder="Ketik nama ODC..." autocomplete="off"
+                                                        class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-50 transition-all outline-none" />
+                                                    <input type="hidden" name="odc_id" id="odc_id"
+                                                        value="<%= client.odc_id || '' %>">
+                                                    <button type="button" id="reset_odc_btn"
+                                                        class="px-4 py-2 border border-slate-200 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors">✕</button>
+
+                                                    <div id="odc_search_results"
+                                                        class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 shadow-xl rounded-2xl max-h-48 overflow-y-auto hidden">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- ODP -->
+                                            <div id="odp_section_wrapper"
+                                                class="transition-all duration-300 <%= client.odc_id ? '' : 'opacity-50 pointer-events-none grayscale' %>">
+                                                <label
+                                                    class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">2.
+                                                    ODP Drop Point</label>
+                                                <div class="relative">
+                                                    <input type="text" id="odp_search"
+                                                        value="<%= client.odp_name || '' %>" placeholder="Pilih ODP..."
+                                                        autocomplete="off"
+                                                        class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-50 transition-all outline-none" />
+                                                    <input type="hidden" name="odp_id" id="odp_id"
+                                                        value="<%= client.odp_id || '' %>" required>
+                                                    <div id="odp_search_results"
+                                                        class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 shadow-xl rounded-2xl max-h-48 overflow-y-auto hidden">
+                                                    </div>
+                                                </div>
+                                                <% if(client.odp_id) { %>
+                                                    <p class="text-[10px] text-green-600 font-bold mt-1 ml-1"
+                                                        id="selected_odp_info">✓ ODP Terpilih: <%= client.odp_name %>
+                                                    </p>
+                                                    <% } else { %>
+                                                        <p class="text-[10px] text-slate-400 font-bold mt-1 ml-1"
+                                                            id="selected_odp_info">Pilih ODC dahulu</p>
+                                                        <% } %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- ONT / Device Info -->
+                                <div
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    <div
+                                        class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z">
+                                                    </path>
+                                                </svg>
+                                            </div>
+                                            <h3 class="font-bold text-slate-800">Perangkat ONT</h3>
+                                        </div>
+                                    </div>
+                                    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label
+                                                class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Serial
+                                                Number</label>
+                                            <input name="ont_serial" value="<%= client.ont_serial || '' %>"
+                                                placeholder="S/N"
+                                                class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-mono text-slate-700 outline-none focus:ring-2 focus:ring-emerald-50" />
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Model</label>
+                                            <input name="ont_model" value="<%= client.ont_model || '' %>"
+                                                placeholder="HG8245H"
+                                                class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-50" />
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">MAC
+                                                Address</label>
+                                            <input name="ont_mac" value="<%= client.ont_mac || '' %>"
+                                                placeholder="AA:BB:CC..."
+                                                class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-mono text-slate-700 outline-none focus:ring-2 focus:ring-emerald-50" />
+                                        </div>
+                                        <div>
+                                            <label
+                                                class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Status</label>
+                                            <select name="ont_status"
+                                                class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 bg-white outline-none focus:ring-2 focus:ring-emerald-50">
+                                                <option value="offline" <%=client.ont_status==='offline' ? 'selected'
+                                                    : '' %>>Offline</option>
+                                                <option value="online" <%=client.ont_status==='online' ? 'selected' : ''
+                                                    %>>Online</option>
+                                                <option value="maintenance" <%=client.ont_status==='maintenance'
+                                                    ? 'selected' : '' %>>Maintenance</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- RIGHT COLUMN (5): Map & sticky -->
+                            <div class="lg:col-span-5 h-full">
+                                <div class="sticky top-6 space-y-6">
+
+                                    <!-- Map Card -->
+                                    <div
+                                        class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full">
+                                        <div
+                                            class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div
+                                                    class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
+                                                        </path>
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z">
+                                                        </path>
+                                                    </svg>
+                                                </div>
+                                                <h3 class="font-bold text-slate-800">Lokasi Pelanggan</h3>
+                                            </div>
+                                            <button type="button" id="btnGetLocation"
+                                                class="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-lg shadow-green-200">
+                                                Auto GPS
+                                            </button>
+                                        </div>
+                                        <div class="p-6">
+                                            <!-- Search Location Box -->
+                                            <div class="relative mb-5">
+                                                <div
+                                                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24"
+                                                        stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                    </svg>
+                                                </div>
+                                                <input type="text" id="map_search"
+                                                    placeholder="Cari desa, jalan, atau kota..."
+                                                    class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-green-100 focus:border-green-400 outline-none transition-all placeholder:text-slate-300"
+                                                    autocomplete="off">
+                                            </div>
+                                            <div
+                                                class="w-full h-[320px] bg-slate-100 rounded-2xl border-2 border-slate-100 overflow-hidden relative mb-5">
+                                                <div id="map" class="w-full h-full z-0"></div>
+                                                <!-- REMOVED THE TEXT OVERLAY AS REQUESTED -->
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label
+                                                        class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Latitude</label>
+                                                    <input name="latitude" id="latitude"
+                                                        value="<%= client.latitude || '' %>" placeholder="-6.xxxx"
+                                                        class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs font-mono font-bold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-green-50" />
+                                                </div>
+                                                <div>
+                                                    <label
+                                                        class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Longitude</label>
+                                                    <input name="longitude" id="longitude"
+                                                        value="<%= client.longitude || '' %>" placeholder="106.xxxx"
+                                                        class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs font-mono font-bold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-green-50" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Actions -->
+                                    <div class="p-6 bg-slate-100 rounded-3xl border border-slate-200 shadow-inner">
+                                        <button type="submit"
+                                            class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:from-blue-700 hover:to-indigo-800 shadow-xl shadow-blue-200 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2">
+                                            <span>💾</span> Simpan Perubahan
+                                        </button>
+                                        <a href="/packages/static-ip/clients"
+                                            class="block w-full text-center mt-4 text-xs font-bold text-slate-500 hover:text-red-500 uppercase tracking-widest">Batalkan</a>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            // Elements
+                            const odcSearch = document.getElementById('odc_search');
+                            const odcIdInput = document.getElementById('odc_id');
+                            const odcResults = document.getElementById('odc_search_results');
+                            const resetOdcBtn = document.getElementById('reset_odc_btn');
+
+                            const odpSearch = document.getElementById('odp_search');
+                            const odpIdInput = document.getElementById('odp_id');
+                            const odpResults = document.getElementById('odp_search_results');
+                            const odpSection = document.getElementById('odp_section_wrapper');
+                            const odpInfo = document.getElementById('selected_odp_info');
+
+                            const isWireless = document.getElementById('is_wireless');
+                            const infraWrapper = document.getElementById('infra_wrapper');
+
+                            let odcTimeout, odpTimeout;
+
+                            // 1. WIRELESS TOGGLE
+                            function toggleWireless() {
+                                if (isWireless && isWireless.checked) {
+                                    if (infraWrapper) infraWrapper.classList.add('opacity-40', 'pointer-events-none', 'grayscale');
+                                    if (odpIdInput) {
+                                        odpIdInput.required = false;
+                                        odpIdInput.value = ''; // Reset Logic on Toggle to be safe
+                                    }
+                                    if (odcIdInput) odcIdInput.value = '';
+                                } else {
+                                    if (infraWrapper) infraWrapper.classList.remove('opacity-40', 'pointer-events-none', 'grayscale');
+                                    if (odpIdInput) odpIdInput.required = true;
+                                }
+                            }
+                            if (isWireless) {
+                                isWireless.addEventListener('change', toggleWireless);
+                                toggleWireless(); // Init state
+                            }
+
+                            // 2. ODC SEARCH
+                            if (odcSearch) {
+                                odcSearch.addEventListener('input', function (e) {
+                                    clearTimeout(odcTimeout);
+                                    const query = e.target.value.trim();
+
+                                    // Reset ID if user types manual
+                                    odcIdInput.value = '';
+                                    lockOdpSection();
+
+                                    if (query.length < 1) {
+                                        odcResults.classList.add('hidden');
+                                        return;
+                                    }
+
+                                    odcTimeout = setTimeout(() => {
+                                        odcResults.classList.remove('hidden');
+                                        odcResults.innerHTML = '<div class="p-3 text-xs text-center text-slate-400">Loading...</div>';
+
+                                        fetch('/api/ftth/odc/search?q=' + encodeURIComponent(query))
+                                            .then(r => r.json())
+                                            .then(res => {
+                                                if (res.success && res.results.length > 0) {
+                                                    odcResults.innerHTML = res.results.map(odc => `
+                                    <div class="p-3 hover:bg-slate-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odc-item"
+                                         data-id="${odc.id}" data-name="${odc.name}">
+                                        <div class="font-bold text-slate-800">${odc.name}</div>
+                                        <div class="text-xs text-slate-500">${odc.location || '-'} (${odc.used_ports}/${odc.total_ports})</div>
+                                    </div>
+                                `).join('');
+                                                } else {
+                                                    odcResults.innerHTML = '<div class="p-3 text-xs text-center text-yellow-600">ODC tidak ditemukan</div>';
+                                                }
+                                            }).catch(() => {
+                                                odcResults.innerHTML = '<div class="p-3 text-xs text-center text-red-500">Error</div>';
+                                            });
+                                    }, 300);
+                                });
+
+                                // Select ODC
+                                odcResults.addEventListener('click', function (e) {
+                                    const item = e.target.closest('.odc-item');
+                                    if (item) {
+                                        odcSearch.value = item.dataset.name;
+                                        odcIdInput.value = item.dataset.id;
+                                        odcResults.classList.add('hidden');
+                                        unlockOdpSection();
+                                        if (odpInfo) odpInfo.textContent = 'Silakan pilih ODP';
+                                        odpSearch.focus();
+                                    }
+                                });
+
+                                // Blur
+                                odcSearch.addEventListener('blur', () => setTimeout(() => odcResults.classList.add('hidden'), 200));
+                            }
+
+                            if (resetOdcBtn) {
+                                resetOdcBtn.addEventListener('click', () => {
+                                    if (isWireless && isWireless.checked) return;
+                                    odcSearch.value = '';
+                                    odcIdInput.value = '';
+                                    lockOdpSection();
+                                    odcSearch.focus();
+                                });
+                            }
+
+                            // 3. ODP SEARCH
+                            function lockOdpSection() {
+                                if (odpSection) odpSection.classList.add('opacity-50', 'pointer-events-none', 'grayscale');
+                                if (odpSearch) odpSearch.value = '';
+                                if (odpIdInput) odpIdInput.value = '';
+                            }
+                            function unlockOdpSection() {
+                                if (odpSection) odpSection.classList.remove('opacity-50', 'pointer-events-none', 'grayscale');
+                            }
+
+                            if (odpSearch) {
+                                odpSearch.addEventListener('focus', function () {
+                                    if (odcIdInput.value) triggerOdpSearch('');
+                                });
+                                odpSearch.addEventListener('input', function (e) {
+                                    triggerOdpSearch(e.target.value.trim());
+                                });
+
+                                function triggerOdpSearch(query) {
+                                    clearTimeout(odpTimeout);
+                                    const odcId = odcIdInput.value;
+                                    if (!odcId) return;
+
+                                    odpTimeout = setTimeout(() => {
+                                        odpResults.classList.remove('hidden');
+                                        odpResults.innerHTML = '<div class="p-3 text-xs text-center text-slate-400">Loading...</div>';
+
+                                        fetch(`/api/ftth/odp/search?odc_id=${odcId}&q=${encodeURIComponent(query)}`)
+                                            .then(r => r.json())
+                                            .then(res => {
+                                                if (res.success && res.results.length > 0) {
+                                                    odpResults.innerHTML = res.results.map(odp => `
+                                    <div class="p-3 hover:bg-slate-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm odp-item"
+                                         data-id="${odp.id}" data-name="${odp.odp_name}"
+                                         data-capacity="${odp.total_ports}" data-used="${odp.used_ports}">
+                                        <div class="flex justify-between">
+                                            <span class="font-bold text-slate-800">${odp.odp_name || odp.name}</span>
+                                            <span class="text-xs ${odp.used_ports >= odp.total_ports ? 'text-red-500' : 'text-green-600'}">
+                                                ${odp.used_ports}/${odp.total_ports}
+                                            </span>
+                                        </div>
+                                    </div>
+                                `).join('');
+                                                } else {
+                                                    odpResults.innerHTML = '<div class="p-3 text-xs text-center text-yellow-600">ODP tidak ditemukan</div>';
+                                                }
+                                            });
+                                    }, 300);
+                                }
+
+                                odpResults.addEventListener('click', function (e) {
+                                    const item = e.target.closest('.odp-item');
+                                    if (item) {
+                                        odpSearch.value = item.dataset.name;
+                                        odpIdInput.value = item.dataset.id;
+                                        if (odpInfo) odpInfo.textContent = `✓ ODP: ${item.dataset.name}`;
+                                        odpResults.classList.add('hidden');
+                                    }
+                                });
+
+                                odpSearch.addEventListener('blur', () => setTimeout(() => odpResults.classList.add('hidden'), 200));
+                            }
+
+                            // 4. MAPS
+                            function initMaps() {
+                                const btnGetLocation = document.getElementById('btnGetLocation');
+                                const latInput = document.getElementById('latitude');
+                                const lngInput = document.getElementById('longitude');
+
+                                if (document.getElementById('map')) {
+                                    if (typeof L === 'undefined') return;
+
+                                    try {
+                                        let defaultLat = -6.200000;
+                                        let defaultLng = 106.816666;
+                                        let initialZoom = 5;
+
+                                        if (latInput.value && lngInput.value) {
+                                            defaultLat = parseFloat(latInput.value);
+                                            defaultLng = parseFloat(lngInput.value);
+                                            initialZoom = 15;
+                                        }
+
+                                        const map = L.map('map').setView([defaultLat, defaultLng], initialZoom);
+                                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+                                        let marker;
+                                        function setMarker(lat, lng) {
+                                            if (marker) marker.setLatLng([lat, lng]);
+                                            else {
+                                                marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                                                marker.on('dragend', function (e) {
+                                                    const pos = e.target.getLatLng();
+                                                    latInput.value = pos.lat.toFixed(6);
+                                                    lngInput.value = pos.lng.toFixed(6);
+                                                    updateAddress(pos.lat, pos.lng); // Update address field
+                                                });
+                                            }
+                                            map.setView([lat, lng], 16);
+                                        }
+
+                                        if (latInput.value && lngInput.value) {
+                                            setMarker(defaultLat, defaultLng);
+                                        }
+
+                                        // Function to update address from coords (Reverse Geocoding)
+                                        const updateAddress = (lat, lng) => {
+                                            const addressInput = document.querySelector('textarea[name="address"]') || document.getElementById('address');
+                                            if (addressInput) {
+                                                addressInput.placeholder = 'Mengambil alamat...';
+                                                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                                                    .then(r => r.json())
+                                                    .then(data => {
+                                                        if (data && data.display_name) {
+                                                            // Make it cleaner: Road, Village, District
+                                                            const addr = data.address;
+                                                            const parts = [];
+                                                            if (addr.road) parts.push(addr.road);
+                                                            if (addr.village || addr.suburb || addr.hamlet) parts.push(addr.village || addr.suburb || addr.hamlet);
+                                                            if (addr.city || addr.town || addr.county) parts.push(addr.city || addr.town || addr.county);
+
+                                                            const cleanAddr = parts.length > 0 ? parts.join(', ') : data.display_name;
+                                                            addressInput.value = cleanAddr;
+                                                        }
+                                                    })
+                                                    .catch(e => console.warn('Reverse geocode failed:', e))
+                                                    .finally(() => addressInput.placeholder = 'Alamat Lengkap...');
+                                            }
+                                        };
+
+                                        // Map Search Logic
+                                        const searchInput = document.getElementById('map_search');
+                                        if (searchInput) {
+                                            searchInput.addEventListener('keydown', (e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault(); // Prevent form submit
+                                                    const q = searchInput.value.trim();
+                                                    if (q.length > 2) {
+                                                        searchInput.classList.add('opacity-50');
+                                                        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                                            .then(r => r.json())
+                                                            .then(data => {
+                                                                if (data && data.length > 0) {
+                                                                    const res = data[0];
+                                                                    const lat = parseFloat(res.lat);
+                                                                    const lon = parseFloat(res.lon);
+                                                                    latInput.value = lat.toFixed(6);
+                                                                    lngInput.value = lon.toFixed(6);
+                                                                    setMarker(lat, lon, 16);
+                                                                    searchInput.value = res.display_name; // Show found name
+                                                                    updateAddress(lat, lon); // Update address field
+                                                                } else {
+                                                                    alert('Lokasi tidak ditemukan');
+                                                                }
+                                                            })
+                                                            .catch(err => console.error('Map search err:', err))
+                                                            .finally(() => searchInput.classList.remove('opacity-50'));
+                                                    }
+                                                }
+                                            });
+                                        }
+
+                                        map.on('click', function (e) {
+                                            latInput.value = e.latlng.lat.toFixed(6);
+                                            lngInput.value = e.latlng.lng.toFixed(6);
+                                            setMarker(e.latlng.lat, e.latlng.lng);
+                                            updateAddress(e.latlng.lat, e.latlng.lng); // Update address field
+                                        });
+
+                                        [latInput, lngInput].forEach(inp => {
+                                            inp.addEventListener('change', () => {
+                                                const lat = parseFloat(latInput.value);
+                                                const lng = parseFloat(lngInput.value);
+                                                if (!isNaN(lat) && !isNaN(lng)) setMarker(lat, lng);
+                                            });
+                                        });
+
+                                        if (btnGetLocation) {
+                                            const fallbackToIP = () => {
+                                                btnGetLocation.textContent = 'IP Loc...';
+                                                // Use server-side proxy to avoid Mixed Content / CORS / AdBlockers
+                                                fetch('/api/proxy/ip-location')
+                                                    .then(r => {
+                                                        if (!r.ok) throw new Error('Proxy API Error: ' + r.status);
+                                                        return r.json();
+                                                    })
+                                                    .then(data => {
+                                                        if (data && (data.status === 'success' || data.lat)) {
+                                                            latInput.value = data.lat;
+                                                            lngInput.value = data.lon;
+                                                            setMarker(data.lat, data.lon, 13);
+                                                            btnGetLocation.textContent = 'IP OK';
+                                                            alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
+                                                        } else {
+                                                            console.error('IP-API response invalid:', data);
+                                                            throw new Error('IP API Data Invalid');
+                                                        }
+                                                    })
+                                                    .catch(err => {
+                                                        console.error('Fallback IP Failed:', err);
+                                                        btnGetLocation.textContent = 'Gagal';
+                                                        alert('Gagal mendapatkan lokasi (GPS & IP Fallback).\n\nPenyebab:\n1. Browser memblokir GPS (Non-HTTPS)\n2. Server gagal koneksi ke IP-API (No Internet?)\n\nSilakan klik lokasi manual di peta.');
+                                                    })
+                                                    .finally(() => {
+                                                        setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 3000);
+                                                    });
+                                            };
+
+                                            btnGetLocation.addEventListener('click', () => {
+                                                btnGetLocation.textContent = '...';
+                                                if ("geolocation" in navigator) {
+                                                    navigator.geolocation.getCurrentPosition(pos => {
+                                                        const { latitude, longitude } = pos.coords;
+                                                        latInput.value = latitude.toFixed(6);
+                                                        lngInput.value = longitude.toFixed(6);
+                                                        setMarker(latitude, longitude);
+                                                        updateAddress(latitude, longitude); // Update address field
+                                                        btnGetLocation.textContent = 'OK';
+                                                        setTimeout(() => btnGetLocation.textContent = 'Auto GPS', 1500);
+                                                    }, (err) => {
+                                                        console.warn('GPS Failed, trying IP fallback...');
+                                                        fallbackToIP();
+                                                    }, {
+                                                        enableHighAccuracy: true,
+                                                        timeout: 5000,
+                                                        maximumAge: 0
+                                                    });
+                                                } else {
+                                                    fallbackToIP();
+                                                }
+                                            });
+                                        }
+                                        setTimeout(() => map.invalidateSize(), 500);
+                                    } catch (e) { console.error(e); }
+                                }
+                            }
+                            initMaps();
+
+                            // 5. PACKET MARK PREVIEW
+                            const ipInput = document.querySelector('input[name="ip_address"]');
+                            const preview = document.getElementById('editPacketMarkPreview');
+                            function ipToInt(ip) { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0 }
+                            function intToIp(int) { return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.') }
+
+                            function updatePreview() {
+                                if (!ipInput || !preview) return;
+                                const v = (ipInput.value || '').trim();
+                                const [ip, prefStr] = v.split('/');
+                                if (!ip || !prefStr) { preview.value = ''; return; }
+
+                                // Simple mockup logic based on previous file
+                                preview.value = `UP-${ip} | DOWN-${ip}`;
+                            }
+                            if (ipInput) ipInput.addEventListener('input', updatePreview);
+                            updatePreview();
+                        });
+                    </script>
+</div>

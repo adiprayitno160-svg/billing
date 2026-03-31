@@ -1,0 +1,272 @@
+<%- contentFor('body') %>
+
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="mb-0">
+                    <i class="fas fa-wifi me-2"></i>
+                    WiFi Management Dashboard
+                </h2>
+                <p class="text-muted">Kelola WiFi customer melalui GenieACS</p>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Customers dengan Device</h6>
+                                <h3 class="mb-0">
+                                    <%= stats.customersWithDevice %>
+                                </h3>
+                            </div>
+                            <div class="text-primary">
+                                <i class="fas fa-users fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Total Requests</h6>
+                                <h3 class="mb-0">
+                                    <%= stats.totalRequests %>
+                                </h3>
+                            </div>
+                            <div class="text-info">
+                                <i class="fas fa-exchange-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Berhasil</h6>
+                                <h3 class="mb-0 text-success">
+                                    <%= stats.successfulRequests %>
+                                </h3>
+                            </div>
+                            <div class="text-success">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Gagal</h6>
+                                <h3 class="mb-0 text-danger">
+                                    <%= stats.failedRequests %>
+                                </h3>
+                            </div>
+                            <div class="text-danger">
+                                <i class="fas fa-times-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <a href="/wifi-admin/devices" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-link me-2"></i>
+                                    Assign Device ke Customer
+                                </a>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <button type="button" class="btn btn-success btn-lg w-100" data-bs-toggle="modal"
+                                    data-bs-target="#manualChangeModal">
+                                    <i class="fas fa-edit me-2"></i>
+                                    Ubah WiFi Manual
+                                </button>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <a href="/wifi-admin/history" class="btn btn-info btn-lg w-100">
+                                    <i class="fas fa-history me-2"></i>
+                                    Lihat History
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Requests -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent WiFi Changes</h5>
+                        <a href="/wifi-admin/history" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
+                    </div>
+                    <div class="card-body">
+                        <% if (recentRequests.length===0) { %>
+                            <div class="text-center py-5">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Belum ada perubahan WiFi</p>
+                            </div>
+                            <% } else { %>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Waktu</th>
+                                                <th>Customer</th>
+                                                <th>Phone</th>
+                                                <th>SSID Baru</th>
+                                                <th>Password Baru</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% recentRequests.forEach(req=> { %>
+                                                <tr>
+                                                    <td>
+                                                        <%= new Date(req.requested_at).toLocaleString('id-ID') %>
+                                                    </td>
+                                                    <td>
+                                                        <%= req.customer_name %>
+                                                    </td>
+                                                    <td>
+                                                        <%= req.phone %>
+                                                    </td>
+                                                    <td>
+                                                        <% if (req.new_ssid) { %>
+                                                            <code><%= req.new_ssid %></code>
+                                                            <% } else { %>
+                                                                <span class="text-muted">-</span>
+                                                                <% } %>
+                                                    </td>
+                                                    <td>
+                                                        <% if (req.new_password) { %>
+                                                            <code>••••••••</code>
+                                                            <% } else { %>
+                                                                <span class="text-muted">-</span>
+                                                                <% } %>
+                                                    </td>
+                                                    <td>
+                                                        <% if (req.status==='completed' ) { %>
+                                                            <span class="badge bg-success">Berhasil</span>
+                                                            <% } else if (req.status==='failed' ) { %>
+                                                                <span class="badge bg-danger"
+                                                                    title="<%= req.error_message %>">Gagal</span>
+                                                                <% } else if (req.status==='processing' ) { %>
+                                                                    <span class="badge bg-warning">Proses</span>
+                                                                    <% } else { %>
+                                                                        <span class="badge bg-secondary">Pending</span>
+                                                                        <% } %>
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Change Modal -->
+    <div class="modal fade" id="manualChangeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="/wifi-admin/change" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Ubah WiFi Manual</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Customer <span class="text-danger">*</span></label>
+                            <select name="customer_id" class="form-select" required id="customerSelect">
+                                <option value="">Pilih Customer...</option>
+                            </select>
+                            <small class="text-muted">Hanya customer yang sudah di-assign device</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">SSID Baru</label>
+                            <input type="text" name="new_ssid" class="form-control"
+                                placeholder="Kosongkan jika tidak diubah">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Password Baru</label>
+                            <input type="text" name="new_password" class="form-control"
+                                placeholder="Kosongkan jika tidak diubah">
+                            <small class="text-muted">Minimal 8 karakter</small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Isi minimal salah satu (SSID atau Password)
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Ubah WiFi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load customers with device_id when modal opens
+        document.getElementById('manualChangeModal').addEventListener('show.bs.modal', async function () {
+            const select = document.getElementById('customerSelect');
+            select.innerHTML = '<option value="">Loading...</option>';
+
+            try {
+                const response = await fetch('/api/customers?has_device=true');
+                const data = await response.json();
+
+                if (data.success && data.customers) {
+                    select.innerHTML = '<option value="">Pilih Customer...</option>';
+                    data.customers.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent = `${customer.name} (${customer.phone || 'No phone'})`;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Gagal memuat data</option>';
+                }
+            } catch (error) {
+                console.error('Error loading customers:', error);
+                select.innerHTML = '<option value="">Error loading customers</option>';
+            }
+        });
+    </script>

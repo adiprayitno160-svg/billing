@@ -1,0 +1,533 @@
+﻿<div class="space-y-6">
+    <!-- Header Page -->
+    <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/20 shadow-sm transition-all duration-300">
+        <div class="flex items-center gap-4">
+            <div class="p-3 bg-blue-600 rounded-xl shadow-lg shadow-blue-200 text-white">
+                <i class="fas fa-box-open text-xl"></i>
+            </div>
+            <div>
+                <nav class="flex text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1"
+                    aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center">
+                            <a href="/dashboard" class="hover:text-blue-600">Admin</a>
+                            <i class="fas fa-chevron-right mx-2 text-[8px]"></i>
+                        </li>
+                        <li class="text-blue-600">Static IP Packages</li>
+                    </ol>
+                </nav>
+                <h2 class="text-xl font-bold text-slate-800 uppercase tracking-tight">Daftar Paket IP Static</h2>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <form action="/packages/static-ip/sync-all" method="POST" id="sync-all-form"
+                onsubmit="return confirm('Yakin ingin sync semua Queue paket ke MikroTik? Proses ini akan membuat/update Simple Queue untuk SEMUA paket.');">
+                <button type="submit"
+                    class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 shadow-lg shadow-amber-200 transition-all active:scale-95">
+                    <i class="fas fa-sync-alt"></i>
+                    <span class="hidden sm:inline text-nowrap">Sync Semua</span>
+                </button>
+            </form>
+            <a href="/packages/static-ip/add"
+                class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
+                <i class="fas fa-plus"></i>
+                <span class="hidden sm:inline text-nowrap">Tambah Paket</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    <% if (success && success.length> 0) { %>
+        <div
+            class="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl flex items-center gap-3 shadow-sm animate-fade-in-down">
+            <i class="fas fa-check-circle text-xl"></i>
+            <p class="font-medium text-sm">
+                <%= success[0] %>
+            </p>
+        </div>
+        <% } %>
+
+            <% if (error && error.length> 0) { %>
+                <div
+                    class="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl flex items-center gap-3 shadow-sm animate-shake">
+                    <i class="fas fa-exclamation-circle text-xl"></i>
+                    <p class="font-medium text-sm">
+                        <%= error[0] %>
+                    </p>
+                </div>
+                <% } %>
+
+                    <!-- Content Section -->
+                    <div
+                        class="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-visible">
+                        <!-- Desktop Table View -->
+                        <div class="hidden md:block overflow-visible">
+                            <table class="min-w-full divide-y divide-slate-100">
+                                <thead class="bg-slate-50/50">
+                                    <tr>
+                                        <th
+                                            class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                            Nama Paket</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                            Limit (U/D)</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                            Shared (U/D)</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter text-center">
+                                            Clients</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter text-center text-nowrap">
+                                            Harga / Bulan</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter text-center">
+                                            Status</th>
+                                        <th
+                                            class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                            Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-50">
+                                    <% (packages || []).forEach(function(pkg){ %>
+                                        <tr class="hover:bg-slate-50/50 transition-colors group">
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center gap-3">
+                                                    <div
+                                                        class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-all font-bold">
+                                                        <%= pkg.name.charAt(0).toUpperCase() %>
+                                                    </div>
+                                                    <div>
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="font-bold text-slate-700">
+                                                                <%= pkg.name %>
+                                                            </span>
+                                                            <button onclick="copyToClipboard('<%= pkg.name %>', this)"
+                                                                class="text-slate-300 hover:text-blue-500 transition-colors p-1 rounded-md hover:bg-blue-50">
+                                                                <i class="far fa-copy text-[10px]"></i>
+                                                            </button>
+                                                        </div>
+                                                        <p class="text-[10px] text-slate-400 font-medium">Simple Queue
+                                                            Mode</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="flex flex-col gap-0.5">
+                                                    <span
+                                                        class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                                                        <i class="fas fa-arrow-up text-[9px] text-orange-400"></i>
+                                                        <%= pkg.max_limit_upload %>
+                                                    </span>
+                                                    <span
+                                                        class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                                                        <i class="fas fa-arrow-down text-[9px] text-blue-400"></i>
+                                                        <%= pkg.max_limit_download %>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="flex flex-col gap-0.5 opacity-60">
+                                                    <span class="text-[11px] font-medium text-slate-600">
+                                                        <%= pkg.shared_upload_limit || pkg.max_limit_upload %>
+                                                    </span>
+                                                    <span class="text-[11px] font-medium text-slate-600">
+                                                        <%= pkg.shared_download_limit || pkg.max_limit_download %>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 text-center">
+                                                <div class="flex flex-col items-center gap-1">
+                                                    <div class="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                                        <% let clientPercent=Math.min(((pkg.current_clients || 0) /
+                                                            (pkg.max_clients || 1)) * 100, 100); %>
+                                                            <div class="h-full <%= clientPercent >= 90 ? 'bg-rose-500' : 'bg-blue-500' %>"
+                                                                style="width: <%= clientPercent %>%"></div>
+                                                    </div>
+                                                    <span
+                                                        class="text-[10px] font-black tracking-tight <%= (pkg.current_clients || 0) >= (pkg.max_clients || 1) ? 'text-rose-600' : 'text-blue-600' %>">
+                                                        <%= pkg.current_clients || 0 %> / <%= pkg.max_clients || 1 %>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 text-center">
+                                                <span class="text-sm font-black text-slate-700">Rp <%=
+                                                        Number(pkg.price).toLocaleString('id-ID') %></span>
+                                            </td>
+                                            <td class="px-6 py-4 text-center">
+                                                <span
+                                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest <%= pkg.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400' %>">
+                                                    <%= pkg.status==='active' ? 'Active' : 'Offline' %>
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center justify-center gap-2">
+                                                    <a href="/packages/static-ip/<%= pkg.id %>/clients"
+                                                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all active:scale-90"
+                                                        title="Manage Clients">
+                                                        <i class="fas fa-users text-xs"></i>
+                                                    </a>
+                                                    <div class="relative" data-dropdown="true">
+                                                        <button onclick="toggleDropdown(this)"
+                                                            class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-white hover:shadow-md transition-all active:scale-90">
+                                                            <i
+                                                                class="fas fa-ellipsis-v text-xs pointer-events-none"></i>
+                                                        </button>
+                                                        <div
+                                                            class="absolute right-0 top-full mt-2 w-48 hidden z-[100] dropdown-menu">
+                                                            <div
+                                                                class="bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden py-1">
+                                                                <form
+                                                                    action="/packages/static-ip/<%= pkg.id %>/create-queues"
+                                                                    method="POST" class="contents"
+                                                                    onsubmit="return confirm('Sync Queue Parent ke MikroTik?');">
+                                                                    <button type="submit"
+                                                                        class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3">
+                                                                        <i class="fas fa-sync-alt w-4"></i> Sync
+                                                                        MikroTik
+                                                                    </button>
+                                                                </form>
+                                                                <form action="/packages/static-ip/<%= pkg.id %>/copy"
+                                                                    method="POST" class="contents"
+                                                                    onsubmit="return confirm('Duplikasi paket ini?');">
+                                                                    <button type="submit"
+                                                                        class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3">
+                                                                        <i class="fas fa-clone w-4"></i> Duplikasi
+                                                                    </button>
+                                                                </form>
+                                                                <a href="/packages/static-ip/<%= pkg.id %>/edit"
+                                                                    class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3 border-t border-slate-50 mt-1">
+                                                                    <i class="fas fa-edit w-4"></i> Edit Paket
+                                                                </a>
+                                                                <button type="button"
+                                                                    class="btn-delete w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3"
+                                                                    data-id="<%= pkg.id %>" data-name="<%= pkg.name %>"
+                                                                    data-child-upload="<%= pkg.child_upload_name %>"
+                                                                    data-child-download="<%= pkg.child_download_name %>">
+                                                                    <i class="fas fa-trash w-4"></i> Hapus Paket
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                                            <% if (!packages || packages.length===0) { %>
+                                                <tr>
+                                                    <td colspan="7" class="px-6 py-20 text-center">
+                                                        <div class="flex flex-col items-center gap-3">
+                                                            <div
+                                                                class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                                                                <i class="fas fa-box-open text-4xl"></i>
+                                                            </div>
+                                                            <p
+                                                                class="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                                                                Belum ada paket static IP</p>
+                                                            <a href="/packages/static-ip/add"
+                                                                class="text-blue-600 font-bold text-xs underline mt-2 hover:text-blue-700">Buat
+                                                                paket pertama anda</a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Mobile Card View -->
+                        <div class="md:hidden divide-y divide-slate-100 p-4 space-y-4">
+                            <% (packages || []).forEach(function(pkg){ %>
+                                <div
+                                    class="flex flex-col gap-4 p-4 rounded-3xl border border-slate-100 bg-white shadow-sm overflow-visible relative group">
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black">
+                                                <%= pkg.name.charAt(0).toUpperCase() %>
+                                            </div>
+                                            <div>
+                                                <h4 class="font-black text-slate-800 tracking-tight leading-none">
+                                                    <%= pkg.name %>
+                                                </h4>
+                                                <p
+                                                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                                                    Static IP Mode</p>
+                                            </div>
+                                        </div>
+                                        <span
+                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest <%= pkg.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400' %>">
+                                            <%= pkg.status==='active' ? 'Active' : 'Offline' %>
+                                        </span>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-3 pb-3 border-b border-slate-50">
+                                        <div class="bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100/50">
+                                            <span
+                                                class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Down
+                                                Limit</span>
+                                            <div class="flex items-center gap-1.5 font-bold text-slate-800">
+                                                <i class="fas fa-arrow-down text-[8px] text-blue-400"></i>
+                                                <span class="text-xs tracking-tight">
+                                                    <%= pkg.max_limit_download %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100/50">
+                                            <span
+                                                class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Up
+                                                Limit</span>
+                                            <div class="flex items-center gap-1.5 font-bold text-slate-800">
+                                                <i class="fas fa-arrow-up text-[8px] text-orange-400"></i>
+                                                <span class="text-xs tracking-tight text-nowrap">
+                                                    <%= pkg.max_limit_upload %>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span
+                                                class="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Harga
+                                                / Bulan</span>
+                                            <span class="text-sm font-black text-slate-800">Rp <%=
+                                                    Number(pkg.price).toLocaleString('id-ID') %></span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span
+                                                class="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Kapasitas</span>
+                                            <span
+                                                class="text-[10px] font-black <%= (pkg.current_clients || 0) >= (pkg.max_clients || 1) ? 'text-rose-600' : 'text-blue-600' %>">
+                                                <%= pkg.current_clients || 0 %> / <%= pkg.max_clients || 1 %> User
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-4 gap-2 pt-2">
+                                        <a href="/packages/static-ip/<%= pkg.id %>/clients"
+                                            class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+                                            <i class="fas fa-users text-sm"></i>
+                                            <span class="text-[8px] font-bold uppercase tracking-widest">Clients</span>
+                                        </a>
+                                        <a href="/packages/static-ip/<%= pkg.id %>/edit"
+                                            class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-white border border-slate-200 text-slate-600">
+                                            <i class="fas fa-edit text-sm"></i>
+                                            <span
+                                                class="text-[8px] font-bold uppercase tracking-widest text-slate-500">Edit</span>
+                                        </a>
+                                        <form action="/packages/static-ip/<%= pkg.id %>/create-queues" method="POST"
+                                            class="contents"
+                                            onsubmit="return confirm('Sync Queue Parent ke MikroTik?');">
+                                            <button type="submit"
+                                                class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-white border border-slate-200 text-slate-600">
+                                                <i class="fas fa-sync-alt text-sm"></i>
+                                                <span
+                                                    class="text-[8px] font-bold uppercase tracking-widest text-slate-500">Sync</span>
+                                            </button>
+                                        </form>
+                                        <button type="button"
+                                            class="btn-delete flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600"
+                                            data-id="<%= pkg.id %>" data-name="<%= pkg.name %>"
+                                            data-child-upload="<%= pkg.child_upload_name %>"
+                                            data-child-download="<%= pkg.child_download_name %>">
+                                            <i class="fas fa-trash text-sm"></i>
+                                            <span
+                                                class="text-[8px] font-bold uppercase tracking-widest text-rose-600">Hapus</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <% }) %>
+                        </div>
+                    </div>
+</div>
+
+<!-- Modal: Delete Confirmation -->
+<div id="deleteModal"
+    class="fixed inset-0 z-[2000] hidden overflow-hidden backdrop-blur-sm bg-slate-900/60 p-4 transition-all duration-300">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden transform transition-all scale-95 opacity-0 duration-300 translate-y-4"
+            id="deleteModalContent">
+            <div class="relative p-8 text-center">
+                <div
+                    class="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-lg shadow-rose-100">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">Konfirmasi Hapus</h3>
+                <p class="text-slate-500 text-sm mb-6 px-4 leading-relaxed">Anda akan menghapus paket <span
+                        class="font-bold text-slate-800" id="deletePackageName">-</span>. Pastikan semua client telah
+                    dipindahkan atau dinonaktifkan.</p>
+
+                <!-- Advanced Option Card -->
+                <div class="bg-slate-50 rounded-3xl p-5 border border-slate-100 text-left mb-8">
+                    <label class="flex items-start gap-4 cursor-pointer">
+                        <div class="mt-1">
+                            <input type="checkbox" id="deleteQueuesCheckbox"
+                                class="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-4 focus:ring-blue-100 transition-all cursor-pointer">
+                        </div>
+                        <div>
+                            <span class="text-sm font-bold text-slate-700">Hapus Queue di MikroTik</span>
+                            <p class="text-[10px] text-slate-400 font-medium leading-tight mt-1">Jika ini paket aktif,
+                                centang untuk menghapus parent & child queue secara otomatis dari routerboard.</p>
+
+                            <div class="mt-3 space-y-1.5 hidden" id="advanced-queues-info">
+                                <div
+                                    class="px-2 py-1 bg-white rounded-lg border border-slate-100 flex items-center justify-between text-[9px] font-bold">
+                                    <span class="text-slate-400">UP:</span>
+                                    <span class="text-slate-600" id="childUploadQueue">-</span>
+                                </div>
+                                <div
+                                    class="px-2 py-1 bg-white rounded-lg border border-slate-100 flex items-center justify-between text-[9px] font-bold">
+                                    <span class="text-slate-400">DOWN:</span>
+                                    <span class="text-slate-600" id="childDownloadQueue">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button id="confirmDelete"
+                        class="w-full py-4 rounded-2xl bg-rose-500 text-white font-black uppercase tracking-widest text-xs hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all active:scale-95 flex items-center justify-center gap-3">
+                        <i class="fas fa-trash-alt"></i> Hapus Sekarang
+                    </button>
+                    <button id="cancelDelete"
+                        class="w-full py-4 rounded-2xl bg-white text-slate-400 font-black uppercase tracking-widest text-[10px] hover:text-slate-600 transition-all">
+                        Tutup Dialouge
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('deleteModal');
+        const modalContent = document.getElementById('deleteModalContent');
+        const cancelBtn = document.getElementById('cancelDelete');
+        const confirmBtn = document.getElementById('confirmDelete');
+        const deleteQueuesCheckbox = document.getElementById('deleteQueuesCheckbox');
+        const advancedInfo = document.getElementById('advanced-queues-info');
+        let currentPackageId = null;
+
+        // Sync visual toggle
+        deleteQueuesCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+                advancedInfo.classList.remove('hidden');
+            } else {
+                advancedInfo.classList.add('hidden');
+            }
+        });
+
+        // Open modal
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', function () {
+                currentPackageId = this.dataset.id;
+                document.getElementById('deletePackageName').textContent = this.dataset.name;
+                document.getElementById('childUploadQueue').textContent = this.dataset.childUpload || '-';
+                document.getElementById('childDownloadQueue').textContent = this.dataset.childDownload || '-';
+                deleteQueuesCheckbox.checked = false;
+                advancedInfo.classList.add('hidden');
+
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modalContent.classList.remove('scale-95', 'opacity-0', 'translate-y-4');
+                    modalContent.classList.add('scale-100', 'opacity-100', 'translate-y-0');
+                }, 10);
+            });
+        });
+
+        // Close modal
+        function closeModal() {
+            modalContent.classList.add('scale-95', 'opacity-0', 'translate-y-4');
+            modalContent.classList.remove('scale-100', 'opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                currentPackageId = null;
+            }, 300);
+        }
+
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+        // Confirm delete
+        confirmBtn.addEventListener('click', async function () {
+            if (!currentPackageId) return;
+
+            const deleteQueues = deleteQueuesCheckbox.checked;
+            const originalContent = confirmBtn.innerHTML;
+
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+
+            try {
+                const response = await fetch(`/packages/static-ip/${currentPackageId}/api-delete`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deleteQueues: deleteQueues })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Success feedback
+                    confirmBtn.classList.remove('bg-rose-500');
+                    confirmBtn.classList.add('bg-emerald-500');
+                    confirmBtn.innerHTML = '<i class="fas fa-check"></i> BERHASIL';
+
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    alert('❌ Gagal: ' + result.message);
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = originalContent;
+                }
+            } catch (err) {
+                alert('❌ Terjadi kesalahan: ' + err.message);
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalContent;
+            }
+        });
+    });
+
+    function copyToClipboard(text, btn) {
+        if (!text) return;
+        const icon = btn.querySelector('i');
+        navigator.clipboard.writeText(text).then(() => {
+            icon.classList.remove('far', 'fa-copy');
+            icon.classList.add('fas', 'fa-check', 'text-emerald-500');
+            btn.classList.add('bg-emerald-50', 'shadow-sm');
+
+            setTimeout(() => {
+                icon.classList.add('far', 'fa-copy');
+                icon.classList.remove('fas', 'fa-check', 'text-emerald-500');
+                btn.classList.remove('bg-emerald-50', 'shadow-sm');
+            }, 2000);
+        });
+    }
+
+    function toggleDropdown(button) {
+        // Toggle this menu
+        const menu = button.nextElementSibling;
+        const isHidden = menu.classList.contains('hidden');
+
+        // Hide all others
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
+
+        // Show if it was hidden
+        if (isHidden) {
+            menu.classList.remove('hidden');
+        }
+    }
+
+    // Close when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('[data-dropdown]')) {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.classList.add('hidden');
+            });
+        }
+    });
+
+</script>

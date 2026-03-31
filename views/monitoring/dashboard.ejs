@@ -1,0 +1,557 @@
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Network Monitoring Hub</h1>
+            <p class="text-gray-500">Real-time insight monitor & network health status</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                id="connection-status">
+                <span class="w-2 h-2 mr-2 rounded-full bg-green-500 animate-pulse"></span>
+                System Live
+            </span>
+            <button onclick="syncNetworkMap()" title="Sinkronisasi Peta & Perangkat"
+                class="p-2 transition-colors rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-orange-600 hover:border-orange-100 shadow-sm">
+                <i class="fas fa-project-diagram"></i>
+            </button>
+            <button onclick="window.location.reload()" title="Refresh Halaman"
+                class="p-2 transition-colors rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-100 shadow-sm">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Real-time Traffic Chart (New Feature) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="font-bold text-gray-900">Real-time Traffic</h3>
+                <p class="text-xs text-gray-500">Global WAN Traffic (Aggregate)</p>
+            </div>
+            <div class="flex gap-4 text-xs">
+                <div class="flex items-center">
+                    <span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                    <span id="txt-rx">Download: 0 Mbps</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-3 h-3 rounded-full bg-purple-500 mr-2"></span>
+                    <span id="txt-tx">Upload: 0 Mbps</span>
+                </div>
+            </div>
+        </div>
+        <div class="w-full h-64">
+            <canvas id="trafficChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Stats Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- PPPoE Stats -->
+        <div
+            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+            <div class="flex items-center justify-between relative z-10">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 mb-1">PPPoE Customers</p>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-1">
+                        <span id="pppoe-online">
+                            <%= onlinePPPoE %>
+                        </span> / <span id="pppoe-total">
+                            <%= pppoeStats?.total || 0 %>
+                        </span>
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>
+                            <span id="pppoe-live-count">
+                                <%= onlinePPPoE %>
+                            </span> Live Sesi
+                        </span>
+                    </div>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                    <i class="fas fa-network-wired text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center text-xs relative z-10">
+                <% let pppoePerc=pppoeStats?.total> 0 ? (onlinePPPoE / pppoeStats.total * 100).toFixed(1) : 0; %>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 mr-2">
+                        <div id="pppoe-bar" class="bg-blue-600 h-1.5 rounded-full" style="width: <%= pppoePerc %>%">
+                        </div>
+                    </div>
+                    <span id="pppoe-perc" class="text-blue-600 font-semibold whitespace-nowrap">
+                        <%= pppoePerc %>% Online
+                    </span>
+            </div>
+            <div
+                class="absolute -right-4 -bottom-4 text-blue-50 opacity-10 text-8xl transform -rotate-12 pointer-events-none">
+                <i class="fas fa-network-wired"></i>
+            </div>
+        </div>
+
+        <!-- Static IP Stats -->
+        <div
+            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+            <div class="flex items-center justify-between relative z-10">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 mb-1">Static IP Units</p>
+                    <h3 class="text-2xl font-bold text-gray-900">
+                        <%= staticIpStats?.online || 0 %> / <%= staticIpStats?.total || 0 %>
+                    </h3>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300">
+                    <i class="fas fa-broadcast-tower text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center text-xs relative z-10">
+                <% let staticPerc=staticIpStats?.total> 0 ? (staticIpStats.online / staticIpStats.total *
+                    100).toFixed(1) : 0; %>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 mr-2">
+                        <div class="bg-purple-600 h-1.5 rounded-full" style="width: <%= staticPerc %>%"></div>
+                    </div>
+                    <span class="text-purple-600 font-semibold whitespace-nowrap">
+                        <%= staticPerc %>% Online
+                    </span>
+            </div>
+            <div
+                class="absolute -right-4 -bottom-4 text-purple-50 opacity-10 text-8xl transform -rotate-12 pointer-events-none">
+                <i class="fas fa-broadcast-tower"></i>
+            </div>
+        </div>
+
+        <!-- MikroTik Board Health -->
+        <div
+            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+            <div class="flex items-center justify-between relative z-10">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 mb-1">MikroTik Temp</p>
+                    <% let bTemp='N/A' ; let tempColor='text-green-600' ; if (healthInfo && Array.isArray(healthInfo)) {
+                        const item=healthInfo.find(h=> h.name && h.name.toLowerCase().includes('temperature'));
+                        if (item) {
+                        bTemp = item.value + '°C';
+                        let v = parseFloat(item.value);
+                        if (v > 65) tempColor = 'text-red-600';
+                        else if (v > 50) tempColor = 'text-orange-500';
+                        }
+                        }
+                        %>
+                        <h3 id="mt-temp" class="text-2xl font-bold <%= tempColor %>">
+                            <%= bTemp %>
+                        </h3>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-colors duration-300">
+                    <i class="fas fa-thermometer-half text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-gray-500 relative z-10 flex items-center">
+                <i class="fas fa-microchip mr-1"></i>
+                <span>Main Router Core Board</span>
+            </div>
+            <div
+                class="absolute -right-4 -bottom-4 text-orange-50 opacity-10 text-8xl transform -rotate-12 pointer-events-none">
+                <i class="fas fa-server"></i>
+            </div>
+        </div>
+
+        <!-- App Server Health (New) -->
+        <div
+            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+            <div class="flex items-center justify-between relative z-10">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 mb-1">App Server Load</p>
+                    <h3 class="text-2xl font-bold text-gray-900">
+                        <span id="server-cpu">
+                            <%= serverInfo?.cpuUsage || 0 %>
+                        </span>%
+                    </h3>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
+                    <i class="fas fa-memory text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-gray-500 relative z-10 flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-hdd mr-1 text-emerald-500"></i>
+                    <span>RAM: <span id="server-mem">
+                            <%= serverInfo?.memUsage || 0 %>
+                        </span>%</span>
+                </div>
+                <span class="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">Stable</span>
+            </div>
+            <div
+                class="absolute -right-4 -bottom-4 text-emerald-50 opacity-10 text-8xl transform -rotate-12 pointer-events-none">
+                <i class="fas fa-memory"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Monitoring Sections -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Real-time Health Monitor -->
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-heartbeat text-red-500 mr-2"></i>
+                    MikroTik Health Summary
+                </h3>
+                <span class="text-xs text-gray-400">Updates live</span>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="health-grid">
+                    <% if (healthInfo && Array.isArray(healthInfo) && healthInfo.length> 0) { %>
+                        <% healthInfo.forEach(item=> { %>
+                            <% let icon='fa-info-circle' ; let color='text-blue-500' ; let bgColor='bg-blue-50' ; const
+                                safeName=(item.name || '' ).toLowerCase(); if (safeName.includes('temperature')) {
+                                icon='fa-thermometer-half' ; color='text-orange-500' ; bgColor='bg-orange-50' ; } else
+                                if (safeName.includes('voltage')) { icon='fa-bolt' ; color='text-yellow-600' ;
+                                bgColor='bg-yellow-50' ; } else if (safeName.includes('current')) { icon='fa-plug' ;
+                                color='text-purple-500' ; bgColor='bg-purple-50' ; } %>
+                                <div
+                                    class="p-4 rounded-xl border border-gray-50 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all group">
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <div
+                                            class="w-8 h-8 rounded-lg <%= bgColor %> <%= color %> flex items-center justify-center">
+                                            <i class="fas <%= icon %> text-sm"></i>
+                                        </div>
+                                        <span class="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            <%= item.name %>
+                                        </span>
+                                    </div>
+                                    <div class="text-xl font-bold text-gray-900">
+                                        <%= item.value %>
+                                            <%= (item.name && item.name.toLowerCase().includes('temp')) ? '°C' : '' %>
+                                                <%= (item.name && item.name.toLowerCase().includes('volt')) ? 'V' : ''
+                                                    %>
+                                    </div>
+                                </div>
+                                <% }); %>
+                                    <% } else { %>
+                                        <div class="col-span-3 py-10 text-center">
+                                            <p class="text-gray-500 text-sm italic">MikroTik Health Data Unavailable</p>
+                                        </div>
+                                        <% } %>
+                </div>
+
+                <!-- Action Hub -->
+                <div class="mt-8 pt-8 border-t border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-900 mb-4 uppercase tracking-widest">Network Management Hub
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <a href="/monitoring/active-sessions"
+                            class="flex flex-col items-center p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all text-center group">
+                            <div
+                                class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">Active PPPoE</span>
+                        </a>
+                        <a href="/monitoring/interfaces"
+                            class="flex flex-col items-center p-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all text-center group">
+                            <div
+                                class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-ethernet"></i>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">Interfaces</span>
+                        </a>
+                        <a href="/monitoring/graphs"
+                            class="flex flex-col items-center p-4 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all text-center group">
+                            <div
+                                class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">Traffic Log</span>
+                        </a>
+                        <a href="/monitoring/logs"
+                            class="flex flex-col items-center p-4 rounded-xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50 transition-all text-center group">
+                            <div
+                                class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-list-alt"></i>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">System Logs</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Server Status -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <h3 class="font-bold text-gray-900 flex items-center mb-6">
+                    <i class="fas fa-server text-blue-600 mr-2"></i>
+                    App Host Resources
+                </h3>
+                <div class="space-y-6">
+                    <!-- CPU -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-600 uppercase">CPU Processing</span>
+                            <span class="text-xs font-bold text-blue-600" id="cpu-text">
+                                <%= serverInfo?.cpuUsage || 0 %>%
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-2">
+                            <div id="cpu-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                                style="width: <%= serverInfo?.cpuUsage || 0 %>%"></div>
+                        </div>
+                    </div>
+                    <!-- Memory -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-600 uppercase">Memory (RAM)</span>
+                            <span class="text-xs font-bold text-purple-600" id="mem-text">
+                                <%= serverInfo?.memUsage || 0 %>%
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-2">
+                            <div id="mem-bar" class="bg-purple-600 h-2 rounded-full transition-all duration-500"
+                                style="width: <%= serverInfo?.memUsage || 0 %>%"></div>
+                        </div>
+                    </div>
+                    <!-- Details -->
+                    <div class="pt-4 border-t border-gray-50 flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-500">Node Hostname</span>
+                            <span class="text-xs font-bold text-gray-900">
+                                <%= serverInfo?.hostname %>
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-500">Platform info</span>
+                            <span class="text-xs font-bold text-gray-900">
+                                <%= serverInfo?.platform %> (<%= serverInfo?.arch %>)
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-500">Host Temp</span>
+                            <span id="server-temp"
+                                class="text-xs font-bold <%= serverInfo?.temperature === 'N/A' ? 'text-gray-400' : 'text-orange-600' %>">
+                                <%= serverInfo?.temperature %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Live Event Log -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <h3 class="font-bold text-gray-900 flex items-center mb-4">
+                    <i class="fas fa-satellite-dish text-indigo-600 mr-2"></i>
+                    Live Network Events
+                </h3>
+                <div id="alert-log" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div class="py-10 text-center">
+                        <p class="text-xs text-gray-400 italic">Listening for events...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+</style>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Real-time Monitoring Script
+    const socket = io();
+    const connectionStatus = document.getElementById('connection-status');
+    const pppoeStats = <%= JSON.stringify(pppoeStats || { total: 0 }) %>;
+
+    // Traffic Chart Setup
+    const ctx = document.getElementById('trafficChart').getContext('2d');
+    const trafficChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array(20).fill(''),
+            datasets: [{
+                label: 'Download (Rx)',
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                data: Array(20).fill(0),
+                tension: 0.4
+            }, {
+                label: 'Upload (Tx)',
+                borderColor: '#a855f7',
+                backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                data: Array(20).fill(0),
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (value) {
+                            return value + ' Mbps';
+                        }
+                    }
+                },
+                x: { display: false }
+            },
+            animation: false
+        }
+    });
+
+    let lastRx = 0;
+    let lastTx = 0;
+    let lastTime = Date.now();
+
+    socket.on('connect', () => {
+        console.log('Connected to monitoring stream');
+    });
+
+    socket.on('monitoring:update', (data) => {
+        // Update Server Stats
+        if (data.server) {
+            document.getElementById('server-cpu').innerText = data.server.cpu;
+            document.getElementById('cpu-bar').style.width = data.server.cpu + '%';
+            document.getElementById('cpu-text').innerText = data.server.cpu + '%';
+
+            document.getElementById('server-mem').innerText = data.server.memory;
+            document.getElementById('mem-bar').style.width = data.server.memory + '%';
+            document.getElementById('mem-text').innerText = data.server.memory + '%';
+
+            if (data.server.temperature !== 'N/A') {
+                document.getElementById('server-temp').innerText = data.server.temperature;
+            }
+        }
+
+        // Update Network Stats
+        if (data.network) {
+            // PPPoE
+            const online = data.network.online_pppoe || 0;
+            document.getElementById('pppoe-online').innerText = online;
+            document.getElementById('pppoe-live-count').innerText = online;
+
+            if (pppoeStats.total > 0) {
+                const perc = (online / pppoeStats.total * 100).toFixed(1);
+                document.getElementById('pppoe-bar').style.width = perc + '%';
+                document.getElementById('pppoe-perc').innerText = perc + '% Online';
+            }
+
+            // Traffic Calculation
+            const currentRx = data.network.total_rx || 0;
+            const currentTx = data.network.total_tx || 0;
+            const currentTime = Date.now();
+
+            // Calculate Mbps
+            if (lastRx > 0 && lastTx > 0) {
+                const timeDiff = (currentTime - lastTime) / 1000; // in seconds
+                if (timeDiff > 0) {
+                    const rxMbps = ((currentRx - lastRx) * 8 / 1000000 / timeDiff).toFixed(2);
+                    const txMbps = ((currentTx - lastTx) * 8 / 1000000 / timeDiff).toFixed(2);
+
+                    if (rxMbps >= 0 && txMbps >= 0) { // Avoid negative spikes on restart or wrap
+                        document.getElementById('txt-rx').innerText = 'Download: ' + rxMbps + ' Mbps';
+                        document.getElementById('txt-tx').innerText = 'Upload: ' + txMbps + ' Mbps';
+
+                        // Update Chart
+                        trafficChart.data.datasets[0].data.push(rxMbps);
+                        trafficChart.data.datasets[0].data.shift();
+                        trafficChart.data.datasets[1].data.push(txMbps);
+                        trafficChart.data.datasets[1].data.shift();
+                        trafficChart.update();
+                    }
+                }
+            }
+
+            lastRx = currentRx;
+            lastTx = currentTx;
+            lastTime = currentTime;
+        }
+
+        // Process Alerts
+        if (data.alerts && data.alerts.length > 0) {
+            const log = document.getElementById('alert-log');
+            if (log.querySelector('p.italic')) log.innerHTML = ''; // Clear empty state
+
+            data.alerts.forEach(alert => {
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-xl text-xs flex gap-3 transition-all animate-slideIn ${alert.type === 'offline' ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'}`;
+
+                const time = new Date(alert.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                div.innerHTML = `
+                    <div class="flex-shrink-0 w-6 h-6 rounded-full ${alert.type === 'offline' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'} flex items-center justify-center font-bold">
+                        <i class="fas ${alert.type === 'offline' ? 'fa-arrow-down' : 'fa-arrow-up'} text-[10px]"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-black ${alert.type === 'offline' ? 'text-red-700' : 'text-green-700'} uppercase">${alert.type}</span>
+                            <span class="text-[10px] text-gray-400 font-medium">${time}</span>
+                        </div>
+                        <p class="text-gray-600">${alert.message}</p>
+                    </div>
+                `;
+
+                log.prepend(div);
+
+                // Limit log size
+                if (log.children.length > 50) {
+                    log.removeChild(log.lastChild);
+                }
+            });
+        }
+    });
+
+    async function syncNetworkMap() {
+        if (!confirm('Jalankan sinkronisasi manual? Proses ini akan memperbarui data peta, ODP, dan pelanggan.')) return;
+        const btn = document.querySelector('button[onclick="syncNetworkMap()"]');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/monitoring/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('Sinkronisasi berhasil!');
+                window.location.reload();
+            } else {
+                alert('Gagal: ' + result.message);
+            }
+        } catch (e) {
+            alert('Terjadi kesalahan koneksi');
+            console.error(e);
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+</script>

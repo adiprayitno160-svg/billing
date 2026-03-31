@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integration Settings - Billing System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                        <i class="fas fa-plug text-pink-600 mr-3"></i>
+                        Integration Settings
+                    </h1>
+                    <p class="mt-2 text-gray-600 font-medium">Extend your system by connecting external platforms</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="window.location.href='/settings/advanced-billing'"
+                        class="bg-white border text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center">
+                        <i class="fas fa-arrow-left mr-2"></i> Back
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Messaging Integration -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center">
+                            <div
+                                class="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h2 class="text-xl font-bold text-gray-900">WhatsApp Gateway</h2>
+                                <span
+                                    class="text-xs bg-green-100 text-green-700 font-bold px-2 py-1 rounded-full uppercase">Connected</span>
+                            </div>
+                        </div>
+                        <button onclick="window.location.href='/settings/whatsapp'"
+                            class="text-indigo-600 font-bold hover:underline">Configure</button>
+                    </div>
+
+                    <p class="text-sm text-gray-600 leading-relaxed mb-6">
+                        Automatic billing notifications, payment reminders, and customer support via official WhatsApp
+                        API.
+                    </p>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between py-3 border-b border-gray-50">
+                            <span class="text-sm text-gray-500">Auto-Invoicing</span>
+                            <span class="text-sm font-bold text-green-600">Enabled</span>
+                        </div>
+                        <div class="flex items-center justify-between py-3 border-b border-gray-50">
+                            <span class="text-sm text-gray-500">Payment Confirmations</span>
+                            <span class="text-sm font-bold text-green-600">Enabled</span>
+                        </div>
+                        <div class="flex items-center justify-between py-3">
+                            <span class="text-sm text-gray-500">Technician Bot</span>
+                            <span class="text-sm font-bold text-yellow-600">Beta</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 p-4 px-8 border-t flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Last heartbeat: 2 mins ago</span>
+                    <button class="text-xs font-bold text-indigo-600">Test Connection</button>
+                </div>
+            </div>
+
+            <!-- AI Integration -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center">
+                            <div
+                                class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h2 class="text-xl font-bold text-gray-900">Google Gemini AI</h2>
+                                <span
+                                    class="text-xs bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded-full uppercase">Ready</span>
+                            </div>
+                        </div>
+                        <button onclick="window.location.href='/settings/ai'"
+                            class="text-indigo-600 font-bold hover:underline">Configure</button>
+                    </div>
+
+                    <p class="text-sm text-gray-600 leading-relaxed mb-6">
+                        Powered by Gemini 1.5 Flash for intelligent customer support, payment proof OCR, and billing
+                        insights.
+                    </p>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between py-3 border-b border-gray-50">
+                            <span class="text-sm text-gray-500">OCR Payment Verification</span>
+                            <span class="text-sm font-bold text-green-600">Active</span>
+                        </div>
+                        <div class="flex items-center justify-between py-3 border-b border-gray-50">
+                            <span class="text-sm text-gray-500">SLA Forecasting</span>
+                            <span class="text-sm font-bold text-gray-400">Disabled</span>
+                        </div>
+                        <div class="flex items-center justify-between py-3">
+                            <span class="text-sm text-gray-500">Conversational Helpdesk</span>
+                            <span class="text-sm font-bold text-green-600">Active</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 p-4 px-8 border-t flex justify-between items-center">
+                    <span class="text-xs text-gray-400">2.4k requests this month</span>
+                    <button class="text-xs font-bold text-indigo-600">View Usage</button>
+                </div>
+            </div>
+
+            <!-- Payment Gateway Integration -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden opacity-75">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center">
+                            <div
+                                class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h2 class="text-xl font-bold text-gray-900">Midtrans API</h2>
+                                <span
+                                    class="text-xs bg-gray-100 text-gray-400 font-bold px-2 py-1 rounded-full uppercase">Coming
+                                    Soon</span>
+                            </div>
+                        </div>
+                        <button class="text-gray-400 font-bold cursor-not-allowed">Install</button>
+                    </div>
+
+                    <p class="text-sm text-gray-600 leading-relaxed mb-6">
+                        Accept credit cards, bank transfers, and e-wallets (GoPay, ShopeePay) with automated
+                        reconciliation.
+                    </p>
+
+                    <div class="flex items-center space-x-4 mb-4 opacity-50">
+                        <img src="https://midtrans.com/img/gopay.png" class="h-6 grayscale" alt="GoPay">
+                        <img src="https://midtrans.com/img/bca.png" class="h-6 grayscale" alt="BCA">
+                        <img src="https://midtrans.com/img/mandiri.png" class="h-6 grayscale" alt="Mandiri">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Webhooks -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center">
+                            <div
+                                class="w-12 h-12 bg-gray-100 text-gray-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fas fa-terminal"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h2 class="text-xl font-bold text-gray-900">Webhooks</h2>
+                                <span
+                                    class="text-xs bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-full uppercase">3
+                                    Hook(s)</span>
+                            </div>
+                        </div>
+                        <button class="text-indigo-600 font-bold hover:underline">Manage</button>
+                    </div>
+
+                    <p class="text-sm text-gray-600 leading-relaxed mb-6">
+                        Push real-time events from your billing system to external servers (Slack, Discord, Custom CRM).
+                    </p>
+
+                    <div class="space-y-4">
+                        <div class="text-xs font-mono bg-gray-50 p-2 rounded">POST https://hooks.slack.com/services/...
+                        </div>
+                        <div class="text-xs font-mono bg-gray-50 p-2 rounded">POST https://api.mycrm.com/v1/billing
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

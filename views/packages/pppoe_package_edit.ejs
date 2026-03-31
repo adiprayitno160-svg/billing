@@ -1,0 +1,550 @@
+<div class="space-y-6 pb-24">
+    <div class="mb-6">
+        <div class="flex items-center gap-3 mb-2">
+            <a href="/packages/pppoe/packages" class="text-blue-600 hover:text-blue-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </a>
+            <h1 class="text-2xl font-bold text-slate-800">Edit Paket PPPoE</h1>
+        </div>
+        <p class="text-slate-600">Edit konfigurasi paket PPPoE: <strong>
+                <%= package.name %>
+            </strong></p>
+    </div>
+
+    <% if (error && error.length> 0) { %>
+        <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+            <%= error[0] %>
+        </div>
+        <% } %>
+
+            <div class="bg-white rounded-lg border border-slate-200 p-6">
+                <form method="post" action="/packages/pppoe/packages/<%= package.id %>/update" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Nama Paket -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Nama Paket <span class="text-red-500">*</span>
+                            </label>
+                            <input name="name" type="text" required value="<%= package.name %>"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Masukkan nama paket" />
+                        </div>
+
+                        <!-- Profil PPPoE -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Profil PPPoE
+                            </label>
+                            <select id="profile_id" name="profile_id"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                onchange="loadProfileRateLimits(this.value, true)">
+                                <option value="">Pilih Profil (Opsional)</option>
+                                <% (profiles || []).forEach(function(profile){ %>
+                                    <option value="<%= profile.id %>" <%=package.profile_id==profile.id ? 'selected'
+                                        : '' %>
+                                        data-rate-rx="<%= profile.rate_limit_rx || '' %>"
+                                            data-rate-tx="<%= profile.rate_limit_tx || '' %>"
+                                                data-burst-rx="<%= profile.burst_limit_rx || '' %>"
+                                                    data-burst-tx="<%= profile.burst_limit_tx || '' %>"
+                                                        data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>
+                                                            "
+                                                            data-burst-threshold-tx="<%= profile.burst_threshold_tx
+                                                                || '' %>"
+                                                                data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
+                                                                    data-burst-time-tx="<%= profile.burst_time_tx || ''
+                                                                        %>">
+                                                                        <%= profile.name %>
+                                    </option>
+                                    <% }) %>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">💡 Pilih profil untuk auto-update rate limiting dari
+                                profil terbaru</p>
+                        </div>
+
+                        <!-- Harga -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Harga (Rp) <span class="text-red-500">*</span>
+                            </label>
+                            <input name="price" type="number" min="0" step="1000" required value="<%= package.price %>"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="0" />
+                        </div>
+
+                        <!-- Durasi -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Durasi (Hari) <span class="text-red-500">*</span>
+                            </label>
+                            <input name="duration_days" type="number" min="1" required
+                                value="<%= package.duration_days %>"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                        </div>
+
+                        <!-- Status -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Status
+                            </label>
+                            <select name="status"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="active" <%=package.status=='active' ? 'selected' : '' %>>Aktif</option>
+                                <option value="inactive" <%=package.status=='inactive' ? 'selected' : '' %>>Tidak Aktif
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Deskripsi -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Deskripsi
+                            </label>
+                            <textarea name="description" rows="3"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Deskripsi paket (opsional)"><%= package.description || '' %></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Share & Limit Section -->
+                    <div class="border-t border-slate-200 pt-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <h3 class="text-lg font-semibold text-slate-800">Shared Bandwidth & Priority</h3>
+                            <% if ((package.max_clients || 1)> 1) { %>
+                                <span
+                                    class="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full">SHARE
+                                    AKTIF</span>
+                                <% } else { %>
+                                    <span
+                                        class="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full">DEDICATED</span>
+                                    <% } %>
+                        </div>
+
+                        <!-- Info Box -->
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-purple-800">
+                                <strong>💡 Cara Kerja Shared Bandwidth:</strong><br>
+                                • Set <strong>Max Clients > 1</strong> untuk mengaktifkan mode share<br>
+                                • Contoh: 15M share 10 pelanggan = masing-masing dapat <strong>minimal 1.5M</strong>,
+                                maksimal 15M jika yang lain idle<br>
+                                • Sistem otomatis membuat Parent Queue (Simple Queue) di MikroTik
+                            </p>
+                        </div>
+
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Max Clients (Sharing)
+                                </label>
+                                <input name="max_clients" type="number" min="1"
+                                    value="<%= (typeof package.max_clients !== 'undefined' && package.max_clients !== null) ? package.max_clients : 1 %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="Contoh: 10" />
+                                <p class="text-[10px] text-slate-500 mt-1">1 = Dedicated, >1 = Shared</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Priority (1-8)
+                                </label>
+                                <input name="priority" type="number" min="1" max="8"
+                                    value="<%= package.priority || 8 %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="8 (Lowest)" />
+                                <p class="text-[10px] text-slate-500 mt-1">1 (Highest) - 8 (Lowest)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Limit At Download
+                                </label>
+                                <input name="limit_at_download" type="text"
+                                    value="<%= package.limit_at_download || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="Auto (kosongkan)" />
+                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Limit At Upload
+                                </label>
+                                <input name="limit_at_upload" type="text" value="<%= package.limit_at_upload || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    placeholder="Auto (kosongkan)" />
+                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
+                            </div>
+                        </div>
+
+                        <% if ((package.max_clients || 1)> 1) { %>
+                            <!-- Current Shared Status -->
+                            <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800 font-medium">📊 Status Sharing Aktif:</p>
+                                <ul class="text-xs text-green-700 mt-1 ml-4">
+                                    <li>• Total Bandwidth: <strong>
+                                            <%= package.rate_limit_rx || '?' %> / <%= package.rate_limit_tx || '?' %>
+                                        </strong></li>
+                                    <li>• Max Clients: <strong>
+                                            <%= package.max_clients %>
+                                        </strong></li>
+                                    <li>• Current Clients: <strong>
+                                            <%= package.current_clients || 0 %>
+                                        </strong></li>
+                                    <li>• Limit At (Min per user): <strong>
+                                            <%= package.limit_at_download || 'Auto' %> / <%= package.limit_at_upload
+                                                    || 'Auto' %>
+                                        </strong></li>
+                                </ul>
+                            </div>
+                            <% } %>
+                    </div>
+
+                    <!-- Prepaid Pricing Configuration -->
+                    <div class="col-span-full border-t border-slate-200 pt-6 mt-2">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-2">Konfigurasi Harga Prepaid</h3>
+                        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-indigo-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <strong>Sistem Prabayar:</strong> Aktifkan paket dengan mengklik tombol toggle dan
+                                masukkan harga. Hanya paket yang aktif yang akan muncul di WhatsApp Bot.
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- 7 Hari -->
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="text-sm font-semibold text-slate-700">Paket 7 Hari</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="is_enabled_7_days" value="1"
+                                            <%=package.is_enabled_7_days ? 'checked' : '' %>
+                                        class="peer sr-only" onchange="togglePriceInput(this, 'price_7_days')">
+                                        <div
+                                            class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
+                                    <input id="price_7_days" name="price_7_days" type="number" step="1000"
+                                        value="<%= package.price_7_days %>" <%=!package.is_enabled_7_days ? 'disabled'
+                                        : '' %>
+                                    class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 <%=
+                                        !package.is_enabled_7_days ? 'bg-slate-100 text-slate-400'
+                                        : 'bg-white text-slate-900' %> focus:outline-none focus:ring-2
+                                        focus:ring-blue-500 transition-all"
+                                        placeholder="0" />
+                                </div>
+                            </div>
+
+                            <!-- 14 Hari -->
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="text-sm font-semibold text-slate-700">Paket 14 Hari</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="is_enabled_14_days" value="1"
+                                            <%=package.is_enabled_14_days ? 'checked' : '' %>
+                                        class="peer sr-only" onchange="togglePriceInput(this, 'price_14_days')">
+                                        <div
+                                            class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
+                                    <input id="price_14_days" name="price_14_days" type="number" step="1000"
+                                        value="<%= package.price_14_days %>" <%=!package.is_enabled_14_days ? 'disabled'
+                                        : '' %>
+                                    class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 <%=
+                                        !package.is_enabled_14_days ? 'bg-slate-100 text-slate-400'
+                                        : 'bg-white text-slate-900' %> focus:outline-none focus:ring-2
+                                        focus:ring-blue-500 transition-all"
+                                        placeholder="0" />
+                                </div>
+                            </div>
+
+                            <!-- 30 Hari -->
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                                <div class="flex justify-between items-center mb-3">
+                                    <label class="text-sm font-semibold text-slate-700">Paket 30 Hari</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="is_enabled_30_days" value="1"
+                                            <%=package.is_enabled_30_days ? 'checked' : '' %>
+                                        class="peer sr-only" onchange="togglePriceInput(this, 'price_30_days')">
+                                        <div
+                                            class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
+                                    <input id="price_30_days" name="price_30_days" type="number" step="1000"
+                                        value="<%= package.price_30_days %>" <%=!package.is_enabled_30_days ? 'disabled'
+                                        : '' %>
+                                    class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 <%=
+                                        !package.is_enabled_30_days ? 'bg-slate-100 text-slate-400'
+                                        : 'bg-white text-slate-900' %> focus:outline-none focus:ring-2
+                                        focus:ring-blue-500 transition-all"
+                                        placeholder="0" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Price Preview -->
+                        <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <p class="text-sm text-green-800 font-medium">
+                                <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                Contoh di WhatsApp Bot:
+                            </p>
+                            <ul class="text-xs text-green-700 mt-2 ml-4 space-y-1">
+                                <li id="preview_weekly">• Paket 7 Hari: <strong>Rp <span id="price_7_preview">
+                                            <%= package.price_7_days || '0' %>
+                                        </span></strong></li>
+                                <li id="preview_biweekly">• Paket 14 Hari: <strong>Rp <span id="price_14_preview">
+                                            <%= package.price_14_days || '0' %>
+                                        </span></strong></li>
+                                <li id="preview_monthly">• Paket 30 Hari: <strong>Rp <span id="price_30_preview">
+                                            <%= package.price_30_days || '0' %>
+                                        </span></strong></li>
+                            </ul>
+                        </div>
+                    </div>
+
+
+                    <!-- Rate Limiting Section -->
+                    <div class="border-t border-slate-200 pt-6">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">Rate Limiting</h3>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Rate limit akan otomatis ter-update dari profil yang dipilih. Untuk mengubah rate limit,
+                                edit di <strong>Profil PPPoE</strong> terlebih dahulu, lalu pilih ulang profil di atas.
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Download Limit (RX)
+                                </label>
+                                <input id="rate_limit_rx" name="rate_limit_rx" type="text"
+                                    value="<%= package.rate_limit_rx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                                <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil yang dipilih</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Upload Limit (TX)
+                                </label>
+                                <input id="rate_limit_tx" name="rate_limit_tx" type="text"
+                                    value="<%= package.rate_limit_tx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                                <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil yang dipilih</p>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <a href="/packages/pppoe/profiles<%= package.profile_id ? '/' + package.profile_id + '/edit' : '' %>"
+                                class="text-blue-600 hover:text-blue-800 text-sm inline-flex items-center">
+                                <i class="fas fa-external-link-alt mr-1"></i>
+                                Edit Profil PPPoE
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Burst Limiting Section -->
+                    <div class="border-t border-slate-200 pt-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-slate-800">Burst Limiting</h3>
+                            <div class="flex items-center space-x-2">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="burst_enabled" name="burst_enabled" value="1"
+                                        <%= package.burst_enabled ? 'checked' : '' %>
+                                        class="peer sr-only" onchange="toggleBurstInputs()">
+                                    <div
+                                        class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                    </div>
+                                </label>
+                                <span class="text-sm font-semibold text-slate-700">Aktifkan Burst</span>
+                            </div>
+                        </div>
+                        <div id="burst_inputs_container" class="grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-300 <%= package.burst_enabled ? '' : 'opacity-50 pointer-events-none' %>">
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Download Limit
+                                </label>
+                                <input id="burst_limit_rx" name="burst_limit_rx" type="text"
+                                    value="<%= package.burst_limit_rx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Upload Limit
+                                </label>
+                                <input id="burst_limit_tx" name="burst_limit_tx" type="text"
+                                    value="<%= package.burst_limit_tx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Download Threshold
+                                </label>
+                                <input id="burst_threshold_rx" name="burst_threshold_rx" type="text"
+                                    value="<%= package.burst_threshold_rx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Upload Threshold
+                                </label>
+                                <input id="burst_threshold_tx" name="burst_threshold_tx" type="text"
+                                    value="<%= package.burst_threshold_tx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Download Time
+                                </label>
+                                <input id="burst_time_rx" name="burst_time_rx" type="text"
+                                    value="<%= package.burst_time_rx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    Burst Upload Time
+                                </label>
+                                <input id="burst_time_tx" name="burst_time_tx" type="text"
+                                    value="<%= package.burst_time_tx || '' %>"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Otomatis dari profil" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                        <a href="/packages/pppoe/packages"
+                            class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                            Batal
+                        </a>
+                        <button type="submit"
+                            class="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors">
+                            Update Paket
+                        </button>
+                    </div>
+                </form>
+            </div>
+</div>
+
+<script>
+    // Auto-fill rate limits from MikroTik profile (hanya saat user MENGUBAH profile)
+    function loadProfileRateLimits(profileId, isManualChange = false) {
+        if (!profileId) {
+            // Clear all fields jika tidak ada profile dipilih
+            document.getElementById('rate_limit_rx').value = '';
+            document.getElementById('rate_limit_tx').value = '';
+            document.getElementById('burst_limit_rx').value = '';
+            document.getElementById('burst_limit_tx').value = '';
+            document.getElementById('burst_threshold_rx').value = '';
+            document.getElementById('burst_threshold_tx').value = '';
+            document.getElementById('burst_time_rx').value = '';
+            document.getElementById('burst_time_tx').value = '';
+            return;
+        }
+
+        // PENTING: Jika ini bukan perubahan manual (yaitu saat page load), 
+        // JANGAN overwrite nilai yang sudah ada di form
+        if (!isManualChange) {
+            console.log('🔒 Page load - keeping existing rate limit values from database');
+            return;
+        }
+
+        const selectElement = document.getElementById('profile_id');
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+        // Get data attributes dari option yang dipilih
+        const rateRx = selectedOption.getAttribute('data-rate-rx');
+        const rateTx = selectedOption.getAttribute('data-rate-tx');
+        const burstRx = selectedOption.getAttribute('data-burst-rx');
+        const burstTx = selectedOption.getAttribute('data-burst-tx');
+        const burstThresholdRx = selectedOption.getAttribute('data-burst-threshold-rx');
+        const burstThresholdTx = selectedOption.getAttribute('data-burst-threshold-tx');
+        const burstTimeRx = selectedOption.getAttribute('data-burst-time-rx');
+        const burstTimeTx = selectedOption.getAttribute('data-burst-time-tx');
+
+        // Fill the form dengan data terbaru dari profil (hanya saat user mengubah profile)
+        document.getElementById('rate_limit_rx').value = (rateRx && rateRx.trim() !== '') ? rateRx.trim() : '0';
+        document.getElementById('rate_limit_tx').value = (rateTx && rateTx.trim() !== '') ? rateTx.trim() : '0';
+
+        // Burst fields: hanya isi jika ada nilai, jika tidak biarkan kosong
+        document.getElementById('burst_limit_rx').value = (burstRx && burstRx.trim() !== '') ? burstRx.trim() : '';
+        document.getElementById('burst_limit_tx').value = (burstTx && burstTx.trim() !== '') ? burstTx.trim() : '';
+        document.getElementById('burst_threshold_rx').value = (burstThresholdRx && burstThresholdRx.trim() !== '') ? burstThresholdRx.trim() : '';
+        document.getElementById('burst_threshold_tx').value = (burstThresholdTx && burstThresholdTx.trim() !== '') ? burstThresholdTx.trim() : '';
+        document.getElementById('burst_time_rx').value = (burstTimeRx && burstTimeRx.trim() !== '') ? burstTimeRx.trim() : '';
+        document.getElementById('burst_time_tx').value = (burstTimeTx && burstTimeTx.trim() !== '') ? burstTimeTx.trim() : '';
+
+        console.log('✅ Rate limits updated from profile (manual change):', {
+            rx: rateRx || '0',
+            tx: rateTx || '0'
+        });
+    }
+
+    // Saat halaman dimuat, JANGAN overwrite rate limits yang sudah ada
+    // Rate limits sudah di-load dari database via EJS
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('📦 Package edit loaded - rate limits preserved from database');
+
+        // Tambahkan event listener untuk perubahan profile
+        const profileSelect = document.getElementById('profile_id');
+        if (profileSelect) {
+            profileSelect.addEventListener('change', function () {
+                // Hanya update rate limits jika user secara eksplisit MENGUBAH profile
+                loadProfileRateLimits(this.value, true);
+            });
+        }
+    });
+
+    // Toggle price input enable/disable state
+    function togglePriceInput(checkbox, inputId) {
+        const input = document.getElementById(inputId);
+        if (checkbox.checked) {
+            input.disabled = false;
+            input.classList.remove('bg-slate-100', 'text-slate-400');
+            input.classList.add('bg-white', 'text-slate-900');
+            input.focus();
+        } else {
+            input.disabled = true;
+            input.classList.add('bg-slate-100', 'text-slate-400');
+            input.classList.remove('bg-white', 'text-slate-900');
+        }
+    }
+
+    function toggleBurstInputs() {
+        const checkbox = document.getElementById('burst_enabled');
+        const container = document.getElementById('burst_inputs_container');
+        
+        if (checkbox.checked) {
+            container.classList.remove('opacity-50', 'pointer-events-none');
+        } else {
+            container.classList.add('opacity-50', 'pointer-events-none');
+        }
+    }
+</script>

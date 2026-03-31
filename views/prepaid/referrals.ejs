@@ -1,0 +1,155 @@
+<%- include('../partials/header') %>
+    <%- include('../partials/sidebar') %>
+
+        <div class="content-wrapper">
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0"><i class="fas fa-user-friends"></i> Referral Program</h1>
+                        </div>
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li class="breadcrumb-item active">Referrals</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="content">
+                <div class="container-fluid">
+
+                    <!-- Statistics -->
+                    <div class="row">
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-info">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.total_referrals || 0 %>
+                                    </h3>
+                                    <p>Total Invitations</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-success">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.successful_referrals || 0 %>
+                                    </h3>
+                                    <p>Successful Referrals</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-warning">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.pending_referrals || 0 %>
+                                    </h3>
+                                    <p>Pending</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-danger">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.total_days_given || 0 %> Days
+                                    </h3>
+                                    <p>Free Days Awarded</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-gift"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Referral List -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Recent Referrals</h3>
+                        </div>
+                        <div class="card-body table-responsive p-0">
+                            <table class="table table-hover text-nowrap">
+                                <thead>
+                                    <tr>
+                                        <th>Referrer (Pengundang)</th>
+                                        <th>Referred (Diundang)</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Reward</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (referrals && referrals.length> 0) { %>
+                                        <% referrals.forEach(function(r) { %>
+                                            <tr>
+                                                <td>
+                                                    <strong>
+                                                        <%= r.referrer_name %>
+                                                    </strong><br>
+                                                    <small class="text-muted">
+                                                        <%= r.referrer_code %> | <%= r.referrer_phone %>
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <strong>
+                                                        <%= r.referred_name %>
+                                                    </strong><br>
+                                                    <small class="text-muted">
+                                                        <%= r.referred_code %> | <%= r.referred_phone %>
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <% if (r.status==='rewarded' ) { %>
+                                                        <span class="badge badge-success">COMPLETED</span>
+                                                        <% } else { %>
+                                                            <span class="badge badge-warning">PENDING</span>
+                                                            <% } %>
+                                                </td>
+                                                <td>
+                                                    <%= new Date(r.created_at).toLocaleString('id-ID') %>
+                                                </td>
+                                                <td>
+                                                    <% if (r.status==='rewarded' ) { %>
+                                                        <span class="text-success">
+                                                            +<%= r.referrer_reward_days %> Days
+                                                        </span>
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            <%= new Date(r.rewarded_at).toLocaleDateString() %>
+                                                        </small>
+                                                        <% } else { %>
+                                                            <span class="text-muted">-</span>
+                                                            <% } %>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
+                                                <% } else { %>
+                                                    <tr>
+                                                        <td colspan="5" class="text-center">No referrals found</td>
+                                                    </tr>
+                                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </div>
+
+        <%- include('../partials/footer') %>

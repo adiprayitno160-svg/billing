@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Print Batch</title>
+    <style>
+        /* CSS PALING STABIL UNTUK THERMAL PRINTER (PENGGANTI FLEXBOX) */
+        @page { size: 58mm auto; margin: 0; }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; color: #000 !important; }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 8.5pt;
+            width: 48mm; /* Lebar isian sangat aman agar tidak terpotong */
+            margin: 0 auto; /* Tengah-tengah roll */
+            background: white;
+            line-height: normal;
+        }
+
+        .no-print { display: block; text-align: center; padding: 15px; background: #EEE; border-bottom: 1px solid #CCC; margin-bottom: 10px; width: auto !important; }
+        @media print { .no-print { display: none !important; } }
+
+        .receipt {
+            padding: 10px 0 20px 0;
+            border-bottom: 1px dashed black;
+            clear: both;
+            overflow: hidden;
+            page-break-inside: avoid;
+        }
+
+        .header { text-align: center; margin-bottom: 8px; }
+        .company-name { font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+
+        /* REPLACEMENT UNTUK FLEXBOX YANG BERMASALAH DI CHROME PRINT */
+        .row { clear: both; overflow: hidden; margin-bottom: 4px; border-bottom: none; width: 100%; }
+        .lbl { float: left; width: 40%; text-align: left; }
+        .val { float: right; width: 58%; text-align: right; font-weight: bold; }
+        
+        /* HR / SEPARATOR */
+        .sep { border-top: 1px dashed black; height: 1px; margin: 4px 0; clear: both; }
+        .sep-bold { border-top: 2px solid black; height: 2px; margin: 4px 0; clear: both; }
+
+        .total-row {
+            font-size: 11pt;
+            font-weight: bold;
+            padding-top: 8px;
+            margin-top: 5px;
+            border-top: 2px solid black;
+            clear: both;
+            overflow: hidden;
+        }
+
+        @media screen {
+            body { background: #f0f0f0; padding: 20px; width: auto; max-width: 400px; margin: 0 auto; }
+            .receipt { background: white; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 4px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button id="btnPrint" style="padding: 12px 25px; font-weight: bold; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px;">🖨️ CETAK SEMUA (FIX CHROME)</button>
+        <button onclick="window.close()" style="padding: 12px 25px; cursor: pointer; margin-left:10px;">✖️ TUTUP</button>
+    </div>
+
+    <% if (invoices && invoices.length > 0) { 
+        invoices.forEach((invoice, index) => { %>
+            <div class="receipt">
+                <div class="header">
+                    <div class="company-name"><%= companyInfo?.company_name || 'ID.NET BY DBN' %></div>
+                    <div style="font-size: 8pt;">WA: <%= companyInfo?.company_phone %></div>
+                </div>
+
+                <div class="sep-bold"></div>
+
+                <div class="row">
+                    <div class="lbl" style="width: 30%;"><%= new Date(invoice.created_at).toLocaleDateString('id-ID') %></div>
+                    <div class="val" style="width: 65%;">REF: #<%= invoice.invoice_number %></div>
+                </div>
+
+                <div class="sep"></div>
+
+                <div class="row"><div class="lbl">Pelanggan:</div><div class="val"><%= invoice.customer_name %></div></div>
+                <div class="row"><div class="lbl">Jatuh Tempo:</div><div class="val"><%= new Date(invoice.due_date).toLocaleDateString('id-ID') %></div></div>
+
+                <div class="sep"></div>
+
+                <% (invoice.items || []).forEach(item => { %>
+                    <div class="row" style="font-size: 8pt;">
+                        <div class="lbl" style="width: 60%;"><%= item.description %></div>
+                        <div class="val" style="width: 38%;">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %></div>
+                    </div>
+                <% }); %>
+
+                <div class="row">
+                    <div class="lbl">TOTAL BULAN INI</div>
+                    <div class="val">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></div>
+                </div>
+
+                <% if (typeof invoice.total_balance !== 'undefined' && invoice.total_balance > invoice.total_amount) { 
+                    const tunggakan = invoice.total_balance - invoice.total_amount;
+                    let periodeKet = '';
+                    if (invoice.unpaid_periods) {
+                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                        const months = invoice.unpaid_periods.split(',')
+                            .filter(p => p !== (invoice.raw_period || invoice.period)) // Skip current invoice period (use raw if available)
+                            .map(p => {
+                                const [year, month] = p.split('-');
+                                const mIdx = parseInt(month) - 1;
+                                return (monthNames[mIdx] || month) + ' ' + (year.substring(2));
+                            });
+                        if (months.length > 0) periodeKet = ' (' + months.join(', ') + ')';
+                    }
+                %>
+                    <div class="row">
+                        <div class="lbl">TUNGGAKAN<%= periodeKet %></div>
+                        <div class="val" style="color:red !important;">Rp <%= new Intl.NumberFormat('id-ID').format(tunggakan) %></div>
+                    </div>
+                <% } %>
+
+                <div class="total-row">
+                    <div class="lbl">TOTAL BAYAR</div>
+                    <div class="val">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_balance || invoice.total_amount) %></div>
+                </div>
+            </div>
+
+            <% if (index < invoices.length - 1) { %>
+                <div style="page-break-after: always; height: 1px;"></div>
+            <% } %>
+        <% }); %>
+    <% } else { %>
+        <div style="text-align: center; padding: 50px 20px; font-family: Arial; font-weight: bold; color: #666;">
+            ❌ BELUM ADA TAGIHAN BARU<br>
+            <span style="font-size: 8pt; font-weight: normal;">Semua tagihan lama (overdue) sudah disaring otomatis.</span>
+        </div>
+    <% } %>
+
+    <script>
+        window.onload = function() {
+            document.getElementById('btnPrint')?.addEventListener('click', () => window.print());
+        };
+    </script>
+</body>
+</html>

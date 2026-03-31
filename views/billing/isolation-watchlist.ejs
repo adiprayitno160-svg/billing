@@ -1,0 +1,259 @@
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-amber-900 flex items-center gap-3">
+                    <span class="p-2 bg-amber-100 rounded-xl">⚠️</span>
+                    Pengecekan Isolasi Otomatis (Watchlist)
+                </h1>
+                <p class="text-amber-700 mt-1">Identifikasi pelanggan yang akan terisolir malam ini atau sedang dalam status "Bypass" (Sudah Pulih tapi Belum Lunas)</p>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" id="btnRefresh"
+                    class="px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-all font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
+                    </svg>
+                    Refresh
+                </button>
+                <a href="/billing/customer/isolation/list"
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m0 0v2m0-2h2m-2 0H10m8-6V9a4 4 0 00-8 0v2m-2 0h12a2 2 0 012 2v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5a2 2 0 012-2z">
+                        </path>
+                    </svg>
+                    Lihat Terisolasi
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Alert -->
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg flex gap-3 shadow-sm text-blue-800">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+            <p class="font-bold">Apa Gunanya Halaman Ini?</p>
+            <p class="text-sm">Halaman ini membantu Anda mengidentifikasi pelanggan yang <strong>akan terblokir otomatis di jadwal berikutnya</strong>. Khususnya untuk kasus seperti <strong>Sugondo</strong>: pelanggan yang Anda restore manual tetapi tagihannya masih menunggak, maka sistem akan memblokirnya kembali saat pengecekan otomatis (biasanya pukul 01:00 AM).</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="statsCards">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-red-100 rounded-lg">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Manual Bypass / Sugondo Case</p>
+                    <p class="text-2xl font-bold text-red-600" id="statBypass">-</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-orange-100 rounded-lg">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Akan Terisolir Malam Ini</p>
+                    <p class="text-2xl font-bold text-orange-600" id="statUrgent">-</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-yellow-100 rounded-lg">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Masa Tenggang (Grace Period)</p>
+                    <p class="text-2xl font-bold text-yellow-600" id="statWarning">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span class="p-1.5 bg-amber-100 rounded-lg">📋</span> Watchlist Isolasi Otomatis
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-slate-700">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-semibold">Pelanggan</th>
+                        <th class="px-4 py-3 text-left font-semibold">Status Tagihan</th>
+                        <th class="px-4 py-3 text-center font-semibold">Tingkat Risiko</th>
+                        <th class="px-4 py-3 text-left font-semibold">Detail Bypass</th>
+                        <th class="px-4 py-3 text-center font-semibold">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="watchlistBody" class="divide-y divide-slate-100">
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                            <svg class="animate-spin w-8 h-8 mx-auto mb-2 text-slate-400" fill="none"
+                                viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                            Memuat data watchlist...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const watchlistBody = document.getElementById('watchlistBody');
+
+        async function loadWatchlist() {
+            try {
+                const res = await fetch('/billing/customer/isolation/api/watchlist');
+                const data = await res.json();
+
+                if (data.success && data.data.length > 0) {
+                    let bypassCount = 0;
+                    let urgentCount = 0;
+                    let warningCount = 0;
+
+                    watchlistBody.innerHTML = data.data.map(item => {
+                        let riskBadge = '';
+                        let riskDesc = '';
+                        let rowClass = '';
+
+                        if (item.risk_level === 'manual_bypass') {
+                            bypassCount++;
+                            riskBadge = 'bg-red-100 text-red-700 border-red-200';
+                            riskDesc = '🚨 MANUAL BYPASS (SUGONDO CASE)';
+                            rowClass = 'bg-red-50/30';
+                        } else if (item.risk_level === 'at_risk_urgent') {
+                            urgentCount++;
+                            riskBadge = 'bg-orange-100 text-orange-700 border-orange-200';
+                            riskDesc = '🏃 AKAN TERISOLIR (SEGERA)';
+                            rowClass = 'bg-orange-50/10';
+                        } else {
+                            warningCount++;
+                            riskBadge = 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                            riskDesc = '⏳ MASA TENGGANG';
+                        }
+
+                        // Stats Update
+                        document.getElementById('statBypass').textContent = bypassCount;
+                        document.getElementById('statUrgent').textContent = urgentCount;
+                        document.getElementById('statWarning').textContent = warningCount;
+
+                        return `
+                            <tr class="hover:bg-slate-50 transition-colors ${rowClass}">
+                                <td class="px-4 py-3">
+                                    <div class="font-bold text-slate-800">${item.name}</div>
+                                    <div class="text-xs text-slate-500">${item.customer_code || '-'} | ${item.phone || '-'} | ${item.connection_type.toUpperCase()}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="text-xs font-semibold text-slate-700">${item.unpaid_count} Tagihan Belum Lunas</div>
+                                    <div class="text-[10px] text-slate-500 truncate max-w-[200px]" title="${item.periods}">Bulan: ${item.periods}</div>
+                                    <div class="text-[10px] text-red-600 font-bold">Terlama: ${new Date(item.oldest_due_date).toLocaleDateString('id-ID')} (${item.days_overdue} hari telat)</div>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="px-3 py-1 text-[11px] rounded-full border font-bold uppercase ${riskBadge}">
+                                        ${riskDesc}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    ${item.last_restore_at ? `
+                                        <div class="text-[10px] text-slate-700"><strong>Dikeluarkan oleh:</strong> ${item.restored_by}</div>
+                                        <div class="text-[10px] text-slate-500"><strong>Waktu:</strong> ${new Date(item.last_restore_at).toLocaleString('id-ID')}</div>
+                                        <div class="text-[10px] text-slate-400 italic font-mono truncate max-w-[150px]" title="${item.restore_reason}">${item.restore_reason || '-'}</div>
+                                    ` : '<span class="text-slate-400 text-xs italic">Belum pernah di-restore manual</span>'}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex flex-col gap-1 items-center">
+                                        <a href="/billing/tagihan?customerId=${item.id}&status=unpaid" 
+                                            class="px-3 py-1 text-[11px] rounded bg-blue-600 text-white hover:bg-blue-700 transition w-full text-center">
+                                            💰 Bayar
+                                        </a>
+                                        <button onclick="openDeferModal(${item.id}, '${item.name}', '${item.oldest_due_date}', ${item.unpaid_count})" 
+                                            class="px-3 py-1 text-[11px] rounded bg-purple-600 text-white hover:bg-purple-700 transition w-full text-center">
+                                            📅 Janji Bayar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    if (data.data.length === 0) showEmpty();
+                } else {
+                    showEmpty();
+                }
+            } catch (e) {
+                console.error('Error loading watchlist:', e);
+                watchlistBody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">Gagal memuat data: ${e.message}</td></tr>`;
+            }
+        }
+
+        function showEmpty() {
+            document.getElementById('statBypass').textContent = '0';
+            document.getElementById('statUrgent').textContent = '0';
+            document.getElementById('statWarning').textContent = '0';
+            watchlistBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-4 py-12 text-center text-slate-500">
+                        <div class="flex flex-col items-center gap-3">
+                            <div class="p-4 bg-green-50 rounded-full">
+                                <svg class="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-bold text-slate-800">Aman Terkendali!</h4>
+                                <p class="text-sm text-slate-500">Tidak ada pelanggan yang berada dalam risiko isolasi mendadak saat ini.</p>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        window.openDeferModal = function(id, name, date, count) {
+            // Check if PaymentDeferment exists or redirect to customer detail
+            Swal.fire({
+                title: 'Fitur Janji Bayar',
+                text: 'Arahkan ke detail pelanggan untuk membuat Deferment (Janji Bayar)?',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Go!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = `/customers/view/${id}?action=defer`;
+                }
+            });
+        };
+
+        document.getElementById('btnRefresh').addEventListener('click', loadWatchlist);
+
+        loadWatchlist();
+    });
+</script>

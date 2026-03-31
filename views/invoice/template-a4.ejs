@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice #<%= invoice.invoice_number %>
+    </title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #16a34a;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+            --bg-light: #f8fafc;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px;
+            background-color: white;
+        }
+
+        .invoice-card {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Lunas Stamp */
+        .stamp-lunas {
+            position: absolute;
+            bottom: 40px;
+            right: 80px;
+            width: 120px;
+            height: 120px;
+            border: 5px solid var(--success-color);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--success-color);
+            font-weight: 900;
+            font-size: 20px;
+            text-transform: uppercase;
+            transform: rotate(-15deg);
+            opacity: 0.6;
+            z-index: 100;
+            pointer-events: none;
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .stamp-lunas .date {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 20px;
+        }
+
+        .company-logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .company-details {
+            margin-top: 5px;
+            color: var(--secondary-color);
+            font-size: 11px;
+            max-width: 300px;
+        }
+
+        .invoice-meta {
+            text-align: right;
+        }
+
+        .invoice-meta h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--text-color);
+            letter-spacing: -1px;
+        }
+
+        .invoice-info {
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .invoice-info span {
+            font-weight: 700;
+        }
+
+        .billing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .bill-box h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--secondary-color);
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .bill-box .name {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .bill-box .address {
+            color: var(--secondary-color);
+            font-size: 11px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        .items-table th {
+            background-color: var(--bg-light);
+            text-align: left;
+            padding: 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--secondary-color);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .item-desc {
+            font-weight: 600;
+        }
+
+        .item-sub {
+            font-size: 10px;
+            color: var(--secondary-color);
+        }
+
+        .totals {
+            margin-left: auto;
+            width: 300px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+
+        .total-row.grand-total {
+            border-top: 2px solid var(--text-color);
+            margin-top: 10px;
+            padding-top: 15px;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary-color);
+        }
+
+        .footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            color: var(--secondary-color);
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .payment-methods h4 {
+            color: var(--text-color);
+            margin-bottom: 5px;
+        }
+
+        .qr-code {
+            width: 80px;
+            height: 80px;
+            background: #eee;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="invoice-card">
+        <% if (invoice.status==='paid' ) { %>
+            <div class="stamp-lunas">
+                LUNAS
+                <div class="date">
+                    <%= invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('id-ID', {day: 'numeric' ,
+                        month: 'long' , year: 'numeric' }) : '' %>
+                </div>
+                <div style="font-size: 8px; margin-top: 2px;">ADMIN FINANCE</div>
+            </div>
+            <% } %>
+
+                <div class="header">
+                    <div>
+                        <div class="company-logo">
+                            <%= (typeof companyInfo !== 'undefined' && companyInfo && companyInfo.company_name) ? companyInfo.company_name : (invoice.company_name || 'ISP NETWORK') %>
+                        </div>
+                        <div class="company-details">
+                            <%= ((typeof companyInfo !== 'undefined' && companyInfo && companyInfo.company_address) ? companyInfo.company_address : (invoice.company_address || 'Jl. Raya Utama No. 123\nKota Digital, Indonesia')).replace(/\n/g, '<br>') %>
+                        </div>
+                        <div class="company-details" style="margin-top: 5px;">
+                            Telp: <%= (typeof companyInfo !== 'undefined' && companyInfo && companyInfo.company_phone) ? companyInfo.company_phone : (invoice.company_phone || '-') %>
+                        </div>
+                    </div>
+                    <div class="invoice-meta">
+                        <h1>INVOICE</h1>
+                        <div class="invoice-info">
+                            No: <span>
+                                <%= invoice.invoice_number %>
+                            </span><br>
+                            Tgl: <span>
+                                <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'numeric' ,
+                                    month: 'long' , year: 'numeric' }) %>
+                            </span><br>
+                            Tempo: <span style="color: #c2410c;">
+                                <%= new Date(invoice.due_date).toLocaleDateString('id-ID', {day: 'numeric' ,
+                                    month: 'long' , year: 'numeric' }) %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="billing-grid">
+                    <div class="bill-box">
+                        <h3>Ditagihkan Kepada:</h3>
+                        <div class="name">
+                            <%= invoice.customer_name %>
+                        </div>
+                        <div class="address">
+                            <%= invoice.customer_address || 'Alamat tidak tersedia' %><br>
+                                Telp: <%= invoice.customer_phone || '-' %>
+                        </div>
+                    </div>
+                    <div class="bill-box">
+                        <h3>Detail Layanan:</h3>
+                        <div class="info-row" style="font-size: 12px; margin-bottom: 2px;">
+                            Periode: <strong>
+                                <%= invoice.period || '-' %>
+                            </strong>
+                        </div>
+                        <% if(invoice.pppoe_username) { %>
+                            <div class="info-row" style="font-size: 12px; margin-bottom: 2px;">
+                                Username: <strong>
+                                    <%= invoice.pppoe_username %>
+                                </strong>
+                            </div>
+                            <% } %>
+                    </div>
+                </div>
+
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60%">Deskripsi Layanan</th>
+                            <th style="width: 15%; text-align: center;">Qty</th>
+                            <th style="width: 25%; text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (invoice.items && invoice.items.length> 0) { %>
+                            <% invoice.items.forEach(item=> { %>
+                                <tr>
+                                    <td>
+                                        <div class="item-desc">
+                                            <%= item.description.replace(/\s*-\s*\d{4}-\d{2}$/, '') %>
+                                        </div>
+                                        <% if(item.details) { %>
+                                            <div class="item-sub">
+                                                <%= item.details %>
+                                            </div>
+                                            <% } %>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <%= item.quantity || 1 %>
+                                    </td>
+                                    <td style="text-align: right; font-weight: 700;">Rp <%= Number(item.total_price ||
+                                            item.amount || 0).toLocaleString('id-ID') %>
+                                    </td>
+                                </tr>
+                                <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td>
+                                                <div class="item-desc">Layanan Internet</div>
+                                                <div class="item-sub">Periode <%= invoice.period %>
+                                                </div>
+                                            </td>
+                                            <td style="text-align: center;">1</td>
+                                            <td style="text-align: right; font-weight: 700;">Rp <%=
+                                                    Number(invoice.total_amount || 0).toLocaleString('id-ID') %>
+                                            </td>
+                                        </tr>
+                                        <% } %>
+                    </tbody>
+                </table>
+
+                <div class="totals">
+                    <% if (invoice.arrears && invoice.arrears.length > 0) { %>
+                        <div style="margin-bottom: 15px; border: 1px dashed #ef4444; padding: 10px; background-color: #fef2f2; border-radius: 5px;">
+                            <div style="color: #b91c1c; font-size: 11px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">⚠️ Tunggakan Sebelumnya:</div>
+                            <% invoice.arrears.forEach(arrear => { %>
+                                <div class="total-row" style="padding: 2px 0; color: #b91c1c;">
+                                    <span>Bulan <%= arrear.period %></span>
+                                    <span style="font-weight: bold;">Rp <%= Number(arrear.remaining_amount).toLocaleString('id-ID') %></span>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } %>
+
+                    <div class="total-row">
+                        <span>Subtotal</span>
+                        <span>Rp <%= Number(invoice.subtotal || (invoice.total_amount - (invoice.ppn_amount || 0) +
+                                (invoice.discount_amount || 0))).toLocaleString('id-ID') %></span>
+                    </div>
+
+                    <% if (invoice.device_fee> 0) { %>
+                        <div class="total-row">
+                            <span>Sewa Perangkat</span>
+                            <span>Rp <%= Number(invoice.device_fee).toLocaleString('id-ID') %></span>
+                        </div>
+                        <% } %>
+
+                            <% if (invoice.ppn_amount> 0) { %>
+                                <div class="total-row">
+                                    <span>PPN (<%= invoice.ppn_rate %>%)</span>
+                                    <span>Rp <%= Number(invoice.ppn_amount).toLocaleString('id-ID') %></span>
+                                </div>
+                                <% } %>
+
+                                    <% if (invoice.discounts && invoice.discounts.length> 0) { %>
+                                        <% invoice.discounts.forEach(discount=> { %>
+                                            <div class="total-row" style="color: #ef4444; font-style: italic;">
+                                                <span>Potongan: <%= discount.reason || 'Kompensasi' %></span>
+                                                <span>- Rp <%= Number(discount.amount).toLocaleString('id-ID') %></span>
+                                            </div>
+                                            <% }) %>
+                                                <% } else if (invoice.discount_amount> 0) { %>
+                                                    <div class="total-row" style="color: #ef4444; font-style: italic;">
+                                                        <span>Potongan / Diskon</span>
+                                                        <span>- Rp <%=
+                                                                Number(invoice.discount_amount).toLocaleString('id-ID')
+                                                                %></span>
+                                                    </div>
+                                                    <% } %>
+
+                                                        <div class="total-row grand-total">
+                                                            <span>TOTAL TAGIHAN</span>
+                                                            <span>Rp <%=
+                                                                    Number(invoice.total_amount).toLocaleString('id-ID')
+                                                                    %></span>
+                                                        </div>
+
+                                                        <% if (invoice.paid_amount> 0) { %>
+                                                            <div class="total-row"
+                                                                style="color: var(--success-color); border-top: 1px dashed var(--border-color); margin-top: 5px; padding-top: 10px;">
+                                                                <span>TELAH DIBAYAR</span>
+                                                                <span>- Rp <%= Number(invoice.paid_amount ||
+                                                                        0).toLocaleString('id-ID') %></span>
+                                                            </div>
+                                                            <div class="total-row"
+                                                                style="font-weight: bold; border-top: 1px solid var(--text-color); margin-top: 5px; padding-top: 10px;">
+                                                                <span>SISA TAGIHAN</span>
+                                                                <span>Rp <%= Number(invoice.remaining_amount ||
+                                                                        0).toLocaleString('id-ID') %></span>
+                                                            </div>
+                                                            <% } %>
+                </div>
+
+                <% if (invoice.notes) { %>
+                    <div
+                        style="margin-top: 30px; padding: 15px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #2563eb;">
+                        <h4 style="margin: 0 0 5px 0; font-size: 11px; text-transform: uppercase; color: #64748b;">
+                            Catatan / Keterangan:</h4>
+                        <div style="font-size: 11px; white-space: pre-wrap; color: #1e293b; line-height: 1.6;">
+                            <%= invoice.notes %>
+                        </div>
+                    </div>
+                    <% } %>
+
+                        <div class="footer">
+                            <div class="payment-methods">
+                                <h4>Informasi Pembayaran:</h4>
+                                <p>Silakan melakukan pembayaran melalui transfer bank/e-wallet<br>
+                                    ke rekening yang terdaftar di aplikasi.<br>
+                                    Simpan bukti transfer Anda sebagai bukti pembayaran yang sah.</p>
+                            </div>
+                            <div style="text-align: right;">
+                                <p>Hormat Kami,</p>
+                                <div
+                                    style="margin-top: 30px; font-weight: 800; color: var(--text-color); font-size: 14px;">
+                                    <%= invoice.company_name || 'ADMIN FINANCE' %>
+                                </div>
+                                <p>Terima Kasih</p>
+                            </div>
+                        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,2298 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %>
+    </title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/assets/css/network-map.css">
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading Network Map...</div>
+        <div id="loadingErrors" style="color: red; font-size: 12px; margin-top: 10px; display: none;"></div>
+    </div>
+
+    <!-- Stats Panel -->
+    <div class="stats-panel collapsed" id="statsPanel">
+        <button class="stats-toggle" onclick="toggleStatsPanel()">
+            <i class="fas fa-chart-bar" id="statsToggleIcon"></i>
+        </button>
+        <div class="stat-item stat-online">
+            <div class="stat-value" id="statOnline">0</div>
+            <div class="stat-label">Online</div>
+        </div>
+        <div class="stat-item stat-offline">
+            <div class="stat-value" id="statOffline">0</div>
+            <div class="stat-label">Offline</div>
+        </div>
+        <div class="stat-item stat-warning">
+            <div class="stat-value" id="statWarning">0</div>
+            <div class="stat-label">Warning</div>
+        </div>
+        <div class="stat-item stat-total">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel collapsed" id="controlPanel">
+        <button class="control-toggle" onclick="toggleControlPanel()">
+            <i class="fas fa-bars" id="toggleIcon"></i>
+        </button>
+
+        <div class="control-content">
+            <h3><i class="fas fa-sliders-h"></i> Controls</h3>
+
+            <button class="control-btn btn-primary" onclick="refreshData()">
+                <i class="fas fa-sync-alt"></i>
+                Refresh
+            </button>
+
+            <button class="control-btn btn-success" onclick="syncAll()">
+                <i class="fas fa-download"></i>
+                Sync Data & Links
+            </button>
+            <div style="font-size: 10px; color: #64748b; margin-bottom: 10px; text-align: center;">
+                (Gunakan jika ODP/ODC belum muncul)
+            </div>
+
+            <!-- Search Control -->
+            <div class="mb-4">
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <i class="fas fa-search text-xs"></i>
+                    </span>
+                    <input type="text" id="device-search" placeholder="Cari pelanggan/perangkat..."
+                        class="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                        oninput="onSearchInput(this.value)">
+                </div>
+            </div>
+
+            <!-- Enhanced Filters -->
+            <div class="filter-group" style="margin-top: 5px; padding-top: 5px; border-top: none;">
+                <div class="filter-item" onclick="toggleOfflineOnly()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #ef4444; color: white;">
+                            <i class="fas fa-exclamation-circle" id="offline-filter-icon"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #ef4444;" id="offline-filter-label">Offline Only</span>
+                    </div>
+                    <input type="checkbox" id="filter-offline-only">
+                </div>
+            </div>
+
+            <!-- Live Traffic Toggle -->
+            <div class="filter-group" style="border-top: 1px solid #e2e8f0; margin-top: 5px; padding-top: 5px;">
+                <div class="filter-item" onclick="toggleLiveTraffic()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #10b981; color: white;">
+                            <i class="fas fa-bolt animate-pulse"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #10b981;">Live Traffic</span>
+                    </div>
+                    <!-- Toggle Switch -->
+                    <div
+                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="live-traffic-toggle" checked
+                            class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                            style="right: 0; top: 0; transition: all 0.3s; transform: translateX(0); border-color: #10b981; background: #10b981;" />
+                        <label for="live-traffic-toggle"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-green-100 cursor-pointer"
+                            style="transition: all 0.3s;"></label>
+                    </div>
+                </div>
+
+                <!-- Audio Alerts Toggle -->
+                <div class="filter-item" onclick="toggleAudioAlerts()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #8b5cf6; color: white;">
+                            <i class="fas fa-volume-up" id="audio-toggle-icon"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #8b5cf6;">Audio Alerts</span>
+                    </div>
+                    <!-- Toggle Switch -->
+                    <div
+                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="audio-toggle" id="audio-alerts-toggle" checked
+                            class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                            style="right: 0; top: 0; transition: all 0.3s; transform: translateX(0); border-color: #8b5cf6; background: #8b5cf6;" />
+                        <label for="audio-alerts-toggle"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-purple-100 cursor-pointer"
+                            style="transition: all 0.3s;"></label>
+                    </div>
+                </div>
+
+                <!-- Heatmap Toggle -->
+                <div class="filter-item" onclick="toggleHeatmap()">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #f97316; color: white;">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <span style="font-weight: 700; color: #f97316;">Signal Heatmap</span>
+                    </div>
+                    <!-- Toggle Switch -->
+                    <div
+                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="heatmap-toggle"
+                            class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                            style="right: 4px; top: 0; transition: all 0.3s;" />
+                        <label for="heatmap-toggle"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-200 cursor-pointer"></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <h3><i class="fas fa-filter"></i> Filters</h3>
+
+                <div class="filter-item" onclick="toggleFilter('customer')">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #3b82f6; color: white;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span>Customers</span>
+                    </div>
+                    <input type="checkbox" id="filter-customer" checked>
+                </div>
+
+                <div class="filter-item" onclick="toggleFilter('ont')">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #10b981; color: white;">
+                            <i class="fas fa-router"></i>
+                        </div>
+                        <span>ONTs</span>
+                    </div>
+                    <input type="checkbox" id="filter-ont" checked>
+                </div>
+
+                <div class="filter-item" onclick="toggleFilter('olt')">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #8b5cf6; color: white;">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <span>OLTs</span>
+                    </div>
+                    <input type="checkbox" id="filter-olt" checked>
+                </div>
+
+                <div class="filter-item" onclick="toggleFilter('odc')">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #f59e0b; color: white;">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <span>ODCs</span>
+                    </div>
+                    <input type="checkbox" id="filter-odc" checked>
+                </div>
+
+                <div class="filter-item" onclick="toggleFilter('odp')">
+                    <div class="filter-label">
+                        <div class="filter-icon" style="background: #ec4899; color: white;">
+                            <i class="fas fa-cube"></i>
+                        </div>
+                        <span>ODPs</span>
+                    </div>
+                    <input type="checkbox" id="filter-odp" checked>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Indicator -->
+    <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <div class="status-text" id="statusText">Connecting...</div>
+    </div>
+
+    <!-- Route Info Panel -->
+    <div id="routeInfoPanel" style="display: none;" class="route-info-panel">
+        <div class="route-info-header">
+            <h4><i class="fas fa-route"></i> Route Details</h4>
+            <button onclick="closeRouteInfo()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="route-info-body">
+            <div class="route-stat">
+                <span class="label">Distance</span>
+                <span class="value" id="routeDistance">0 km</span>
+            </div>
+            <div class="route-stat">
+                <span class="label">Time (Walk)</span>
+                <span class="value" id="routeTime">0 min</span>
+            </div>
+            <div class="route-devices">
+                <div class="device-point">
+                    <i class="fas fa-circle-dot" style="color: #667eea"></i>
+                    <span id="routeFrom">Source</span>
+                </div>
+                <div class="route-line"></div>
+                <div class="device-point">
+                    <i class="fas fa-location-dot" style="color: #764ba2"></i>
+                    <span id="routeTo">Destination</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trace Route Info Overlay -->
+    <div id="traceOverlay" class="trace-overlay" style="display: none;">
+        <div class="trace-node"><i class="fas fa-server text-purple-500"></i> OLT</div>
+        <div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>
+        <div class="trace-node"><i class="fas fa-box text-orange-500"></i> ODC</div>
+        <div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>
+        <div class="trace-node"><i class="fas fa-cube text-blue-500"></i> ODP</div>
+        <div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>
+        <div class="trace-node"><i class="fas fa-user text-green-500"></i> Customer</div>
+        <div style="margin-left: 20px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 15px;">
+            <span id="traceDistance" style="color: #fca311; font-weight: 800; font-size: 14px;">0m</span>
+            <button onclick="clearTrace()"
+                style="margin-left: 15px; color: #ef4444; background: none; border: none; cursor: pointer;"><i
+                    class="fas fa-times-circle"></i></button>
+        </div>
+    </div>
+
+    <!-- Map Legend -->
+    <div class="map-legend">
+        <h4 style="font-size: 12px; font-weight: 800; margin-bottom: 5px; color: #1e293b;">Legend</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #8b5cf6;"></div> <span>Backbone (OLT-ODC)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #3b82f6;"></div> <span>Distribusi (ODC-ODP)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #10b981;"></div> <span>Dropcore Online</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ef4444;"></div> <span>Dropcore Offline</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f59e0b;"></div> <span>High Latency / Warning</span>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+    <div id="heatmapContainer"></div>
+
+    <!-- Sync Button (Fixed Position) -->
+    <button id="btn-sync-data" onclick="syncData()" style="
+        position: absolute;
+        bottom: 80px; 
+        left: 20px;
+        z-index: 9999;
+        background: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        font-weight: 600;
+        color: #2563EB;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+    ">
+        <i class="fas fa-sync-alt"></i> Sync Data
+    </button>
+
+    <script>
+        async function syncData() {
+            const btn = document.getElementById('btn-sync-data');
+            const icon = btn.querySelector('i');
+            const originalText = btn.innerHTML;
+
+            if (confirm('Jalankan SINKRONISASI Data? \n\nAksi ini akan:\n1. Mengambil data OLT/ODC/ODP terbaru.\n2. Update data Customer (termasuk referensi ke ODP).\n3. Membuat link koneksi otomatis.\n\nLanjutkan?')) {
+                try {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                    icon.classList.add('fa-spin');
+                    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Memproses...';
+
+                    console.log('Starting sync process...');
+
+                    // 1. Sync FTTH
+                    console.log('Syncing FTTH...');
+                    await fetch('/monitoring/api/sync/ftth', { method: 'POST' });
+
+                    // 2. Sync Customers
+                    console.log('Syncing Customers...');
+                    await fetch('/monitoring/api/sync/customers', { method: 'POST' });
+
+                    // 3. Sync Links
+                    console.log('Syncing Links...');
+                    await fetch('/monitoring/api/sync/links', { method: 'POST' });
+
+                    alert('✅ Sinkronisasi Berhasil!\nHalaman akan dimuat ulang untuk menampilkan data terbaru.');
+                    location.reload();
+                } catch (e) {
+                    console.error('Sync failed:', e);
+                    alert('❌ Gagal melakukan sinkronisasi: ' + e.message);
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.innerHTML = originalText;
+                }
+            }
+        }
+    </script>
+
+    <!-- Device Detail Sidebar -->
+    <div id="deviceSidebar" class="odc-sidebar">
+        <div class="odc-header" id="sidebarHeader">
+            <button class="close-sidebar" onclick="closeDeviceSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 id="sidebarName">Device Name</h2>
+            <p id="sidebarSubname">Type details...</p>
+        </div>
+        <div class="odc-content" id="sidebarContent">
+            <!-- Content will be injected here -->
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet Routing Machine (for walking distance) -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <!-- Leaflet Heatmap Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heatmap@1.0.0/leaflet-heatmap.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <script>
+        // Global variables
+        let map;
+        let markers = {};
+        let linkLayers = null; // Use layer group for links
+        let currentLinks = []; // Store active links
+        let activeFilters = {
+            customer: true,
+            ont: true,
+            olt: true,
+            odc: true,
+            odp: true
+        };
+        let selectedDevice = null;
+        let routingControl = null;
+        let deviceMap = {};
+        let linksMap = {}; // Track active link polyline objects
+        let searchQuery = '';
+        let isOfflineOnly = false;
+        let isHeatmapActive = false;
+        let allDevices = []; // Cache for filtering without re-fetching
+        let traceLayer = null;
+        let heatLayer = null;
+
+        console.log('Main network-map script loaded');
+
+        // Initialize map
+        function initMap() {
+            try {
+                console.log('Initializing Map...');
+
+                if (typeof L === 'undefined') {
+                    throw new Error('Leaflet library not loaded');
+                }
+
+                // Start with default center (will be updated after loading data)
+                map = L.map('map').setView([-6.200000, 106.816666], 13);
+
+                // Enable audio interaction on first click (browser policy)
+                document.body.addEventListener('click', () => {
+                    if (window.audioCtx && window.audioCtx.state === 'suspended') {
+                        window.audioCtx.resume();
+                    }
+                }, { once: true });
+
+                // Map click handler to close sidebar
+                map.on('click', (e) => {
+                    if (!e.originalEvent.target.closest('.leaflet-marker-icon')) {
+                        closeDeviceSidebar();
+                    }
+                });
+
+                // Add tile layer with dark theme
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(map);
+
+                // Add link layers to map
+                linkLayers = L.layerGroup();
+                traceLayer = L.layerGroup();
+
+                linkLayers.addTo(map);
+                traceLayer.addTo(map);
+
+                // Load data
+                loadNetworkData();
+
+                // Auto refresh every 10 seconds for "live" feel
+                setInterval(refreshData, 10000);
+            } catch (e) {
+                console.error('Init Map Failed:', e);
+                const errorDiv = document.getElementById('loadingErrors');
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Init Error: ' + e.message;
+                }
+            }
+        }
+
+        // Search logic
+        function onSearchInput(value) {
+            searchQuery = value.toLowerCase();
+            applyFilters();
+        }
+
+        // Toggle Offline Only
+        function toggleOfflineOnly() {
+            const checkbox = document.getElementById('filter-offline-only');
+            isOfflineOnly = !checkbox.checked;
+            checkbox.checked = isOfflineOnly;
+
+            const icon = document.getElementById('offline-filter-icon');
+            const label = document.getElementById('offline-filter-label');
+
+            if (isOfflineOnly) {
+                icon.parentElement.style.background = '#ef4444';
+                label.style.color = '#ef4444';
+            } else {
+                icon.parentElement.style.background = '#9ca3af';
+                label.style.color = '#6b7280';
+            }
+
+            applyFilters();
+        }
+
+        // Apply all active filters (Type, Search, Offline Status)
+        // Apply all active filters (Type, Search, Offline Status)
+        function applyFilters() {
+            if (!allDevices || allDevices.length === 0) return;
+
+            const filteredDevices = allDevices.filter(device => {
+                // 1. Type Filter
+                if (!activeFilters[device.device_type]) return false;
+
+                // 2. Offline Only Filter
+                if (isOfflineOnly && device.status !== 'offline') return false;
+
+                // 3. Search Query Filter
+                if (searchQuery) {
+                    const nameMatch = device.name.toLowerCase().includes(searchQuery);
+                    const ipMatch = (device.ip_address && device.ip_address.toLowerCase().includes(searchQuery)) ||
+                        (device.metadata && device.metadata.ip_address && device.metadata.ip_address.toLowerCase().includes(searchQuery));
+                    const addressMatch = device.address && device.address.toLowerCase().includes(searchQuery);
+
+                    let pppoeMatch = false;
+                    const meta = typeof device.metadata === 'string' ? JSON.parse(device.metadata || '{}') : (device.metadata || {});
+                    if (meta.pppoe_username) {
+                        pppoeMatch = meta.pppoe_username.toLowerCase().includes(searchQuery);
+                    }
+
+                    if (!nameMatch && !ipMatch && !addressMatch && !pppoeMatch) return false;
+                }
+
+                return true;
+            });
+
+            renderDevices(filteredDevices);
+
+            // If search has exactly one result, center on it and auto-trace
+            if (searchQuery && filteredDevices.length === 1) {
+                const d = filteredDevices[0];
+                const lat = parseFloat(d.latitude);
+                const lng = parseFloat(d.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    map.setView([lat, lng], 19);
+                    setTimeout(() => {
+                        if (markers[d.id]) markers[d.id].openPopup();
+                        // Auto-trace path to OLT for the found device
+                        traceRouteToOlt(d.id);
+                        // Also show detail sidebar
+                        showDeviceDetail(d);
+                    }, 500);
+                }
+            }
+        }
+
+        // Enhanced Audio Notification System
+        let audioCtx = null;
+        let isAudioEnabled = true;
+
+        // Initialize audio context on first user interaction
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Resume if suspended
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Different sound types for different alerts
+        function playAlertSound(type = 'warning') {
+            if (!isAudioEnabled) return;
+
+            initAudio();
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch (type) {
+                case 'critical': // For offline devices
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.3);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    break;
+                case 'warning': // For general warnings
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(554.37, audioCtx.currentTime); // C#5
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    break;
+                case 'info': // For positive notifications
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    break;
+                default: // Default alarm
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.5);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            }
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // Audio toggle functionality
+        function toggleAudioAlerts() {
+            const checkbox = document.getElementById('audio-alerts-toggle');
+            isAudioEnabled = !checkbox.checked; // Since click happens before state changes
+
+            // Update checkbox state
+            checkbox.checked = isAudioEnabled;
+
+            // Update UI
+            const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+            const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+
+            if (isAudioEnabled) {
+                // Enable audio
+                checkbox.style.borderColor = '#8b5cf6';
+                checkbox.style.background = '#8b5cf6';
+                checkbox.nextElementSibling.style.background = '#ede9fe'; // Light purple
+                if (iconDiv) {
+                    iconDiv.style.background = '#8b5cf6';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-up"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#8b5cf6';
+            } else {
+                // Disable audio
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e5e7eb'; // Gray
+                if (iconDiv) {
+                    iconDiv.style.background = '#9ca3af';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#6b7280';
+            }
+
+            localStorage.setItem('audioAlertsEnabled', isAudioEnabled);
+
+            // Play test sound if enabling
+            if (isAudioEnabled) {
+                playAlertSound('info');
+            }
+        }
+
+        // Initialize audio toggle state
+        function initAudioToggleState() {
+            const savedState = localStorage.getItem('audioAlertsEnabled');
+            const shouldEnable = savedState === null || savedState === 'true';
+
+            const checkbox = document.getElementById('audio-alerts-toggle');
+            if (checkbox) {
+                checkbox.checked = shouldEnable;
+
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+
+                if (shouldEnable) {
+                    checkbox.style.borderColor = '#8b5cf6';
+                    checkbox.style.background = '#8b5cf6';
+                    checkbox.nextElementSibling.style.background = '#ede9fe';
+                    if (iconDiv) {
+                        iconDiv.style.background = '#8b5cf6';
+                        iconDiv.innerHTML = '<i class="fas fa-volume-up"></i>';
+                    }
+                    if (labelSpan) labelSpan.style.color = '#8b5cf6';
+                } else {
+                    checkbox.style.borderColor = '#ccc';
+                    checkbox.style.background = 'white';
+                    checkbox.nextElementSibling.style.background = '#e5e7eb';
+                    if (iconDiv) {
+                        iconDiv.style.background = '#9ca3af';
+                        iconDiv.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                    }
+                    if (labelSpan) labelSpan.style.color = '#6b7280';
+                }
+
+                isAudioEnabled = shouldEnable;
+            }
+        }
+
+        // Initialize audio settings from localStorage
+        function initAudioSettings() {
+            const savedSetting = localStorage.getItem('audioAlertsEnabled');
+            if (savedSetting !== null) {
+                isAudioEnabled = savedSetting === 'true';
+            }
+        }
+
+        // Calculate initial center based on device locations
+        function calculateInitialCenter(devices) {
+            if (!devices || devices.length === 0) {
+                // Default center if no devices
+                return { lat: -6.200000, lng: 106.816666, zoom: 13 };
+            }
+
+            // Filter devices with valid coordinates
+            const validDevices = devices.filter(d => {
+                const lat = parseFloat(d.latitude);
+                const lng = parseFloat(d.longitude);
+                return !isNaN(lat) && !isNaN(lng) && d.latitude && d.longitude;
+            });
+
+            if (validDevices.length === 0) {
+                return { lat: -6.200000, lng: 106.816666, zoom: 13 };
+            }
+
+            // Calculate bounds
+            let minLat = Infinity, maxLat = -Infinity;
+            let minLng = Infinity, maxLng = -Infinity;
+
+            validDevices.forEach(d => {
+                const lat = parseFloat(d.latitude);
+                const lng = parseFloat(d.longitude);
+
+                if (lat < minLat) minLat = lat;
+                if (lat > maxLat) maxLat = lat;
+                if (lng < minLng) minLng = lng;
+                if (lng > maxLng) maxLng = lng;
+            });
+
+            // Calculate center
+            const centerLat = (minLat + maxLat) / 2;
+            const centerLng = (minLng + maxLng) / 2;
+
+            // Calculate appropriate zoom based on spread
+            const latDiff = maxLat - minLat;
+            const lngDiff = maxLng - minLng;
+            const maxDiff = Math.max(latDiff, lngDiff);
+
+            // Rough estimation of zoom level based on area size
+            let zoom = 13; // default
+            if (maxDiff < 0.01) zoom = 16; // Very small area
+            else if (maxDiff < 0.05) zoom = 14;
+            else if (maxDiff < 0.1) zoom = 12;
+            else if (maxDiff < 0.5) zoom = 10;
+            else zoom = 8;
+
+            return { lat: centerLat, lng: centerLng, zoom: zoom };
+        }
+
+        function showOfflineToast(name) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 80px; right: 20px; background: #ef4444; color: white;
+                padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 9999; animation: slideIn 0.3s ease-out; font-weight: bold; font-size: 14px;
+                display: flex; align-items: center; gap: 10px;
+            `;
+            toast.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <span>${name} Offline!</span>`;
+            document.body.appendChild(toast);
+
+            // Play critical alert sound for offline devices
+            playAlertSound('critical');
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        let previousDeviceStatus = {};
+
+        // Heatmap Toggle
+        function toggleHeatmap() {
+            const checkbox = document.getElementById('heatmap-toggle');
+            isHeatmapActive = !isHeatmapActive;
+            checkbox.checked = isHeatmapActive;
+
+            if (isHeatmapActive) {
+                document.body.classList.add('heatmap-mode');
+                renderHeatmap();
+            } else {
+                document.body.classList.remove('heatmap-mode');
+                if (heatLayer) {
+                    map.removeLayer(heatLayer);
+                    heatLayer = null;
+                }
+            }
+        }
+
+        function renderHeatmap() {
+            if (heatLayer) map.removeLayer(heatLayer);
+
+            const points = allDevices
+                .filter(d => d.device_type === 'customer' && d.latitude && d.longitude)
+                .map(d => {
+                    let intensity = 0.5;
+                    let meta = typeof d.metadata === 'string' ? JSON.parse(d.metadata) : (d.metadata || {});
+                    if (d.status === 'offline') intensity = 1.0; // Hot spot for offline
+                    else if (meta.signal && meta.signal.rxPower) {
+                        const rx = parseFloat(meta.signal.rxPower);
+                        if (rx < -27) intensity = 0.9;
+                        else if (rx < -24) intensity = 0.7;
+                    }
+                    return [parseFloat(d.latitude), parseFloat(d.longitude), intensity];
+                });
+
+            heatLayer = L.heatLayer(points, {
+                radius: 40,
+                blur: 25,
+                maxZoom: 17,
+                gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
+            }).addTo(map);
+        }
+
+        // Trace Route to OLT Logic
+        function traceRouteToOlt(deviceId) {
+            clearTrace();
+            const path = [];
+            const nodes = [];
+            let current = deviceMap[deviceId];
+            let totalDist = 0;
+
+            console.log('Tracing Route from:', current?.name);
+
+            while (current) {
+                path.push([parseFloat(current.latitude), parseFloat(current.longitude)]);
+                nodes.push(current);
+
+                // Find parent via link or parent_id
+                let parent = null;
+
+                // 1. Check parent_id field
+                if (current.parent_id && deviceMap[current.parent_id]) {
+                    parent = deviceMap[current.parent_id];
+                }
+
+                // 2. Check currentLinks
+                if (!parent) {
+                    const link = currentLinks.find(l =>
+                        (l.source_device_id == current.id && deviceMap[l.target_device_id]?.device_type !== 'customer') ||
+                        (l.target_device_id == current.id && deviceMap[l.source_device_id]?.device_type !== 'customer')
+                    );
+                    if (link) {
+                        const pid = link.source_device_id == current.id ? link.target_device_id : link.source_device_id;
+                        parent = deviceMap[pid];
+                    }
+                }
+
+                // If parent is the same as current (loop) or no parent, stop
+                if (!parent || parent.id === current.id) break;
+
+                // Accumulate distance
+                totalDist += calculateDirectDistance(
+                    parseFloat(current.latitude), parseFloat(current.longitude),
+                    parseFloat(parent.latitude), parseFloat(parent.longitude)
+                );
+
+                current = parent;
+                if (current.device_type === 'olt') {
+                    path.push([parseFloat(current.latitude), parseFloat(current.longitude)]);
+                    nodes.push(current);
+                    break;
+                }
+            }
+
+            if (path.length > 1) {
+                const tracePoly = L.polyline(path, {
+                    color: '#ff00ea',
+                    weight: 6,
+                    opacity: 0.9,
+                    className: 'trace-line'
+                }).addTo(traceLayer);
+
+                map.fitBounds(tracePoly.getBounds(), { padding: [50, 50] });
+
+                // Update Overlay UI
+                const overlay = document.getElementById('traceOverlay');
+                const distEl = document.getElementById('traceDistance');
+                distEl.textContent = totalDist > 1000 ? (totalDist / 1000).toFixed(2) + 'km' : totalDist + 'm';
+
+                // Build Node HTML
+                overlay.innerHTML = nodes.reverse().map((n, i) => {
+                    const iconClass = n.device_type === 'customer' ? 'fa-user text-green-500' :
+                        n.device_type === 'odp' ? 'fa-cube text-blue-500' :
+                            n.device_type === 'odc' ? 'fa-box text-orange-500' : 'fa-server text-purple-500';
+                    return `
+                        <div class="trace-node"><i class="fas ${iconClass}"></i> ${n.name}</div>
+                        ${i < nodes.length - 1 ? '<div class="trace-arrow"><i class="fas fa-chevron-right"></i></div>' : ''}
+                    `;
+                }).join('') + `
+                    <div style="margin-left: 20px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 15px; display: flex; align-items: center; gap: 15px;">
+                        <span id="traceDistance" style="color: #fca311; font-weight: 800; font-size: 14px;">${totalDist > 1000 ? (totalDist / 1000).toFixed(2) + 'km' : totalDist + 'm'}</span>
+                        <button onclick="clearTrace()" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 16px;"><i class="fas fa-times-circle"></i></button>
+                    </div>
+                `;
+
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function clearTrace() {
+            traceLayer.clearLayers();
+            document.getElementById('traceOverlay').style.display = 'none';
+        }
+
+        // Load network topology data
+        async function loadNetworkData() {
+            try {
+                const response = await fetch('/monitoring/api/network-topology-fast?_t=' + new Date().getTime());
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update connection status in indicator
+                    const dot = document.getElementById('statusDot');
+                    const text = document.getElementById('statusText');
+                    if (dot) dot.style.background = '#10b981';
+                    if (text) text.textContent = 'Live Monitoring Active';
+
+                    // IMPORTANT: Update global devices and links
+                    allDevices = result.data.devices;
+                    currentLinks = result.data.links;
+
+                    deviceMap = {};
+                    allDevices.forEach(d => {
+                        deviceMap[d.id] = d;
+
+                        // Check for Status Alerts
+                        const prev = previousDeviceStatus[d.id];
+                        let meta = d.metadata || {};
+                        if (typeof meta === 'string') try { meta = JSON.parse(meta); } catch (e) { }
+
+                        if (prev && prev === 'online' && d.status === 'offline') {
+                            // Device just went offline
+                            if (!meta.is_ignored) {
+                                console.log(`[ALERT] ${d.name} went offline!`);
+                                playAlertSound();
+                                showOfflineToast(d.name);
+                            } else {
+                                console.log(`[SILENT] ${d.name} went offline (Ignored Schedule)`);
+                            }
+                        }
+                        previousDeviceStatus[d.id] = d.status;
+                    });
+
+                    // Auto-center map to OLT location on first load
+                    const center = calculateInitialCenter(allDevices);
+                    if (!map.hasSetView) {
+                        map.setView([center.lat, center.lng], center.zoom);
+                        map.hasSetView = true;
+                    }
+
+                    applyFilters();
+                    renderLinks(currentLinks);
+                    updateStats(result.data.statistics);
+
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+
+
+            } catch (error) {
+                console.error('Error loading network data:', error);
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                if (dot) dot.style.background = '#ef4444';
+                if (text) text.textContent = 'Connection Error - Retrying...';
+
+                // Show error message on first load if it fails
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay.style.display !== 'none') {
+                    loadingOverlay.innerHTML = `
+                        <div class="loading-text" style="color: #ef4444; text-align: center;">
+                            <i class="fas fa-exclamation-triangle"></i> Error loading data<br>
+                            <span style="font-size: 12px; font-weight: normal; opacity: 0.8;">${error.message}</span>
+                        </div>
+                        <button onclick="refreshData()" class="control-btn btn-primary" style="width: auto; margin-top: 15px;">Retry Now</button>
+                    `;
+                }
+            }
+        }
+
+        // Render devices on map
+        function renderDevices(devices) {
+            const currentDeviceIds = new Set(devices.map(d => d.id.toString()));
+
+            // Remove markers for deleted devices
+            Object.keys(markers).forEach(id => {
+                if (!currentDeviceIds.has(id)) {
+                    markers[id].remove();
+                    delete markers[id];
+                }
+            });
+
+            devices.forEach(device => {
+
+                const lat = parseFloat(device.latitude);
+                const lng = parseFloat(device.longitude);
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                // OLT icon is now visible
+                // if (device.device_type === 'olt') return;
+
+                if (!activeFilters[device.device_type]) {
+                    if (markers[device.id]) {
+                        markers[device.id].remove();
+                        delete markers[device.id];
+                    }
+                    return;
+                }
+
+                const icon = getDeviceIcon(device);
+                const popupContent = createDevicePopup(device);
+
+                if (markers[device.id]) {
+                    // Update existing marker
+                    const marker = markers[device.id];
+                    if (marker.getLatLng().lat !== lat || marker.getLatLng().lng !== lng) {
+                        marker.setLatLng([lat, lng]);
+                    }
+                    marker.setIcon(icon);
+                    marker.setPopupContent(popupContent);
+                } else {
+                    // Create new marker
+                    const marker = L.marker([lat, lng], { icon });
+
+                    // HOVER INTERACTION: Open popup on hover
+                    // We use a custom popup that opens on mouseover
+                    marker.bindPopup(popupContent, {
+                        closeButton: false,
+                        offset: [0, -10]
+                    });
+
+                    marker.on('mouseover', function (e) {
+                        this.openPopup();
+                    });
+
+                    marker.on('mouseout', function (e) {
+                        // Optional: remove delay to close instantly, or keep it open slightly
+                        this.closePopup();
+                    });
+
+                    // Keep click functionality for route calculation (if needed) or distinct action
+                    marker.on('click', () => onDeviceClick(device));
+
+                    marker.addTo(map);
+                    markers[device.id] = marker;
+                }
+            });
+        }
+
+
+
+
+        // Get device icon based on type and status - matched with link colors
+        function getDeviceIcon(device) {
+            const iconMap = {
+                customer: 'fa-user',
+                ont: 'fa-router',
+                olt: 'fa-server',
+                odc: 'fa-box',
+                odp: 'fa-cube',
+                router: 'fa-network-wired',
+                switch: 'fa-sitemap',
+                access_point: 'fa-wifi'
+            };
+
+            let metadata = device.metadata || {};
+            if (typeof metadata === 'string') {
+                try { metadata = JSON.parse(metadata); } catch (e) { metadata = {}; }
+            }
+
+            // Signal processing for color
+            let rxColor = '#94a3b8';
+            let rxVal = null;
+            if (metadata.signal && metadata.signal.rxPower) {
+                rxVal = parseFloat(metadata.signal.rxPower);
+                if (!isNaN(rxVal)) {
+                    if (rxVal < -27) rxColor = '#ef4444';
+                    else if (rxVal < -24) rxColor = '#f59e0b';
+                    else rxColor = '#10b981';
+                }
+            }
+
+            // --- IGNORED / MAINTENANCE CHECK ---
+            const isIgnored = metadata.is_ignored === true;
+
+            const typeColorMap = {
+                olt: '#8B5CF6',
+                odc: '#F59E0B',
+                odp: '#3B82F6',
+                customer: device.status === 'online' ? '#10B981' : '#EF4444'
+            };
+
+            // Override color if ignored
+            if (isIgnored && device.device_type === 'customer') {
+                typeColorMap.customer = '#8b5cf6'; // Purple for maintenance/ignored
+            }
+
+            const statusColorMap = {
+                online: '#10b981',
+                offline: '#ef4444',
+                warning: '#f59e0b',
+                unknown: '#9ca3af'
+            };
+
+            const iconClass = iconMap[device.device_type] || 'fa-circle';
+            let color = typeColorMap[device.device_type] || statusColorMap[device.status] || '#9ca3af';
+
+            // Pulse animation for online, blink for offline customers
+            let animation = '';
+            let opacity = 1;
+
+            if (device.status === 'online') {
+                animation = 'pulse 2s ease-in-out infinite';
+            } else if (device.status === 'offline' && device.device_type === 'customer') {
+                if (isIgnored) {
+                    // Suppress alarming blink for ignored devices
+                    animation = '';
+                    opacity = 0.7; // Dim it slightly
+                } else {
+                    animation = 'marker-blink 1.5s infinite';
+                }
+            }
+
+            // Calculate distance to ODP for customers (BEFORE template literal)
+            let distanceHtml = '';
+            if (device.device_type === 'customer') {
+                // Haversine distance calculation function
+                const calcDist = (lat1, lon1, lat2, lon2) => {
+                    const R = 6371e3;
+                    const dLat = (lat2 - lat1) * Math.PI / 180;
+                    const dLon = (lon2 - lon1) * Math.PI / 180;
+                    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    return Math.round(R * c);
+                };
+
+                let targetDevice = null;
+                let targetName = '';
+
+                // First try parent_id
+                if (device.parent_id && deviceMap[device.parent_id]) {
+                    targetDevice = deviceMap[device.parent_id];
+                    targetName = targetDevice.device_type === 'odp' ? 'ODP' : 'ODC';
+                } else {
+                    // Fallback: find ODP from currentLinks
+                    const link = currentLinks.find(l =>
+                        (l.source_device_id === device.id && deviceMap[l.target_device_id] && deviceMap[l.target_device_id].device_type === 'odp') ||
+                        (l.target_device_id === device.id && deviceMap[l.source_device_id] && deviceMap[l.source_device_id].device_type === 'odp')
+                    );
+                    if (link) {
+                        const otherId = link.source_device_id === device.id ? link.target_device_id : link.source_device_id;
+                        targetDevice = deviceMap[otherId];
+                        targetName = 'ODP';
+                    }
+                }
+
+                if (targetDevice) {
+                    const lat1 = parseFloat(device.latitude);
+                    const lng1 = parseFloat(device.longitude);
+                    const lat2 = parseFloat(targetDevice.latitude);
+                    const lng2 = parseFloat(targetDevice.longitude);
+
+                    if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
+                        const dist = calcDist(lat1, lng1, lat2, lng2);
+                        const distText = dist > 1000 ? (dist / 1000).toFixed(2) + 'km' : dist + 'm';
+                        distanceHtml = `<div class="distance"><i class="fas fa-route" style="font-size: 8px; margin-right: 4px;"></i>${distText} ke ${targetName}</div>`;
+                    }
+                }
+            }
+
+
+            return L.divIcon({
+                html: `
+                    <div class="marker-label-container" style="opacity: ${opacity}">
+                        <div style="
+                            background: ${color};
+                            width: 38px;
+                            height: 38px;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-size: 16px;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+                            border: 3px solid white;
+                            transition: all 0.3s ease;
+                            animation: ${animation};
+                            position: relative;
+                        ">
+                            <i class="fas ${isIgnored && device.status === 'offline' ? 'fa-tools' : iconClass}"></i>
+                            ${isIgnored ? `<span style="position:absolute; top:-5px; right:-5px; background:white; color:#8b5cf6; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:10px; border:1px solid #8b5cf6;"><i class="fas fa-moon"></i></span>` : ''}
+                        </div>
+                        ${device.device_type === 'customer' ? `
+                            <div class="customer-marker-label">
+                                ${metadata.genieacs?.ssid && metadata.genieacs.ssid !== 'Kosong' ? `
+                                <div class="ssid">
+                                    <i class="fas fa-wifi" style="font-size: 8px; margin-right: 4px;"></i>
+                                    ${metadata.genieacs.ssid}
+                                </div>
+                                ` : ''}
+                                ${isIgnored ? `
+                                <div style="color: #cbd5e1; font-size: 9px; font-style: italic; margin-top:1px;">
+                                    <i class="fas fa-moon" style="font-size: 8px; margin-right: 4px;"></i>Monitoring Paused
+                                </div>
+                                ` : ''}
+                                ${!isIgnored && metadata.signal?.rxPower && metadata.signal.rxPower !== 'N/A' ? `
+                                <div class="signal" style="color: ${rxColor}">
+                                    <i class="fas fa-signal" style="font-size: 8px; margin-right: 4px;"></i>
+                                    ${metadata.signal.rxPower}
+                                </div>
+                                ` : ''}
+                                ${distanceHtml}
+                                ${!metadata.genieacs?.ssid && !metadata.signal?.rxPower && !distanceHtml && !isIgnored ? `
+                                <div class="status-label" style="color: ${device.status === 'online' ? '#10b981' : '#ef4444'}">
+                                    <i class="fas ${device.status === 'online' ? 'fa-check-circle' : 'fa-times-circle'}" style="font-size: 8px; margin-right: 4px;"></i>
+                                    ${device.status === 'online' ? 'Online' : 'Offline'}
+                                </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `,
+                className: 'custom-marker',
+                iconSize: [38, 80], // Increased height to accommodate label
+                iconAnchor: [19, 19] // Keep circle centered on coordinate
+            });
+        }
+
+        // Create device popup content
+        function createDevicePopup(device) {
+            const statusClass = `status-${device.status}`;
+            let metadata = device.metadata || {};
+            // Parse metadata if user-provided as string
+            if (typeof metadata === 'string') {
+                try {
+                    metadata = JSON.parse(metadata);
+                } catch (e) {
+                    console.error('Error parsing metadata', e);
+                    metadata = {};
+                }
+            }
+
+            const isIgnored = metadata.is_ignored === true;
+
+            let content = `
+                <div class="device-popup">
+                    <h4>${device.name}</h4>
+                    <div class="device-popup-info">
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">Type:</span>
+                            <span class="device-popup-value">${device.device_type.toUpperCase()}</span>
+                        </div>
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">Status:</span>
+                            ${isIgnored ?
+                    `<span class="status-badge" style="background:#f3e8ff; color:#7e22ce;"><i class="fas fa-tools"></i> MAINTENANCE</span>` :
+                    `<span class="status-badge ${statusClass}">${device.status}</span>`
+                }
+                        </div>
+                        ${isIgnored ? `
+                            <div class="device-popup-row">
+                                <span class="device-popup-label">SLA Monitor:</span>
+                                <span class="device-popup-value" style="color:#9333ea; font-size:11px;"><i class="fas fa-pause-circle"></i> Paused (Schedule)</span>
+                            </div>
+                        ` : ''}
+
+            `;
+
+            // Address for customer
+            if (device.device_type === 'customer' && device.address) {
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Alamat:</span>
+                        <span class="device-popup-value" style="font-size: 11px; max-width: 180px; word-wrap: break-word;">${device.address}</span>
+                    </div>
+                `;
+            }
+
+            // SSID, Signal, and Distance for customer
+            // SSID, Signal, and Distance for customer
+            if (device.device_type === 'customer') {
+                // WiFi SSID
+                if (metadata.genieacs?.ssid && metadata.genieacs.ssid !== 'Kosong') {
+                    content += `
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">WiFi SSID:</span>
+                            <span class="device-popup-value" style="color: #6366f1; font-weight: 500;">
+                                <i class="fas fa-wifi" style="font-size: 10px; margin-right: 4px;"></i>${metadata.genieacs.ssid}
+                            </span>
+                        </div>
+                    `;
+                }
+
+                // Signal/Redaman
+                if (metadata.signal?.rxPower && metadata.signal.rxPower !== 'N/A') {
+                    let rxColor = '#1e293b';
+                    const rxVal = parseFloat(metadata.signal.rxPower);
+                    if (!isNaN(rxVal)) {
+                        if (rxVal < -27) rxColor = '#ef4444';
+                        else if (rxVal < -24) rxColor = '#f59e0b';
+                        else rxColor = '#10b981';
+                    }
+                    content += `
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">Redaman (Rx):</span>
+                            <span class="device-popup-value" style="color: ${rxColor}; font-weight: bold;">
+                                <i class="fas fa-signal" style="font-size: 10px; margin-right: 4px;"></i>${metadata.signal.rxPower}
+                            </span>
+                        </div>
+                    `;
+                    // Tx Power removed as requested ("ganti dengan jarak")
+                }
+
+                // --- SIMPLE DISTANCE CALCULATION (SAFE) ---
+                // --- SMART DISTANCE CALCULATION (LINKED & NEAREST) ---
+                if (typeof map !== 'undefined') {
+                    const lat1 = parseFloat(device.latitude);
+                    const lng1 = parseFloat(device.longitude);
+
+                    if (!isNaN(lat1) && !isNaN(lng1)) {
+                        let targetDevice = null;
+                        let minDist = Infinity;
+                        let foundMethod = '';
+
+                        // 1. HIGHEST PRIORITY: Check actual map links (currentLinks)
+                        // Ensure we compare IDs carefully (number vs string)
+                        const activeLink = currentLinks.find(l => {
+                            const srcId = String(l.source_device_id);
+                            const tgtId = String(l.target_device_id);
+                            const devId = String(device.id);
+
+                            if (srcId === devId) {
+                                const target = deviceMap[l.target_device_id];
+                                return target && (String(target.device_type).toLowerCase() === 'odp' || String(target.device_type).toLowerCase() === 'odc');
+                            }
+                            if (tgtId === devId) {
+                                const source = deviceMap[l.source_device_id];
+                                return source && (String(source.device_type).toLowerCase() === 'odp' || String(source.device_type).toLowerCase() === 'odc');
+                            }
+                            return false;
+                        });
+
+                        if (activeLink) {
+                            const linkedId = String(activeLink.source_device_id) === String(device.id) ? activeLink.target_device_id : activeLink.source_device_id;
+                            targetDevice = deviceMap[linkedId];
+                            if (targetDevice) {
+                                foundMethod = `Terhubung ke ${targetDevice.device_type.toUpperCase()} (Map):`;
+                            }
+                        }
+
+                        // 2. SECONDARY: Check Explicit Linked Device IDs (Database fields)
+                        if (!targetDevice) {
+                            if (device.odp_id) {
+                                targetDevice = Object.values(deviceMap).find(d =>
+                                    String(d.device_type).toLowerCase() === 'odp' && d.odp_id == device.odp_id
+                                );
+                                if (targetDevice) foundMethod = 'Terhubung ke ODP (Data):';
+                            }
+
+                            if (!targetDevice && device.odc_id) {
+                                targetDevice = Object.values(deviceMap).find(d =>
+                                    String(d.device_type).toLowerCase() === 'odc' && d.odc_id == device.odc_id
+                                );
+                                if (targetDevice) foundMethod = 'Terhubung ke ODC (Data):';
+                            }
+                        }
+
+                        // 2. FALLBACK: Nearest ODP or ODC
+                        if (!targetDevice) {
+                            Object.values(deviceMap).forEach(d => {
+                                const dtype = String(d.device_type || '').toLowerCase();
+                                if ((dtype === 'odp' || dtype === 'odc') && d.latitude) {
+                                    const lat2 = parseFloat(d.latitude);
+                                    const lng2 = parseFloat(d.longitude);
+                                    if (!isNaN(lat2) && !isNaN(lng2)) {
+                                        const dist = map.distance([lat1, lng1], [lat2, lng2]);
+                                        if (dist < minDist) {
+                                            minDist = dist;
+                                            targetDevice = d;
+                                            foundMethod = dtype.toUpperCase() + ' Terdekat:';
+                                        }
+                                    }
+                                }
+                            });
+                        } else {
+                            // Recalculate distance for Linked Device
+                            if (targetDevice.latitude && !isNaN(parseFloat(targetDevice.latitude))) {
+                                minDist = map.distance([lat1, lng1], [parseFloat(targetDevice.latitude), parseFloat(targetDevice.longitude)]);
+                            } else { targetDevice = null; }
+                        }
+
+                        if (targetDevice) {
+                            const distText = minDist > 1000 ? (minDist / 1000).toFixed(2) + ' km' : Math.round(minDist) + ' m';
+                            content += `
+                                <div class="device-popup-row">
+                                    <span class="device-popup-label">${foundMethod}</span>
+                                    <span class="device-popup-value" style="color: #ec4899; font-weight: 500;">${targetDevice.name}</span>
+                                </div>
+                                <div class="device-popup-row">
+                                    <span class="device-popup-label">Jarak:</span>
+                                    <span class="device-popup-value" style="color: #3b82f6; font-weight: bold;">
+                                        <i class="fas fa-route" style="font-size: 10px; margin-right: 4px;"></i>${distText}
+                                    </span>
+                                </div>
+                             `;
+                        } else {
+                            content += `<div class="device-popup-row"><span class="device-popup-label">Info:</span><span>Tidak ada Link/ODP di Map</span></div>`;
+                        }
+                    }
+                }
+
+                // Connected Devices count
+                if (metadata.genieacs?.hosts_count !== undefined) {
+                    content += `
+                        <div class="device-popup-row">
+                            <span class="device-popup-label">Perangkat Terhubung:</span>
+                            <span class="device-popup-value">
+                                <i class="fas fa-users" style="font-size: 10px; margin-right: 4px;"></i>${metadata.genieacs.hosts_count} device(s)
+                            </span>
+                        </div>
+                    `;
+                }
+            }
+
+            // ODP/ODC Port Info
+            if ((device.device_type === 'odp' || device.device_type === 'odc') && metadata.port_info) {
+                const p = metadata.port_info;
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Total Ports:</span>
+                        <span class="device-popup-value">${p.total}</span>
+                    </div>
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Used Ports:</span>
+                        <span class="device-popup-value" style="color: #f59e0b; font-weight: bold;">${p.used}</span>
+                    </div>
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Free Ports:</span>
+                        <span class="device-popup-value" style="color: #10b981; font-weight: bold;">${p.free}</span>
+                    </div>
+                `;
+            }
+
+            // Signal Info (Redaman) - REMOVED DUPLICATE (Handled in Customer Block)
+
+            // Model Info
+            if (metadata.model) {
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Device:</span>
+                        <span class="device-popup-value">${metadata.manufacturer || ''} ${metadata.model}</span>
+                    </div>
+                `;
+            }
+
+            // GenieACS Info (WiFi SSID & Connected Hosts)
+            if (metadata.genieacs) {
+                const genie = metadata.genieacs;
+                if (genie) {
+                    // WiFi SSID displayed in earlier block
+                }
+                if (genie.hosts_count !== undefined) {
+                    content += `
+                       <div class="device-popup-row">
+                           <span class="device-popup-label">Connected Users:</span>
+                           <span class="device-popup-value">
+                                <i class="fas fa-users" style="font-size: 10px; margin-right: 4px;"></i>
+                                ${genie.hosts_count} device(s)
+                           </span>
+                       </div>
+                   `;
+                }
+            }
+
+            // --- CONNECTED CHILDREN LOGIC (ODC -> ODPs, ODP -> Customers) ---
+            // ODC/ODP Logic: Show connected children
+            const childType = device.device_type === 'odc' ? 'odp' : 'customer';
+
+            // Find connected children from links
+            const children = [];
+            currentLinks.forEach(link => {
+                // Check if this link connects current device to a child
+                let childId = null;
+                if (link.source_device_id === device.id && deviceMap[link.target_device_id]?.device_type === childType) {
+                    childId = link.target_device_id;
+                } else if (link.target_device_id === device.id && deviceMap[link.source_device_id]?.device_type === childType) {
+                    childId = link.source_device_id;
+                }
+
+                if (childId) {
+                    const child = deviceMap[childId];
+                    if (child) {
+                        // Calculate Distance
+                        let distText = 'N/A';
+                        const lat1 = parseFloat(device.latitude);
+                        const lng1 = parseFloat(device.longitude);
+                        const lat2 = parseFloat(child.latitude);
+                        const lng2 = parseFloat(child.longitude);
+
+                        if (!isNaN(lat1) && !isNaN(lng1) && !isNaN(lat2) && !isNaN(lng2)) {
+                            const dist = map.distance([lat1, lng1], [lat2, lng2]);
+                            distText = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
+                        }
+
+                        children.push({ ...child, distText, rawDist: isNaN(lat1) ? 0 : 1 });
+                    }
+                }
+            });
+
+            if (children.length > 0) {
+                content += `
+                        <div style="margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 5px;">
+                            <span class="device-popup-label" style="display:block; margin-bottom:5px;">Connected ${childType.toUpperCase()}s (${children.length}):</span>
+                            <div style="max-height: 150px; overflow-y: auto; font-size: 11px;">
+                     `;
+
+                children.forEach(child => {
+                    let extraInfo = '';
+                    if (childType === 'customer') {
+                        const cmeta = child.metadata || {};
+                        // Wifi info
+                        // Wifi info removed as requested
+                        // if (cmeta.genieacs && cmeta.genieacs.ssid) {
+                        //    extraInfo += `<br><i class="fas fa-wifi" style="font-size:9px"></i> ${cmeta.genieacs.ssid}`;
+                        // }
+                        // Connected devices
+                        if (cmeta.genieacs && cmeta.genieacs.hosts_count !== undefined) {
+                            extraInfo += ` | <i class="fas fa-users" style="font-size:9px"></i> ${cmeta.genieacs.hosts_count}`;
+                        }
+                    }
+
+                    content += `
+                            <div style="padding: 4px; border-bottom: 1px dashed #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; color: #334155;">
+                                        <i class="fas fa-circle" style="font-size: 6px; color: ${child.status === 'online' ? '#10b981' : '#ef4444'}"></i>
+                                        ${child.name}
+                                    </div>
+                                    ${extraInfo ? `<div style="color: #64748b; font-size: 10px;">${extraInfo}</div>` : ''}
+                                </div>
+                                <div style="color: #3b82f6; font-weight: bold; white-space: nowrap;">${child.distText}</div>
+                            </div>
+                         `;
+                });
+
+                content += `</div></div>`;
+            }
+
+
+
+            // Calculate Distance to ODP - REMOVED DUPLICATE (Handled in Customer Block)
+
+
+            if (device.ip_address || (metadata.ip_address)) {
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">IP:</span>
+                        <span class="device-popup-value">${device.ip_address || metadata.ip_address}</span>
+                    </div>
+                `;
+            }
+
+            if (device.latency_ms) {
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Latency:</span>
+                        <span class="device-popup-value">${device.latency_ms.toFixed(1)} ms</span>
+                    </div>
+                `;
+            }
+
+            if (device.packet_loss_percent) {
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Packet Loss:</span>
+                        <span class="device-popup-value">${device.packet_loss_percent.toFixed(1)}%</span>
+                    </div>
+                `;
+            }
+
+            if (device.last_seen) {
+                const lastSeen = new Date(device.last_seen);
+                content += `
+                    <div class="device-popup-row">
+                        <span class="device-popup-label">Last Seen:</span>
+                        <span class="device-popup-value">${formatDateTime(lastSeen)}</span>
+                    </div>
+                `;
+            }
+
+            content += `
+                    </div>
+                </div>
+            `;
+
+            return content;
+        }
+
+        // Render network links using Leaflet Polylines
+        function renderLinks(linkData) {
+            const currentLinkIds = new Set();
+
+            linkData.forEach(link => {
+                const sourceDevice = deviceMap[link.source_device_id];
+                const targetDevice = deviceMap[link.target_device_id];
+
+                if (!sourceDevice || !targetDevice) return;
+
+                const sLat = parseFloat(sourceDevice.latitude);
+                const sLng = parseFloat(sourceDevice.longitude);
+                const tLat = parseFloat(targetDevice.latitude);
+                const tLng = parseFloat(targetDevice.longitude);
+
+                if (isNaN(sLat) || isNaN(sLng) || isNaN(tLat) || isNaN(tLng)) return;
+
+                // Only show links if both devices are matching active filters
+                if (!activeFilters[sourceDevice.device_type] || !activeFilters[targetDevice.device_type]) return;
+
+                const linkId = `link-${link.source_device_id}-${link.target_device_id}`;
+                currentLinkIds.add(linkId);
+
+                const sourceLatLng = [sLat, sLng];
+                const targetLatLng = [tLat, tLng];
+
+                // Determine Link Style
+                let linkClass = 'network-link';
+                const sType = sourceDevice.device_type;
+                const tType = targetDevice.device_type;
+
+                // Check types (bidirectional check)
+                const isOltOdc = (sType === 'olt' && tType === 'odc') || (sType === 'odc' && tType === 'olt');
+                const isOdcOdp = (sType === 'odc' && tType === 'odp') || (sType === 'odp' && tType === 'odc');
+                const isOdpCustomer = (sType === 'odp' && tType === 'customer') || (sType === 'customer' && tType === 'odp');
+
+                let color = '#10b981'; // Default green
+
+                if (isOltOdc) {
+                    linkClass += ' link-olt-odc';
+                    color = '#8B5CF6';
+                } else if (isOdcOdp) {
+                    linkClass += ' link-odc-odp';
+                    color = '#3B82F6';
+                } else if (isOdpCustomer) {
+                    const customer = sType === 'customer' ? sourceDevice : targetDevice;
+                    if (customer.status === 'online') {
+                        linkClass += ' link-customer-online';
+                        color = '#10B981';
+                    } else {
+                        linkClass += ' link-customer-offline';
+                        color = '#EF4444';
+                    }
+                } else {
+                    linkClass += ` link-${link.status}`;
+                    color = link.status === 'up' ? '#10b981' : '#ef4444';
+                }
+
+                // Calculate Distance for Tooltip
+                const distance = map.distance(L.latLng(sourceLatLng), L.latLng(targetLatLng));
+                const distanceText = distance > 1000 ?
+                    (distance / 1000).toFixed(2) + ' km' :
+                    Math.round(distance) + ' m';
+
+                // Create or Update Polyline
+                if (linksMap[linkId]) {
+                    const poly = linksMap[linkId].polyline;
+                    const oldLatLngs = poly.getLatLngs();
+                    // Update connection if moved
+                    if (oldLatLngs[0].lat !== sLat || oldLatLngs[0].lng !== sLng ||
+                        oldLatLngs[1].lat !== tLat || oldLatLngs[1].lng !== tLng) {
+                        poly.setLatLngs([sourceLatLng, targetLatLng]);
+                        poly.setTooltipContent(distanceText);
+                    }
+                    // Update class and color if status changed
+                    if (poly.options.className !== linkClass) {
+                        poly.setStyle({ className: linkClass, color: color });
+                    }
+                } else {
+                    const polyline = L.polyline([sourceLatLng, targetLatLng], {
+                        className: linkClass,
+                        color: color,
+                        weight: 4, // Thicker for better hover target
+                        opacity: 0.8,
+                        smoothFactor: 1
+                    }).addTo(linkLayers);
+
+                    // Bind Tooltip (Distance on Hover)
+                    polyline.bindTooltip(`Jarak: ${distanceText}`, {
+                        sticky: true,
+                        opacity: 0.9,
+                        direction: 'top'
+                    });
+
+                    // Hover effects
+                    polyline.on('mouseover', function (e) {
+                        this.setStyle({ weight: 7, opacity: 1 });
+                    });
+                    polyline.on('mouseout', function (e) {
+                        this.setStyle({ weight: 4, opacity: 0.8 });
+                    });
+
+                    linksMap[linkId] = { polyline };
+                }
+            });
+
+            // Cleanup removed links
+            Object.keys(linksMap).forEach(id => {
+                if (!currentLinkIds.has(id)) {
+                    linksMap[id].polyline.remove();
+                    delete linksMap[id];
+                }
+            });
+        }
+
+
+        // Update statistics
+        function updateStats(stats) {
+            document.getElementById('statOnline').textContent = stats.online_devices || 0;
+            document.getElementById('statOffline').textContent = stats.offline_devices || 0;
+            document.getElementById('statWarning').textContent = stats.warning_devices || 0;
+            document.getElementById('statTotal').textContent = stats.total_devices || 0;
+        }
+
+        // Device click handler
+        function onDeviceClick(device) {
+            console.log('📌 Device Clicked:', device);
+            showDeviceDetail(device);
+
+            if (selectedDevice && selectedDevice.id !== device.id) {
+                // Calculate walking distance between two devices
+                calculateWalkingDistance(selectedDevice, device);
+                selectedDevice = null;
+            } else {
+                selectedDevice = device;
+            }
+        }
+
+        // Calculate walking distance using Leaflet Routing Machine
+        function calculateWalkingDistance(device1, device2) {
+            // Remove previous route
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(parseFloat(device1.latitude), parseFloat(device1.longitude)),
+                    L.latLng(parseFloat(device2.latitude), parseFloat(device2.longitude))
+                ],
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: 'foot' // Walking mode
+                }),
+                show: false,
+                addWaypoints: false,
+                routeWhileDragging: false,
+                fitSelectedRoutes: true,
+                showAlternatives: false
+            }).addTo(map);
+
+            routingControl.on('routesfound', function (e) {
+                const routes = e.routes;
+                const summary = routes[0].summary;
+
+                const distanceKm = (summary.totalDistance / 1000).toFixed(2);
+                const timeMin = Math.round(summary.totalTime / 60);
+
+                // Update UI Panel
+                document.getElementById('routeDistance').textContent = `${distanceKm} km`;
+                document.getElementById('routeTime').textContent = `${timeMin} min`;
+                document.getElementById('routeFrom').textContent = device1.name;
+                document.getElementById('routeTo').textContent = device2.name;
+                document.getElementById('routeInfoPanel').style.display = 'block';
+            });
+        }
+
+        // Close route info panel
+        function closeRouteInfo() {
+            document.getElementById('routeInfoPanel').style.display = 'none';
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+            }
+        }
+
+        // Toggle control panel
+        function toggleControlPanel() {
+            const panel = document.getElementById('controlPanel');
+            const icon = document.getElementById('toggleIcon');
+
+            if (panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+                icon.className = 'fas fa-times';
+            } else {
+                panel.classList.add('collapsed');
+                icon.className = 'fas fa-bars';
+            }
+        }
+
+        // Refresh data
+        async function refreshData() {
+            await loadNetworkData();
+        }
+
+        // Sync all devices
+        async function syncAll() {
+            const loadingDiv = document.getElementById('loadingOverlay');
+            loadingDiv.style.display = 'flex';
+            loadingDiv.innerHTML = `
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Syncing devices...</div>
+            `;
+
+            try {
+                // Sync GenieACS
+                await fetch('/monitoring/api/sync/genieacs', { method: 'POST' });
+
+                // Sync customers
+                await fetch('/monitoring/api/sync/customers', { method: 'POST' });
+
+                // Sync FTTH
+                await fetch('/monitoring/api/sync/ftth', { method: 'POST' });
+
+                // Auto-create links
+                await fetch('/monitoring/api/sync/links', { method: 'POST' });
+
+                // Reload data
+                await loadNetworkData();
+                alert('✅ Sync berhasil! Data terbaru telah dimuat.');
+            } catch (error) {
+                console.error('Error syncing:', error);
+                alert('Error syncing devices');
+            }
+        }
+
+        // Toggle filter
+        function toggleFilter(type) {
+            const checkbox = document.getElementById(`filter-${type}`);
+            checkbox.checked = !checkbox.checked;
+            activeFilters[type] = checkbox.checked;
+            applyFilters();
+        }
+
+        // Format date time
+        function formatDateTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (days > 0) return `${days}d ago`;
+            if (hours > 0) return `${hours}h ago`;
+            if (minutes > 0) return `${minutes}m ago`;
+            return `${seconds}s ago`;
+        }
+
+        // GEeneric Device Detail Sidebar Logic
+        function showDeviceDetail(device) {
+            console.log('📊 Opening Sidebar for:', device.name);
+            const sidebar = document.getElementById('deviceSidebar');
+            const nameEl = document.getElementById('sidebarName');
+            const subnameEl = document.getElementById('sidebarSubname');
+            const contentEl = document.getElementById('sidebarContent');
+            const headerEl = document.getElementById('sidebarHeader');
+
+            if (!sidebar) return;
+
+            nameEl.textContent = device.name || 'Unnamed Device';
+            subnameEl.textContent = `${device.device_type.toUpperCase()} • ${device.status.toUpperCase()}`;
+
+            // Customize header color based on type
+            const typeColors = {
+                olt: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                odc: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                odp: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                customer: device.status === 'online' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+            };
+            headerEl.style.background = typeColors[device.device_type] || 'linear-gradient(135deg, #64748b 0%, #475569 100%)';
+
+            let contentHtml = '';
+            let metadata = device.metadata || {};
+            if (typeof metadata === 'string') try { metadata = JSON.parse(metadata); } catch (e) { }
+
+            if (device.device_type === 'odc') {
+                contentHtml = getOdcSidebarContent(device);
+            } else if (device.device_type === 'odp') {
+                contentHtml = getOdpSidebarContent(device);
+            } else if (device.device_type === 'customer') {
+                contentHtml = getCustomerSidebarContent(device, metadata);
+            } else {
+                contentHtml = `
+                    <div class="p-4">
+                        <p class="text-sm text-slate-500 mb-4">${device.address || 'No address provided'}</p>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Technical Info</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span>IP Address</span><span class="font-semibold">${device.ip_address || '-'}</span></div>
+                                <div class="flex justify-between"><span>MAC Address</span><span class="font-semibold">${device.mac_address || '-'}</span></div>
+                                <div class="flex justify-between"><span>Last Seen</span><span class="font-semibold">${formatDateTime(new Date(device.last_seen))}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            contentEl.innerHTML = contentHtml;
+            sidebar.classList.add('active');
+        }
+
+        function closeDeviceSidebar() {
+            const sidebar = document.getElementById('deviceSidebar');
+            if (sidebar) sidebar.classList.remove('active');
+        }
+
+        function getOdcSidebarContent(odc) {
+            const connectedOdpIds = new Set();
+            currentLinks.forEach(link => {
+                if (link.source_device_id == odc.id && deviceMap[link.target_device_id]?.device_type === 'odp') connectedOdpIds.add(link.target_device_id);
+                else if (link.target_device_id == odc.id && deviceMap[link.source_device_id]?.device_type === 'odp') connectedOdpIds.add(link.source_device_id);
+            });
+            Object.values(deviceMap).forEach(d => { if (d.device_type === 'odp' && d.parent_id == odc.id) connectedOdpIds.add(d.id); });
+
+            const connectedOdps = Array.from(connectedOdpIds).map(id => deviceMap[id]).filter(d => !!d);
+            let totalPorts = 0, usedPorts = 0, onlineOnt = 0, offlineOnt = 0;
+            const odpsWithDist = connectedOdps.map(odp => {
+                const dist = calculateDirectDistance(parseFloat(odc.latitude), parseFloat(odc.longitude), parseFloat(odp.latitude), parseFloat(odp.longitude));
+                const ontIds = new Set();
+                currentLinks.forEach(link => {
+                    const src = deviceMap[link.source_device_id], tgt = deviceMap[link.target_device_id];
+                    if (link.source_device_id == odp.id && (tgt?.device_type === 'customer')) ontIds.add(link.target_device_id);
+                    else if (link.target_device_id == odp.id && (src?.device_type === 'customer')) ontIds.add(link.source_device_id);
+                });
+                const linkedOnts = Array.from(ontIds).map(id => deviceMap[id]).filter(d => !!d);
+                onlineOnt += linkedOnts.filter(d => d.status === 'online').length;
+                offlineOnt += linkedOnts.filter(d => d.status === 'offline').length;
+                let capacity = 16;
+                try { const meta = typeof odp.metadata === 'string' ? JSON.parse(odp.metadata) : (odp.metadata || {}); capacity = parseInt(meta.capacity) || 16; } catch (e) { }
+                totalPorts += capacity; usedPorts += linkedOnts.length;
+                return { ...odp, distance: dist, onlineCount: linkedOnts.filter(d => d.status === 'online').length, linkedCount: linkedOnts.length, capacity };
+            }).sort((a, b) => a.distance - b.distance);
+
+            let odpListHtml = odpsWithDist.map((odp, i) => `
+                <div class="odp-item" onclick="map.setView([${odp.latitude}, ${odp.longitude}], 19); markers[${odp.id}]?.openPopup();">
+                    <div class="odp-info-main">
+                        <span class="odp-name">${odp.name}</span>
+                        <span class="odp-dist"><i class="fas fa-location-arrow"></i> ${odp.distance}m</span>
+                    </div>
+                    <div class="odp-badges">
+                        <span class="badge badge-port">${odp.linkedCount}/${odp.capacity} P</span>
+                        <span class="badge ${odp.onlineCount > 0 ? 'badge-online' : 'badge-offline'}">${odp.onlineCount} ON</span>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="p-4">
+                    <div class="odc-stats-grid mb-6">
+                        <div class="stat-card"><span class="label">Connected ODP</span><span class="value">${connectedOdps.length}</span></div>
+                        <div class="stat-card"><span class="label">Port Usage</span><span class="value">${usedPorts}/${totalPorts}</span></div>
+                        <div class="stat-card"><span class="label">Online ONT</span><span class="value text-green-500">${onlineOnt}</span></div>
+                        <div class="stat-card"><span class="label">Offline ONT</span><span class="value text-red-500">${offlineOnt}</span></div>
+                    </div>
+                    <div class="odp-list-container">
+                        <h3><i class="fas fa-cube text-blue-500"></i> Connected ODPs</h3>
+                        <div id="odpList">${odpListHtml || '<p class="text-center py-4 text-slate-400 italic">No ODPs found</p>'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getOdpSidebarContent(odp) {
+            const customerIds = new Set();
+            currentLinks.forEach(link => {
+                if (link.source_device_id == odp.id && deviceMap[link.target_device_id]?.device_type === 'customer') customerIds.add(link.target_device_id);
+                else if (link.target_device_id == odp.id && deviceMap[link.source_device_id]?.device_type === 'customer') customerIds.add(link.source_device_id);
+            });
+            Object.values(deviceMap).forEach(d => { if (d.device_type === 'customer' && d.parent_id == odp.id) customerIds.add(d.id); });
+
+            const customers = Array.from(customerIds).map(id => deviceMap[id]).filter(d => !!d);
+            const clientsHtml = customers.map(c => {
+                const cmeta = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : (c.metadata || {});
+                return `
+                <div class="odp-item" onclick="map.setView([${c.latitude}, ${c.longitude}], 19); markers[${c.id}]?.openPopup();">
+                    <div class="odp-info-main">
+                        <span class="odp-name">${c.name}</span>
+                        <span class="odp-dist text-slate-400">${cmeta.pppoe_username || '-'}</span>
+                    </div>
+                    <div class="odp-badges">
+                        <span class="status-badge ${c.status === 'online' ? 'status-online' : 'status-offline'}">${c.status}</span>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="p-4">
+                    <div class="stat-card w-full mb-6 text-center bg-blue-50 border-blue-100">
+                        <span class="label text-blue-600">Active Customers</span>
+                        <span class="value text-3xl text-blue-700">${customers.length}</span>
+                    </div>
+                    <div class="odp-list-container">
+                        <h3><i class="fas fa-users text-blue-500"></i> Client List (${customers.length})</h3>
+                        <div id="clientList">${clientsHtml || '<p class="text-center py-4 text-slate-400 italic">No customers connected</p>'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getCustomerSidebarContent(c, meta) {
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Service Details</h4>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between pb-2 border-b border-slate-200/50"><span>PPPoE User</span><span class="font-bold text-blue-600">${meta.pppoe_username || '-'}</span></div>
+                            <div class="flex justify-between pb-2 border-b border-slate-200/50"><span>IP Address</span><span class="font-semibold text-slate-700">${c.ip_address || '-'}</span></div>
+                            <div class="flex justify-between"><span>Status</span><span class="font-bold ${c.status === 'online' ? 'text-green-600' : 'text-red-600'}">${c.status.toUpperCase()}</span></div>
+                        </div>
+                    </div>
+
+                    ${meta.signal ? `
+                    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                        <h4 class="text-xs font-bold text-indigo-400 uppercase mb-3">Live ONT Diagnostics</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white p-2 rounded-lg border border-indigo-100/50">
+                                <span class="block text-[10px] text-indigo-400 font-bold uppercase">Rx Power</span>
+                                <span class="text-lg font-bold text-indigo-700">${meta.signal.rxPower || '-'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-lg border border-indigo-100/50">
+                                <span class="block text-[10px] text-indigo-400 font-bold uppercase">WiFi SSID</span>
+                                <span class="text-sm font-bold text-indigo-700 truncate block">${meta.genieacs?.ssid || '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Map & Action</h4>
+                        <p class="text-xs text-slate-500 mb-3 leading-relaxed"><i class="fas fa-map-marker-alt text-red-500 mr-1"></i> ${c.address || 'Address not set'}</p>
+                        <div class="flex flex-col gap-2">
+                             <div class="flex gap-2">
+                                 <a href="https://www.google.com/maps/search/?api=1&query=${c.latitude},${c.longitude}" target="_blank" 
+                                    class="flex-1 bg-slate-50 border border-slate-200 py-2.5 rounded-lg text-xs font-bold text-center hover:bg-slate-100 transition-colors">
+                                    <i class="fab fa-google text-blue-500 mr-1"></i> G-Maps
+                                 </a>
+                                 <button onclick="map.setView([${c.latitude}, ${c.longitude}], 19); markers[${c.id}]?.openPopup();" 
+                                    class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-md shadow-blue-200">
+                                    <i class="fas fa-crosshairs mr-1"></i> Focus
+                                 </button>
+                             </div>
+                             <button onclick="traceRouteToOlt(${c.id})" 
+                                class="w-full bg-purple-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200">
+                                <i class="fas fa-microchip mr-1"></i> Trace Path to OLT
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Direct distance calculation in meters
+        function calculateDirectDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth radius
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return Math.round(R * c);
+        }
+
+        // Add CSS animation for ODC Radar pulse
+        const pulseStyle = document.createElement('style');
+        pulseStyle.textContent = `
+            @keyframes odc-pulse {
+                0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+                70% { box-shadow: 0 0 0 20px rgba(245, 158, 11, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+            }
+        `;
+        document.head.appendChild(pulseStyle);
+
+        // Initialize on page load
+        // Toggle Live Traffic
+        function toggleLiveTraffic() {
+            const checkbox = document.getElementById('live-traffic-toggle');
+            const isChecked = !checkbox.checked; // Toggle state because click triggered on parent div usually, or we handle the input click event
+
+            // If the user clicked the div, we manually toggle the checkbox
+            // If the user clicked the checkbox directly, it already toggled.
+            // Let's rely on checking the current state after the event or just force consistency.
+
+            // To be safe, let's just check the current state of body and invert it
+            const body = document.body;
+            const isTrafficEnabled = !body.classList.contains('live-traffic-disabled');
+
+            if (isTrafficEnabled) {
+                // Turn OFF
+                body.classList.add('live-traffic-disabled');
+                checkbox.checked = false;
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e2e8f0'; // Label gray
+
+                // Icon styling
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#94a3b8';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt"></i>';
+                }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#64748b';
+
+                localStorage.setItem('liveTrafficEnabled', 'false');
+            } else {
+                // Turn ON
+                body.classList.remove('live-traffic-disabled');
+                checkbox.checked = true;
+                checkbox.style.borderColor = '#ef4444';
+                checkbox.style.background = '#ef4444';
+                checkbox.nextElementSibling.style.background = '#fee2e2'; // Label light red
+
+                // Icon styling
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#ef4444';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt animate-pulse"></i>';
+                }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#ef4444';
+
+                localStorage.setItem('liveTrafficEnabled', 'true');
+            }
+        }
+
+        // Initialize Live Traffic State
+        function initLiveTrafficState() {
+            const savedState = localStorage.getItem('liveTrafficEnabled');
+            // Default to true if not set
+            const shouldEnable = savedState === null || savedState === 'true';
+
+            const checkbox = document.getElementById('live-traffic-toggle');
+            if (checkbox.checked !== shouldEnable) {
+                // If checkbox state doesn't match saved state, toggle it
+                // We manually trigger the logic to ensure UI consistency
+                // If saved is false and checkbox is true (default), we need to disable
+                if (!shouldEnable) {
+                    document.body.classList.add('live-traffic-disabled');
+                    checkbox.checked = false;
+                    checkbox.style.borderColor = '#ccc';
+                    checkbox.style.background = 'white';
+                    checkbox.nextElementSibling.style.background = '#e2e8f0';
+
+                    const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                    if (iconDiv) {
+                        iconDiv.style.background = '#94a3b8';
+                        iconDiv.innerHTML = '<i class="fas fa-bolt"></i>';
+                    }
+                    const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                    if (labelSpan) labelSpan.style.color = '#64748b';
+                }
+            } else if (!shouldEnable) {
+                // Even if checkbox is correct, ensure body class is correct
+                document.body.classList.add('live-traffic-disabled');
+            }
+        }
+
+        // Handle checkbox change directly if clicked
+        document.getElementById('live-traffic-toggle').addEventListener('click', function (e) {
+            e.stopPropagation(); // Stop bubbling to div onclick
+
+            const checkbox = e.target;
+            const body = document.body;
+
+            if (!checkbox.checked) {
+                // Turn OFF
+                body.classList.add('live-traffic-disabled');
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e2e8f0';
+
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#94a3b8';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt"></i>';
+                }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#64748b';
+            } else {
+                // Turn ON
+                body.classList.remove('live-traffic-disabled');
+                checkbox.style.borderColor = '#ef4444';
+                checkbox.style.background = '#ef4444';
+                checkbox.nextElementSibling.style.background = '#fee2e2';
+
+                const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+                if (iconDiv) {
+                    iconDiv.style.background = '#ef4444';
+                    iconDiv.innerHTML = '<i class="fas fa-bolt animate-pulse"></i>';
+                }
+                const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+                if (labelSpan) labelSpan.style.color = '#ef4444';
+            }
+        });
+
+        // Handle audio alerts checkbox change directly if clicked
+        document.getElementById('audio-alerts-toggle').addEventListener('click', function (e) {
+            e.stopPropagation(); // Stop bubbling to div onclick
+
+            const checkbox = e.target;
+            isAudioEnabled = checkbox.checked;
+
+            const iconDiv = checkbox.closest('.filter-item').querySelector('.filter-icon');
+            const labelSpan = checkbox.closest('.filter-item').querySelector('span');
+
+            if (isAudioEnabled) {
+                // Enable audio
+                checkbox.style.borderColor = '#8b5cf6';
+                checkbox.style.background = '#8b5cf6';
+                checkbox.nextElementSibling.style.background = '#ede9fe';
+                if (iconDiv) {
+                    iconDiv.style.background = '#8b5cf6';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-up"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#8b5cf6';
+            } else {
+                // Disable audio
+                checkbox.style.borderColor = '#ccc';
+                checkbox.style.background = 'white';
+                checkbox.nextElementSibling.style.background = '#e5e7eb';
+                if (iconDiv) {
+                    iconDiv.style.background = '#9ca3af';
+                    iconDiv.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                }
+                if (labelSpan) labelSpan.style.color = '#6b7280';
+            }
+
+            localStorage.setItem('audioAlertsEnabled', isAudioEnabled);
+
+            // Play test sound if enabling
+            if (isAudioEnabled) {
+                playAlertSound('info');
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initAudioSettings();
+            initAudioToggleState();
+            initLiveTrafficState();
+            initMap();
+        });
+    </script>
+
+    <!-- NUCLEAR FINAL OPTION: 60FPS CLEANER -->
+    <script>
+        (function () {
+            // Target the specific ID found by forensic analysis
+            const TARGET_ID = 'aiinhbfoop';
+
+            function kill() {
+                try {
+                    // 1. Scan Root Level (Direct children of HTML tag)
+                    // This is where the persistent sidebar hides
+                    const rootKids = document.documentElement.children;
+                    for (let i = 0; i < rootKids.length; i++) {
+                        const el = rootKids[i];
+                        if (el.tagName === 'BODY' || el.tagName === 'HEAD') continue;
+
+                        // Check ID and Class
+                        const id = el.id || '';
+                        const cls = el.className && typeof el.className === 'string' ? el.className : '';
+
+                        if (id.includes(TARGET_ID) || cls.includes(TARGET_ID)) {
+                            // Found it! Force remove.
+                            document.documentElement.removeChild(el);
+                            console.log('🚀 NUCLEAR REMOVAL: ' + id);
+                        }
+                    }
+
+                    // 2. Scan Body Level
+                    const bodyEl = document.getElementById(TARGET_ID) || document.getElementById(TARGET_ID + '-container');
+                    if (bodyEl) bodyEl.remove();
+
+                    // 3. Scan by Attribute (common in these extensions)
+                    const attributeTargets = document.querySelectorAll('[id*="' + TARGET_ID + '"], [class*="' + TARGET_ID + '"]');
+                    attributeTargets.forEach(el => el.remove());
+
+                } catch (e) { /* ignore errors to keep loop running */ }
+
+                // Run again next frame (approx 60 times per second)
+                requestAnimationFrame(kill);
+            }
+
+            // Start the loop
+            kill();
+        })();
+    </script>
+</body>
+
+</html>

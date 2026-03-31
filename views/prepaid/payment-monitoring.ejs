@@ -1,0 +1,361 @@
+<%- include('../partials/header') %>
+    <%- include('../partials/sidebar') %>
+
+        <div class="content-wrapper">
+            <!-- Content Header -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0"><i class="fas fa-money-check-alt"></i> Prepaid Payment Monitoring</h1>
+                        </div>
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li class="breadcrumb-item active">Prepaid Payments</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <section class="content">
+                <div class="container-fluid">
+
+                    <!-- Stats Cards -->
+                    <div class="row">
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-info">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.total || 0 %>
+                                    </h3>
+                                    <p>Total Requests</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-list"></i>
+                                </div>
+                                <a href="/prepaid/payments?status=all" class="small-box-footer">
+                                    View All <i class="fas fa-arrow-circle-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-warning">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.pending || 0 %>
+                                    </h3>
+                                    <p>Pending</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <a href="/prepaid/payments?status=pending" class="small-box-footer">
+                                    View Pending <i class="fas fa-arrow-circle-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-success">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.verified || 0 %>
+                                    </h3>
+                                    <p>Verified</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <a href="/prepaid/payments?status=verified" class="small-box-footer">
+                                    View Verified <i class="fas fa-arrow-circle-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-danger">
+                                <div class="inner">
+                                    <h3>
+                                        <%= stats.expired || 0 %>
+                                    </h3>
+                                    <p>Expired</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-times-circle"></i>
+                                </div>
+                                <a href="/prepaid/payments?status=expired" class="small-box-footer">
+                                    View Expired <i class="fas fa-arrow-circle-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Requests Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-list"></i> Payment Requests
+                                <% if (currentStatus !=='all' ) { %>
+                                    <span
+                                        class="badge badge-<%= currentStatus === 'pending' ? 'warning' : currentStatus === 'verified' ? 'success' : 'danger' %>">
+                                        <%= currentStatus.toUpperCase() %>
+                                    </span>
+                                    <% } %>
+                            </h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body table-responsive p-0">
+                            <table class="table table-hover text-nowrap">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Customer</th>
+                                        <th>Package</th>
+                                        <th>Amount</th>
+                                        <th>Discount</th>
+                                        <th>Total</th>
+                                        <th>Payment Method</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (paymentRequests && paymentRequests.length> 0) { %>
+                                        <% paymentRequests.forEach(function(pr) { %>
+                                            <tr>
+                                                <td><strong>#<%= pr.id %></strong></td>
+                                                <td>
+                                                    <strong>
+                                                        <%= pr.customer_name %>
+                                                    </strong><br>
+                                                    <small class="text-muted">
+                                                        <%= pr.customer_phone %>
+                                                    </small><br>
+                                                    <small class="badge badge-secondary">
+                                                        <%= pr.customer_code %>
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <strong>
+                                                        <%= pr.package_name %>
+                                                    </strong><br>
+                                                    <small class="text-muted">
+                                                        <%= pr.duration_days %> days
+                                                    </small>
+                                                </td>
+                                                <td>Rp <%= pr.base_amount.toLocaleString('id-ID') %>
+                                                </td>
+                                                <td>
+                                                    <% if (pr.voucher_discount> 0) { %>
+                                                        <span class="text-success">
+                                                            -Rp <%= pr.voucher_discount.toLocaleString('id-ID') %>
+                                                        </span>
+                                                        <% if (pr.voucher_code) { %>
+                                                            <br><small class="badge badge-success">
+                                                                <%= pr.voucher_code %>
+                                                            </small>
+                                                            <% } %>
+                                                                <% } else { %>
+                                                                    <span class="text-muted">-</span>
+                                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <strong class="text-primary">
+                                                        Rp <%= pr.total_amount.toLocaleString('id-ID') %>
+                                                    </strong>
+                                                    <br><small class="text-info">Kode: <%= pr.unique_code %></small>
+                                                </td>
+                                                <td>
+                                                    <% if (pr.payment_method_name) { %>
+                                                        <%= pr.payment_method_name %>
+                                                            <% } else { %>
+                                                                <span class="text-muted">-</span>
+                                                                <% } %>
+                                                </td>
+                                                <td>
+                                                    <% if (pr.status==='pending' ) { %>
+                                                        <span class="badge badge-warning">Pending</span>
+                                                        <% } else if (pr.status==='verified' ) { %>
+                                                            <span class="badge badge-success">Verified</span>
+                                                            <% } else if (pr.status==='expired' ) { %>
+                                                                <span class="badge badge-danger">Expired</span>
+                                                                <% } else if (pr.status==='rejected' ) { %>
+                                                                    <span class="badge badge-dark">Rejected</span>
+                                                                    <% } %>
+                                                                        <% if (pr.reminder_sent) { %>
+                                                                            <br><small class="text-muted"><i
+                                                                                    class="fas fa-bell"></i>
+                                                                                Reminded</small>
+                                                                            <% } %>
+                                                </td>
+                                                <td>
+                                                    <%= new Date(pr.created_at).toLocaleString('id-ID') %>
+                                                        <% if (pr.expires_at) { %>
+                                                            <br><small class="text-danger">Exp: <%= new
+                                                                    Date(pr.expires_at).toLocaleTimeString('id-ID', {
+                                                                    hour: '2-digit' , minute: '2-digit' }) %></small>
+                                                            <% } %>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group">
+                                                        <button type="button" class="btn btn-sm btn-info"
+                                                            onclick="viewDetail(<%= pr.id %>)">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <% if (pr.status==='pending' ) { %>
+                                                            <button type="button" class="btn btn-sm btn-success"
+                                                                onclick="approvePayment(<%= pr.id %>)">
+                                                                <i class="fas fa-check"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-danger"
+                                                                onclick="rejectPayment(<%= pr.id %>)">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                            <% } %>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
+                                                <% } else { %>
+                                                    <tr>
+                                                        <td colspan="10" class="text-center text-muted py-4">
+                                                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                                                            <p>No payment requests found</p>
+                                                        </td>
+                                                    </tr>
+                                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <% if (totalPages> 1) { %>
+                            <div class="card-footer clearfix">
+                                <ul class="pagination pagination-sm m-0 float-right">
+                                    <% for (let i=1; i <=totalPages; i++) { %>
+                                        <li class="page-item <%= i === currentPage ? 'active' : '' %>">
+                                            <a class="page-link"
+                                                href="/prepaid/payments?status=<%= currentStatus %>&page=<%= i %>">
+                                                <%= i %>
+                                            </a>
+                                        </li>
+                                        <% } %>
+                                </ul>
+                            </div>
+                            <% } %>
+                    </div>
+
+                </div>
+            </section>
+        </div>
+
+        <!-- Detail Modal -->
+        <div class="modal fade" id="detailModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Payment Request Detail</h5>
+                        <button type="button" class="close" data-dismiss="modal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="detailContent">
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function viewDetail(id) {
+                $('#detailModal').modal('show');
+                $('#detailContent').html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-3x"></i></div>');
+
+                $.get('/prepaid/payments/' + id, function (response) {
+                    if (response.success) {
+                        const data = response.data;
+                        const html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Customer Information</h6>
+                        <table class="table table-sm">
+                            <tr><td>Name:</td><td><strong>${data.customer_name}</strong></td></tr>
+                            <tr><td>Phone:</td><td>${data.customer_phone}</td></tr>
+                            <tr><td>Code:</td><td><span class="badge badge-secondary">${data.customer_code}</span></td></tr>
+                            <tr><td>Current Expiry:</td><td>${data.current_expiry ? new Date(data.current_expiry).toLocaleString('id-ID') : '-'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Payment Information</h6>
+                        <table class="table table-sm">
+                            <tr><td>Package:</td><td><strong>${data.package_name}</strong></td></tr>
+                            <tr><td>Duration:</td><td>${data.package_duration} days</td></tr>
+                            <tr><td>Base Amount:</td><td>Rp ${data.base_amount.toLocaleString('id-ID')}</td></tr>
+                            <tr><td>Discount:</td><td class="text-success">-Rp ${data.voucher_discount ? data.voucher_discount.toLocaleString('id-ID') : '0'}</td></tr>
+                            <tr><td>Total:</td><td><strong class="text-primary">Rp ${data.total_amount.toLocaleString('id-ID')}</strong></td></tr>
+                            <tr><td>Unique Code:</td><td><span class="badge badge-info">${data.unique_code}</span></td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Status & Timeline</h6>
+                        <table class="table table-sm">
+                            <tr><td>Status:</td><td><span class="badge badge-${data.status === 'pending' ? 'warning' : data.status === 'verified' ? 'success' : 'danger'}">${data.status.toUpperCase()}</span></td></tr>
+                            <tr><td>Created:</td><td>${new Date(data.created_at).toLocaleString('id-ID')}</td></tr>
+                            <tr><td>Expires:</td><td>${data.expires_at ? new Date(data.expires_at).toLocaleString('id-ID') : '-'}</td></tr>
+                            <tr><td>Reminder Sent:</td><td>${data.reminder_sent ? 'Yes' : 'No'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+            `;
+                        $('#detailContent').html(html);
+                    }
+                }).fail(function () {
+                    $('#detailContent').html('<div class="alert alert-danger">Error loading details</div>');
+                });
+            }
+
+            function approvePayment(id) {
+                if (confirm('Apakah Anda yakin ingin menyetujui pembayaran ini?')) {
+                    $.post('/prepaid/payments/' + id + '/approve', function (response) {
+                        if (response.success) {
+                            alert('Payment approved successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    });
+                }
+            }
+
+            function rejectPayment(id) {
+                const reason = prompt('Alasan penolakan:');
+                if (reason) {
+                    $.ajax({
+                        url: '/prepaid/payments/' + id + '/reject',
+                        method: 'POST',
+                        data: { reason: reason },
+                        success: function (response) {
+                            if (response.success) {
+                                alert('Payment rejected successfully!');
+                                location.reload();
+                            } else {
+                                alert('Error: ' + response.message);
+                            }
+                        }
+                    });
+                }
+            }
+        </script>
+
+        <%- include('../partials/footer') %>

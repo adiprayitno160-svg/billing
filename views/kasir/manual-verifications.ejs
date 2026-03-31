@@ -1,0 +1,274 @@
+<!-- Halaman Verifikasi Manual Kasir - Premium Version -->
+<div class="space-y-10 pb-20">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div>
+            <h1 class="text-4xl font-display font-black text-slate-900 tracking-tight">Verifikasi Manual</h1>
+            <p class="text-sm font-semibold text-slate-400 uppercase tracking-[0.2em] mt-2">Transfer Proof Validation & AI Review</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="statusFilterContainer" class="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
+                <button class="status-tab px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active" data-status="pending" onclick="filterStatus('pending', this)">
+                    PENDING
+                </button>
+                <button class="status-tab px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-status="approved" onclick="filterStatus('approved', this)">
+                    APPROVED
+                </button>
+                <button class="status-tab px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-status="rejected" onclick="filterStatus('rejected', this)">
+                    REJECTED
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table Surface -->
+    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="overflow-x-auto min-h-[400px]">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                        <th class="px-10 py-6">Date / Customer</th>
+                        <th class="px-6 py-6">Invoice</th>
+                        <th class="px-6 py-6 text-right">Amount</th>
+                        <th class="px-6 py-6 text-center">AI Confidence</th>
+                        <th class="px-10 py-6 text-right">Action Desk</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-slate-50">
+                    <tr>
+                        <td colspan="5" class="py-20 text-center">
+                            <div class="inline-flex flex-col items-center">
+                                <i class="fas fa-circle-notch fa-spin text-4xl text-indigo-500 mb-4"></i>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loading Data...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="paginationContainer" class="px-10 py-8 border-t border-slate-50 bg-slate-50/30 flex items-center justify-center gap-2">
+        </div>
+    </div>
+</div>
+
+<!-- Proof Preview Modal -->
+<div id="previewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center z-[100] px-6">
+    <div class="bg-white rounded-[3rem] shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
+        <div class="p-10 pb-6 flex items-center justify-between border-b border-slate-50">
+            <div>
+                <h3 class="text-2xl font-display font-black text-slate-900">PROOF REVIEW</h3>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Transfer Evidence & AI Analysis</p>
+            </div>
+            <button onclick="closePreview()" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:text-rose-500 transition-all">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-10 overflow-y-auto max-h-[65vh] space-y-8">
+            <!-- Image Preview -->
+            <div class="bg-slate-50 rounded-3xl p-4 border border-slate-100">
+                <img id="proofImage" src="" alt="Transfer Proof" class="w-full h-auto rounded-2xl shadow-lg">
+            </div>
+            <!-- Verification Details -->
+            <div id="verificationDetails" class="grid grid-cols-2 gap-6 bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        <div class="p-10 pt-6 border-t border-slate-50 flex items-center justify-end gap-4" id="modalActions">
+            <button type="button" onclick="rejectCurrent()" id="btnReject" class="h-14 px-8 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 active:scale-95 transition-all shadow-lg shadow-rose-100 flex items-center gap-3">
+                <i class="fas fa-times-circle"></i>
+                Tolak
+            </button>
+            <button type="button" onclick="approveCurrent()" id="btnApprove" class="h-14 px-8 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 active:scale-95 transition-all shadow-lg shadow-emerald-100 flex items-center gap-3">
+                <i class="fas fa-check-circle"></i>
+                Setujui
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .status-tab.active {
+        background-color: white;
+        color: #6366f1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+</style>
+
+<script>
+    let currentPage = 1;
+    let currentStatus = 'pending';
+    let currentVerificationId = null;
+
+    async function loadVerifications() {
+        try {
+            const resp = await fetch(`/kasir/api/manual-verifications?status=${currentStatus}&page=${currentPage}&limit=20`);
+            const result = await resp.json();
+            if (!result.success) throw new Error(result.message);
+            renderTable(result.data);
+            renderPagination(result.pagination);
+        } catch (e) {
+            document.getElementById('tableBody').innerHTML = `
+                <tr><td colspan="5" class="py-20 text-center">
+                    <div class="inline-flex flex-col items-center">
+                        <i class="fas fa-exclamation-triangle text-4xl text-rose-400 mb-4"></i>
+                        <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Error: ${e.message}</p>
+                    </div>
+                </td></tr>`;
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="py-24 text-center">
+                <div class="inline-flex flex-col items-center grayscale opacity-40">
+                    <i class="fas fa-check-double text-6xl mb-4 text-slate-200"></i>
+                    <p class="font-black text-slate-400 uppercase tracking-widest text-xs">No Items in Queue</p>
+                </div>
+            </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(item => `
+            <tr class="hover:bg-slate-50/80 transition-all group">
+                <td class="px-10 py-6">
+                    <div class="flex items-center gap-5">
+                        <div class="w-12 h-12 bg-white rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 shadow-sm transition-transform group-hover:scale-110 group-hover:text-indigo-500">
+                            <i class="fas fa-file-image"></i>
+                        </div>
+                        <div>
+                            <p class="font-display font-black text-slate-900">${item.customer_name || '-'}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${item.customer_code || '-'}</span>
+                                <span class="text-[9px] font-bold text-slate-300">•</span>
+                                <span class="text-[9px] font-mono text-slate-400">${new Date(item.created_at).toLocaleDateString('id-ID')}</span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-6">
+                    <p class="text-xs font-black text-slate-700">${item.invoice_number || '-'}</p>
+                    <p class="text-[9px] font-bold text-indigo-400 mt-1">${item.period || '-'}</p>
+                </td>
+                <td class="px-6 py-6 text-right">
+                    <p class="font-display font-black text-slate-900">Rp ${(item.amount || 0).toLocaleString('id-ID')}</p>
+                </td>
+                <td class="px-6 py-6 text-center">
+                    ${item.gemini_verified ?
+                        `<span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black tracking-widest rounded-full border border-emerald-100">${item.confidence_score}% PASS</span>` :
+                        `<span class="px-3 py-1 bg-amber-50 text-amber-600 text-[9px] font-black tracking-widest rounded-full border border-amber-100">${item.reason ? 'FLAGGED' : 'REVIEW'}</span>`
+                    }
+                </td>
+                <td class="px-10 py-6 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <button onclick='showProof(${item.id}, "${item.proof_image_path}", ${JSON.stringify(item).replace(/"/g, "&quot;")})' class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-all shadow-sm" title="Preview Proof">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                        ${item.status === 'pending' ? `
+                            <button onclick="approve(${item.id})" class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-100 transition-all" title="Approve">
+                                <i class="fas fa-check text-sm"></i>
+                            </button>
+                            <button onclick="reject(${item.id})" class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-100 transition-all" title="Reject">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                        ` : `
+                            <span class="px-4 py-2 ${item.status === 'approved' ? 'bg-emerald-500' : 'bg-rose-500'} text-white text-[9px] font-black tracking-widest rounded-xl">
+                                ${item.status === 'approved' ? 'APPROVED' : 'REJECTED'}
+                            </span>
+                        `}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function renderPagination(pagination) {
+        const container = document.getElementById('paginationContainer');
+        if (!pagination || pagination.pages <= 1) { container.innerHTML = ''; return; }
+        
+        let html = '';
+        for (let i = 1; i <= pagination.pages; i++) {
+            html += `<button onclick="changePage(${i})" class="w-10 h-10 inline-flex items-center justify-center rounded-xl ${i === pagination.page ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:text-indigo-600'} font-black text-xs transition-all">${i}</button>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function changePage(page) { currentPage = page; loadVerifications(); }
+
+    function filterStatus(status, el) {
+        currentStatus = status;
+        currentPage = 1;
+        document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        loadVerifications();
+    }
+
+    function showProof(id, imagePath, data) {
+        currentVerificationId = id;
+        document.getElementById('proofImage').src = imagePath;
+        document.getElementById('verificationDetails').innerHTML = `
+            <div class="space-y-1">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Customer</p>
+                <p class="font-black text-slate-900">${data.customer_name || '-'}</p>
+            </div>
+            <div class="space-y-1">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Invoice</p>
+                <p class="font-black text-slate-900">${data.invoice_number || '-'}</p>
+            </div>
+            <div class="space-y-1">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Amount</p>
+                <p class="font-display font-black text-emerald-600 text-lg">Rp ${(data.amount || 0).toLocaleString('id-ID')}</p>
+            </div>
+            <div class="space-y-1">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">AI Analysis</p>
+                <p class="font-bold text-sm text-slate-700">${data.reason || 'No remarks'}</p>
+            </div>
+        `;
+        
+        const actionsEl = document.getElementById('modalActions');
+        if (data.status !== 'pending') {
+            actionsEl.classList.add('hidden');
+        } else {
+            actionsEl.classList.remove('hidden');
+        }
+
+        const modal = document.getElementById('previewModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closePreview() {
+        const modal = document.getElementById('previewModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function approveCurrent() { if (currentVerificationId) approve(currentVerificationId); }
+    function rejectCurrent() { if (currentVerificationId) reject(currentVerificationId); }
+
+    async function approve(id) {
+        if (!confirm('Setujui pembayaran ini?')) return;
+        try {
+            const resp = await fetch(`/kasir/manual-verifications/${id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const result = await resp.json();
+            if (result.success) { alert(result.message); loadVerifications(); closePreview(); }
+            else alert('Error: ' + result.message);
+        } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function reject(id) {
+        const reason = prompt('Alasan penolakan:');
+        if (!reason) return;
+        try {
+            const resp = await fetch(`/kasir/manual-verifications/${id}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) });
+            const result = await resp.json();
+            if (result.success) { alert(result.message); loadVerifications(); closePreview(); }
+            else alert('Error: ' + result.message);
+        } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    // Init
+    loadVerifications();
+</script>

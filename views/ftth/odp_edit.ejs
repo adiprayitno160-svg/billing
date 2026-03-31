@@ -1,0 +1,478 @@
+<div class="space-y-6">
+    <!-- Header Page -->
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </div>
+                Edit Data ODP
+            </h1>
+            <p class="text-slate-500 mt-1 ml-13">Update konfigurasi dan lokasi Optical Distribution Point</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a href="/ftth/odp<%= item.odc_id ? ('?odc_id=' + item.odc_id) : '' %>"
+                class="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-all font-medium flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Batal & Kembali
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Technical Configuration Card -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-lg">Konfigurasi Teknis</h3>
+                </div>
+
+                <form method="post" action="/ftth/odp/<%= item.id %>" class="p-6 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- ODC Selection -->
+                        <div class="col-span-1 md:col-span-2 space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Pilih Sumber ODC <span
+                                    class="text-rose-500">*</span></label>
+                            <select name="odc_id" required
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all">
+                                <option value="">-- Pilih ODC --</option>
+                                <% (odcs || []).forEach(function(odc){ %>
+                                    <option value="<%= odc.id %>" <%=(item.odc_id==odc.id) ? 'selected' : '' %>>
+                                        <%= odc.name %> (Tersedia: <%= odc.total_ports - odc.used_ports %> port)
+                                    </option>
+                                    <% }) %>
+                            </select>
+                            <p class="text-xs text-slate-400">ODP akan mengambil sumber dari ODC yang dipilih.</p>
+                        </div>
+
+                        <!-- ODP Basic Info -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Nama ODP <span
+                                    class="text-rose-500">*</span></label>
+                            <input name="name" value="<%= item.name %>" required
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium" />
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Kapasitas (Total Port) <span
+                                    class="text-rose-500">*</span></label>
+                            <input name="total_ports" type="number" min="0" value="<%= item.total_ports %>" required
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium" />
+                        </div>
+
+                        <!-- OLT Connection Info Removed as per user request -->
+
+                        <div class="col-span-1 md:col-span-2 space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Lokasi Fisik / Alamat</label>
+                            <div class="relative">
+                                <div
+                                    class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </div>
+                                <input name="location" value="<%= item.location || '' %>"
+                                    class="w-full pl-11 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                                    placeholder="Misal: Perumahan A Blok B No 1..." />
+                            </div>
+                        </div>
+
+                        <div class="col-span-1 md:col-span-2 space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">Catatan Internal</label>
+                            <textarea name="notes" rows="3"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none"><%= item.notes || '' %></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Hidden but required field for the form -->
+                    <!-- Hidden but required field for the form -->
+                    <input type="hidden" name="latitude" id="latInput" value="<%= item.latitude || '' %>">
+                    <input type="hidden" name="longitude" id="lngInput" value="<%= item.longitude || '' %>">
+
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-700">Koordinat (Lat, Long)</label>
+                        <input id="coordinates" placeholder="-6.xxxx, 106.xxxx" type="text"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono" />
+                    </div>
+
+                    <div class="flex items-center gap-4 pt-4">
+                        <button type="submit"
+                            class="flex-1 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 transition-all font-bold shadow-xl shadow-blue-500/20 active:scale-95">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Maps & Status Card -->
+        <div class="space-y-6">
+            <!-- Usage Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h4 class="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">Status Port</h4>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-slate-500">Terpakai</span>
+                    <span class="text-lg font-bold text-slate-800">
+                        <%= item.used_ports %> / <%= item.total_ports %> Port
+                    </span>
+                </div>
+                <% const percentage=item.total_ports> 0 ? Math.round((item.used_ports / item.total_ports) * 100) : 0; %>
+                    <div class="w-full bg-slate-100 rounded-full h-3 mb-2 overflow-hidden">
+                        <div class="bg-gradient-to-r <%= percentage > 90 ? 'from-rose-500 to-red-600' : 'from-blue-500 to-indigo-600' %> h-full transition-all duration-700"
+                            style="width: <%= percentage %>%"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs font-bold">
+                        <span class="<%= percentage > 90 ? 'text-rose-600' : 'text-blue-600' %>">
+                            <%= percentage %>% Kapasitas
+                        </span>
+                        <span class="text-slate-400">
+                            <%= item.total_ports - item.used_ports %> Tersedia
+                        </span>
+                    </div>
+            </div>
+
+            <!-- Maps Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Lokasi ODP</h4>
+                    <button type="button" id="btnGetLocation"
+                        class="px-4 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-sm border border-green-100">
+                        Auto GPS
+                    </button>
+                </div>
+                <div class="p-4 border-b border-slate-50 space-y-4">
+                    <!-- Search Location Box -->
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input type="text" id="map_search" placeholder="Cari desa, jalan, atau kota..."
+                            class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300"
+                            autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <!-- Overlay Paste Link -->
+                    <div
+                        class="absolute top-2 left-2 right-2 z-[400] bg-white/90 backdrop-blur p-2 rounded-xl shadow-lg border border-slate-200 flex gap-2">
+                        <input type="text" id="paste_map_link" placeholder="Paste Link Google Maps / WA ShareLoc..."
+                            class="flex-1 bg-transparent border-none text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:ring-0 outline-none">
+                        <button type="button" onclick="parseMapLink()"
+                            class="bg-blue-600 text-white text-[10px] uppercase font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 shadow-sm transition-all whitespace-nowrap">
+                            Cari
+                        </button>
+                    </div>
+                    <div id="mapOdp" class="w-full bg-slate-100" style="height: 400px; min-height: 400px; z-index: 10;">
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 text-center">
+                    <p class="text-[10px] text-slate-400 font-medium">KLIK PADA PETA ATAU DRAG MARKER UNTUK PIN LOKASI
+                        ODP</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Scripts -->
+    <script id="odcData" type="application/json"><%- JSON.stringify(odcToOlt || {}) %></script>
+    <script id="itemOltCard" type="application/json"><%- JSON.stringify(item.olt_card || null) %></script>
+    <script id="itemOltPort" type="application/json"><%- JSON.stringify(item.olt_port || null) %></script>
+
+    <script>
+        (function () {
+            let odcToOlt = {};
+            try { odcToOlt = JSON.parse(document.getElementById('odcData').textContent); } catch (e) { }
+
+            const odcSelect = document.querySelector('select[name="odc_id"]');
+            const cardSelect = document.getElementById('odpOltCard');
+            const portSelect = document.getElementById('odpOltPort');
+
+            function fillOptions(sel, count, label, selected) {
+                sel.innerHTML = '<option value="">-- ' + label + ' --</option>';
+                const n = Number(count || 0);
+                for (let i = 1; i <= n; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = String(i);
+                    opt.textContent = label + ' ' + i;
+                    if (selected && Number(selected) === i) opt.selected = true;
+                    sel.appendChild(opt);
+                }
+            }
+
+            function refreshFromOdc() {
+                const odcId = odcSelect && odcSelect.value ? String(odcSelect.value) : '';
+                const meta = odcToOlt[odcId] || {};
+
+                let itemCard = null;
+                let itemPort = null;
+                try { itemCard = JSON.parse(document.getElementById('itemOltCard').textContent); } catch (e) { }
+                try { itemPort = JSON.parse(document.getElementById('itemOltPort').textContent); } catch (e) { }
+
+                fillOptions(cardSelect, meta.line_cards, 'Baris', itemCard);
+                fillOptions(portSelect, meta.total_ports, 'Port', itemPort);
+            }
+
+            if (odcSelect) {
+                odcSelect.addEventListener('change', refreshFromOdc);
+                refreshFromOdc();
+            }
+        })();
+
+        // Map Implementation with Search, Paste Link, and Auto GPS
+        document.addEventListener('DOMContentLoaded', function () {
+            let map, marker;
+            const initialLat = parseFloat('<%= item.latitude %>') || -6.2;
+            const initialLng = parseFloat('<%= item.longitude %>') || 106.8;
+            const hasLocation = <%= (item.latitude && item.longitude) ? "true" : "false" %>;
+
+            // Define Inputs
+            const latInput = document.getElementById('latInput');
+            const lngInput = document.getElementById('lngInput');
+            const coordInput = document.getElementById('coordinates');
+            const searchInput = document.getElementById('map_search');
+
+            // Helper: Update all inputs
+            function updateInputs(lat, lng) {
+                if (latInput) latInput.value = lat.toFixed(7);
+                if (lngInput) lngInput.value = lng.toFixed(7);
+                if (coordInput) coordInput.value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`;
+            }
+
+            // Expose Parse Link Function Globally
+            window.parseMapLink = function () {
+                const input = document.getElementById('paste_map_link');
+                if (!input || !input.value) {
+                    alert('Silakan paste link terlebih dahulu!');
+                    return;
+                }
+                const text = input.value;
+                let lat, lng;
+
+                // Regex patterns
+                const patterns = [
+                    /(-?\d+\.\d+),\s*(-?\d+\.\d+)/, // Raw coords
+                    /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // Google Maps q param
+                    /@(-?\d+\.\d+),(-?\d+\.\d+)/,   // Google Maps @ param
+                    /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/ // Google Maps embed param
+                ];
+
+                for (let p of patterns) {
+                    const m = text.match(p);
+                    if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]); break; }
+                }
+
+                if (lat && lng) {
+                    updateInputs(lat, lng);
+                    if (marker) marker.setLatLng([lat, lng]);
+                    if (map) map.setView([lat, lng], 16);
+                } else {
+                    if (text.includes('goo.gl') || text.includes('maps.app') || text.includes('bit.ly')) {
+                        const confirmOpen = confirm('Link pendek terdeteksi. Sistem tidak bisa membaca koordinat langsung dari link pendek.\n\nKlik OK untuk membuka link ini di tab baru, lalu COPY link hasil redirect (yang panjang dan ada angkanya) dan PASTE kembali di sini.');
+                        if (confirmOpen) window.open(text, '_blank');
+                    } else {
+                        alert('Maaf, koordinat tidak ditemukan dalam link tersebut. Pastikan link mengandung angka koordinat (contoh: -6.123, 106.123).');
+                    }
+                }
+            };
+
+            function initMap() {
+                const mapEl = document.getElementById('mapOdp');
+                if (!mapEl || map) return;
+
+                console.log('Initializing ODP map at:', initialLat, initialLng);
+
+                try {
+                    map = L.map('mapOdp', {
+                        center: [initialLat, initialLng],
+                        zoom: hasLocation ? 16 : 13
+                    });
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 19
+                    }).addTo(map);
+
+                    marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+
+                    // Drag Event
+                    marker.on('dragend', function (event) {
+                        const position = marker.getLatLng();
+                        updateInputs(position.lat, position.lng);
+                    });
+
+                    // Click Event
+                    map.on('click', function (e) {
+                        const lat = e.latlng.lat;
+                        const lng = e.latlng.lng;
+                        marker.setLatLng([lat, lng]);
+                        updateInputs(lat, lng);
+                    });
+
+                    // Set initial value text
+                    if (hasLocation) {
+                        updateInputs(initialLat, initialLng);
+                    }
+
+                    // Manual Coordinate Input
+                    if (coordInput) {
+                        coordInput.addEventListener('change', () => {
+                            const parts = coordInput.value.split(',').map(s => s.trim());
+                            if (parts.length === 2) {
+                                const lat = parseFloat(parts[0]);
+                                const lng = parseFloat(parts[1]);
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                    marker.setLatLng([lat, lng]);
+                                    map.setView([lat, lng], 16);
+                                    updateInputs(lat, lng);
+                                }
+                            }
+                        });
+                    }
+
+                    // Search Input Logic
+                    if (searchInput) {
+                        searchInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const q = searchInput.value.trim();
+                                if (q.length > 2) {
+                                    searchInput.classList.add('opacity-50');
+                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            if (data && data.length > 0) {
+                                                const res = data[0];
+                                                const lat = parseFloat(res.lat);
+                                                const lon = parseFloat(res.lon);
+                                                updateInputs(lat, lon);
+                                                marker.setLatLng([lat, lon]);
+                                                map.setView([lat, lon], 16);
+                                                searchInput.value = res.display_name;
+                                            } else {
+                                                alert('Lokasi tidak ditemukan');
+                                            }
+                                        })
+                                        .catch(err => console.error('Map search err:', err))
+                                        .finally(() => searchInput.classList.remove('opacity-50'));
+                                }
+                            }
+                        });
+                    }
+
+                    // Force redraw
+                    setTimeout(() => { map.invalidateSize(); }, 200);
+
+                } catch (err) {
+                    console.error('Leaflet initialization error:', err);
+                }
+            }
+
+            // Start Map with retry
+            if (typeof L !== 'undefined') {
+                initMap();
+            } else {
+                console.warn('Leaflet (L) not found, waiting...');
+                const checkL = setInterval(() => {
+                    if (typeof L !== 'undefined') {
+                        clearInterval(checkL);
+                        initMap();
+                    }
+                }, 500);
+            }
+
+            // Enhanced Get ID Location (Browser + IP Fallback)
+            const locBtn = document.getElementById('btnGetLocation');
+            if (locBtn) {
+                // Remove old listeners by cloning
+                const newBtn = locBtn.cloneNode(true);
+                locBtn.parentNode.replaceChild(newBtn, locBtn);
+
+                newBtn.onclick = function (e) {
+                    e.preventDefault();
+                    const originalContent = newBtn.innerHTML;
+                    newBtn.innerHTML = '⏳ MENCARI...';
+                    newBtn.disabled = true;
+
+                    const onCpuSuccess = (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        if (map) {
+                            map.setView([lat, lng], 16);
+                            marker.setLatLng([lat, lng]);
+                        }
+                        updateInputs(lat, lng);
+                        newBtn.innerHTML = '✅ GPS OK';
+                        setTimeout(() => { newBtn.innerHTML = originalContent; newBtn.disabled = false; }, 2000);
+                    };
+
+                    const onCpuError = async (err) => {
+                        console.warn('[AutoGPS] Browser GPS failed:', err);
+                        newBtn.innerHTML = '🌍 IP LOOKUP...';
+
+                        // Fallback to IP API
+                        try {
+                            const isHttps = window.location.protocol === 'https:';
+                            const apiUrl = isHttps ? 'https://ipapi.co/json/' : 'http://ip-api.com/json';
+                            const response = await fetch(apiUrl);
+                            const data = await response.json();
+                            const lat = data.lat || data.latitude;
+                            const lng = data.lon || data.longitude;
+
+                            if (lat && lng) {
+                                if (map) {
+                                    map.setView([lat, lng], 14);
+                                    marker.setLatLng([lat, lng]);
+                                }
+                                updateInputs(lat, lng);
+                                alert('⚠️ GPS Browser gagal. Lokasi estimasi ISP digunakan.');
+                            } else {
+                                throw new Error('No IP coords');
+                            }
+                        } catch (ipErr) {
+                            console.error(ipErr);
+                            alert('❌ Gagal mendapatkan lokasi.');
+                        } finally {
+                            newBtn.innerHTML = originalContent;
+                            newBtn.disabled = false;
+                        }
+                    };
+
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(onCpuSuccess, onCpuError, {
+                            enableHighAccuracy: true,
+                            timeout: 5000,
+                            maximumAge: 0
+                        });
+                    } else {
+                        onCpuError('Geolocation not supported');
+                    }
+                };
+            }
+        });
+    </script>
+</div>

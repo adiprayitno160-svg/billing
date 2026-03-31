@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Struk Pembayaran - <%= payment.invoice_number %></title>
+    <style>
+        @page { size: 58mm auto; margin: 0; }
+        @media print {
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                width: 58mm; margin: 0; padding: 0; 
+            }
+            .no-print { display: none !important; }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 8pt;
+            line-height: 1.2;
+            color: #000;
+            width: 58mm;
+            padding: 4mm 2mm;
+        }
+        .header { text-align: center; margin-bottom: 3mm; }
+        .company-name { font-size: 10pt; font-weight: bold; text-transform: uppercase; }
+        .company-detail { font-size: 7pt; }
+        .sep { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 1mm; }
+        .lbl { flex-shrink: 0; }
+        .val { text-align: right; font-weight: bold; overflow-wrap: break-word; max-width: 65%; }
+        .total-row { font-size: 10pt; font-weight: bold; border-top: 1px solid #000; padding-top: 1.5mm; margin-top: 1.5mm; }
+        .debt-section { margin-top: 3mm; font-size: 7.5pt; }
+        .debt-title { font-weight: bold; border-bottom: 0.5px solid #000; margin-bottom: 1mm; text-align: center; }
+        .footer { text-align: center; margin-top: 5mm; font-size: 7pt; font-style: italic; }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="no-print" style="text-align: center; padding-bottom: 10px;">
+        <button onclick="window.print()" style="padding: 5px 10px;">Print</button>
+        <button onclick="window.close()" style="padding: 5px 10px;">Close</button>
+    </div>
+
+    <div class="header">
+        <div class="company-name">ID.NET BY DBN</div>
+        <div class="company-detail">INTERNET CEPAT & STABIL</div>
+    </div>
+
+    <div class="row"><span class="lbl">Tgl:</span><span class="val"><%= new Date(payment.payment_date).toLocaleDateString('id-ID') %> <%= new Date(payment.payment_date).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) %></span></div>
+    <div class="row"><span class="lbl">Kasir:</span><span class="val"><%= payment.kasir_name %></span></div>
+    <div class="row"><span class="lbl">Pelanggan:</span><span class="val"><%= payment.customer_name %></span></div>
+    <div class="row"><span class="lbl">ID:</span><span class="val"><%= payment.customer_code %></span></div>
+
+    <div class="sep"></div>
+
+    <div style="font-weight: bold; text-align: center; margin-bottom: 2mm;">MELUNASI TAGIHAN:</div>
+    <% allPayments.forEach(item => { %>
+        <div class="row">
+            <span class="lbl"><%= item.period %></span>
+            <span class="val">Rp <%= parseFloat(item.amount).toLocaleString('id-ID') %></span>
+        </div>
+        <div style="font-size: 7pt; color: #444; margin-bottom: 1mm;">Inv: <%= item.invoice_number %></div>
+    <% }); %>
+
+    <div class="row total-row">
+        <span>TOTAL BAYAR</span>
+        <span>Rp <%= totalPaid.toLocaleString('id-ID') %></span>
+    </div>
+    <div class="row">
+        <span class="lbl">Metode:</span>
+        <span class="val"><%= payment.payment_method.toUpperCase() %></span>
+    </div>
+
+    <% if (debts && debts.length > 0) { %>
+        <div class="debt-section">
+            <div class="debt-title">--- SISA TUNGGAKAN ---</div>
+            <% debts.forEach(debt => { %>
+                <div class="row">
+                    <span class="lbl"><%= debt.period %></span>
+                    <span class="val">Rp <%= parseFloat(debt.amount).toLocaleString('id-ID') %></span>
+                </div>
+            <% }); %>
+            <div class="sep"></div>
+            <div class="row" style="font-weight: bold;">
+                <span class="lbl">TOTAL HUTANG</span>
+                <span class="val">Rp <%= debts.reduce((s, d) => s + parseFloat(d.amount), 0).toLocaleString('id-ID') %></span>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="sep"></div>
+        <div style="text-align: center; font-weight: bold; color: green;">STATUS: LUNAS SEMUA</div>
+    <% } %>
+
+    <div class="footer">
+        Simpan struk ini sebagai bukti pembayaran sah.<br>
+        Terima kasih atas kepercayaannya.
+    </div>
+</body>
+</html>

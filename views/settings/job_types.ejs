@@ -1,0 +1,254 @@
+<div class="max-w-7xl mx-auto space-y-6 pb-24 lg:pb-32">
+    <!-- Header Section -->
+    <div
+        class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 rounded-2xl shadow-lg p-6 text-white overflow-hidden relative">
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-3xl font-extrabold flex items-center gap-3">
+                    <i class="fas fa-tools text-blue-200"></i>
+                    Jenis Pekerjaan Teknisi
+                </h2>
+                <p class="text-blue-100 mt-2 opacity-90 font-medium font-outfit">
+                    Kelola kategori pekerjaan dan tarif dasar teknisi secara terpusat
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openModal()"
+                    class="px-5 py-2.5 bg-white text-blue-700 rounded-xl font-bold hover:bg-blue-50 transition-all shadow-sm flex items-center gap-2">
+                    <i class="fas fa-plus"></i> Tambah Jenis
+                </button>
+            </div>
+        </div>
+        <!-- Decorative element -->
+        <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl text-white"></div>
+    </div>
+
+    <!-- Enhanced Inventory/Job Types Card -->
+    <div
+        class="bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden transition-all duration-500 hover:shadow-blue-500/10 active:scale-[0.998]">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-100/50">
+                <thead>
+                    <tr class="bg-gradient-to-r from-gray-50/80 to-blue-50/30">
+                        <th scope="col"
+                            class="px-8 py-5 text-left text-xs font-bold text-blue-900/60 uppercase tracking-widest">
+                            Nama Pekerjaan
+                        </th>
+                        <th scope="col"
+                            class="px-8 py-5 text-left text-xs font-bold text-blue-900/60 uppercase tracking-widest">
+                            Kode Identifikasi
+                        </th>
+                        <th scope="col"
+                            class="px-8 py-5 text-left text-xs font-bold text-blue-900/60 uppercase tracking-widest">
+                            Tarif Dasar (Fee)
+                        </th>
+                        <th scope="col"
+                            class="px-8 py-5 text-left text-xs font-bold text-blue-900/60 uppercase tracking-widest">
+                            Status Aktif
+                        </th>
+                        <th scope="col"
+                            class="px-8 py-5 text-right text-xs font-bold text-blue-900/60 uppercase tracking-widest">
+                            Opsi Kelola
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100/50">
+                    <% types.forEach(t=> { %>
+                        <tr class="group hover:bg-blue-50/40 transition-colors duration-300">
+                            <td class="px-8 py-6">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-blue-100/50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                                        <i class="fas fa-hammer"></i>
+                                    </div>
+                                    <div>
+                                        <div
+                                            class="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
+                                            <%= t.name %>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                                            <%= t.description || 'Tidak ada deskripsi' %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-8 py-6">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 font-mono tracking-tight">
+                                    <%= t.code %>
+                                </span>
+                            </td>
+                            <td class="px-8 py-6">
+                                <div class="text-sm font-extrabold text-blue-600">
+                                    <span class="text-xs font-medium text-gray-400 mr-0.5 font-outfit">Rp</span>
+                                    <%= Number(t.base_fee).toLocaleString('id-ID') %>
+                                </div>
+                            </td>
+                            <td class="px-8 py-6">
+                                <% if(t.is_active) { %>
+                                    <div class="flex items-center gap-2 text-emerald-600">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        <span class="text-xs font-bold uppercase tracking-wider">Aktif</span>
+                                    </div>
+                                    <% } else { %>
+                                        <div class="flex items-center gap-2 text-gray-400">
+                                            <span class="w-2 h-2 rounded-full bg-gray-300"></span>
+                                            <span class="text-xs font-bold uppercase tracking-wider">Off</span>
+                                        </div>
+                                        <% } %>
+                            </td>
+                            <td class="px-8 py-6 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <button onclick='editType(<%- JSON.stringify(t) %>)'
+                                        class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all duration-300 tooltip"
+                                        title="Edit Data">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="deleteType(<%= t.id %>)"
+                                        class="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all duration-300 tooltip"
+                                        title="Hapus Data">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Form -->
+<div id="jobTypeModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
+            onclick="closeModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div
+            class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <form id="jobTypeForm" onsubmit="saveType(event)">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Form Jenis
+                                Pekerjaan</h3>
+                            <div class="mt-4 space-y-4">
+                                <input type="hidden" name="id" id="typeId">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Nama Pekerjaan</label>
+                                    <input type="text" name="name" id="typeName" required
+                                        class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Kode (opsional)</label>
+                                        <input type="text" name="code" id="typeCode"
+                                            class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Tarif Dasar (Fee)</label>
+                                        <input type="number" name="base_fee" id="typeFee" required
+                                            class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Deskripsi</label>
+                                    <textarea name="description" id="typeDesc" rows="2"
+                                        class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                                </div>
+                                <div class="flex items-center">
+                                    <input id="typeActive" name="is_active" type="checkbox"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        checked>
+                                    <label for="typeActive" class="ml-2 block text-sm text-gray-900">Aktif (Dapat
+                                        dipilih)</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Simpan</button>
+                    <button type="button" onclick="closeModal()"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById('jobTypeModal');
+    const form = document.getElementById('jobTypeForm');
+
+    function openModal() {
+        form.reset();
+        document.getElementById('typeId').value = '';
+        document.getElementById('modal-title').innerText = 'Tambah Jenis Pekerjaan';
+        // Auto gen stats
+        document.getElementById('typeActive').checked = true;
+        modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+    }
+
+    function editType(data) {
+        document.getElementById('typeId').value = data.id;
+        document.getElementById('typeName').value = data.name;
+        document.getElementById('typeCode').value = data.code || '';
+        document.getElementById('typeFee').value = data.base_fee;
+        document.getElementById('typeDesc').value = data.description || '';
+        document.getElementById('typeActive').checked = data.is_active == 1;
+        document.getElementById('modal-title').innerText = 'Edit Jenis Pekerjaan';
+        modal.classList.remove('hidden');
+    }
+
+    async function saveType(e) {
+        e.preventDefault();
+        const id = document.getElementById('typeId').value;
+        const body = {
+            name: document.getElementById('typeName').value,
+            code: document.getElementById('typeCode').value,
+            base_fee: document.getElementById('typeFee').value,
+            description: document.getElementById('typeDesc').value,
+            is_active: document.getElementById('typeActive').checked ? 1 : 0
+        };
+
+        const url = id ? `/api/settings/job-types/${id}` : '/api/settings/job-types';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const result = await res.json();
+            if (result.success) {
+                window.location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (err) {
+            alert('Connection Error');
+        }
+    }
+
+    async function deleteType(id) {
+        if (!confirm('Hapus jenis pekerjaan ini?')) return;
+        try {
+            const res = await fetch(`/api/settings/job-types/${id}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (result.success) window.location.reload();
+            else alert(result.error);
+        } catch (err) {
+            alert('Connection Error');
+        }
+    }
+</script>
+<%- include('../partials/footer') %>

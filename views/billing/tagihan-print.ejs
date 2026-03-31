@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Invoice #<%= invoice.invoice_number %>
+    </title>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --secondary: #10b981;
+            --secondary-glow: rgba(16, 185, 129, 0.5);
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.5);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.5);
+            --bg-dark: #0f172a;
+            --card-glass: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+        }
+
+        /* --- CONTROL BAR --- */
+        .preview-controls {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            padding: 8px;
+            border-radius: 24px;
+            border: 1px solid var(--border-glass);
+            display: flex;
+            gap: 8px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 1px var(--border-glass);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .preview-controls:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn {
+            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 16px;
+            border: none;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-blue {
+            background: var(--primary);
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn-green {
+            background: var(--secondary);
+            box-shadow: 0 4px 15px var(--secondary-glow);
+        }
+
+        .btn-purple {
+            background: var(--accent);
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .btn-red {
+            background: var(--danger);
+            box-shadow: 0 4px 15px var(--danger-glow);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        /* --- PREVIEW CANVAS --- */
+        .preview-canvas {
+            padding: 120px 20px 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- THERMAL PAPER STYLE --- */
+        .paper-receipt {
+            background: #fff;
+            color: #000;
+            width: 58mm;
+            padding: 20px 15px;
+            font-family: 'JetBrains Mono', monospace;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 100px rgba(255, 255, 255, 0.05);
+            position: relative;
+            transform: rotate(-0.5deg);
+            margin: 20px auto;
+            transition: all 0.5s ease;
+        }
+
+        .paper-receipt::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: linear-gradient(-45deg, #fff 5px, transparent 0), linear-gradient(45deg, #fff 5px, transparent 0);
+            background-size: 10px 10px;
+        }
+
+        .paper-receipt::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: linear-gradient(-45deg, transparent 5px, #fff 0), linear-gradient(45deg, transparent 5px, #fff 0);
+            background-size: 10px 10px;
+        }
+
+        .receipt-inner {
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .receipt-logo {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 2px;
+            letter-spacing: -0.5px;
+        }
+
+        .receipt-info {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+
+        .receipt-divider {
+            border-top: 1px dashed rgba(0, 0, 0, 0.2);
+            margin: 8px 0;
+        }
+
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .receipt-bold {
+            font-weight: 700;
+        }
+
+        .receipt-item-desc {
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .receipt-item-calc {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+
+        .receipt-total {
+            margin-top: 10px;
+            font-size: 14px;
+            border-top: 1px solid #000;
+            padding-top: 8px;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        /* --- A4 PAPER STYLE --- */
+        .paper-a4 {
+            background: white;
+            color: #1e293b;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 25mm;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+            display: none;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .a4-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            border-bottom: 4px solid var(--primary);
+            padding-bottom: 20px;
+        }
+
+        .a4-brand h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .a4-invoice-info {
+            text-align: right;
+        }
+
+        .a4-invoice-info h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .a4-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .a4-section-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .a4-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+
+        .a4-table th {
+            text-align: left;
+            padding: 12px 15px;
+            background: #f8fafc;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #64748b;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .a4-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 14px;
+        }
+
+        .a4-totals-box {
+            width: 300px;
+            margin-left: auto;
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .a4-total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .a4-total-final {
+            border-top: 2px solid #e2e8f0;
+            margin-top: 10px;
+            padding-top: 15px;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        /* --- MOBILE ADAPTATION --- */
+        @media (max-width: 600px) {
+            .preview-controls {
+                top: auto;
+                bottom: 24px;
+                width: calc(100% - 32px);
+                justify-content: center;
+                border-radius: 32px;
+                padding: 10px;
+            }
+
+            .btn span {
+                display: none;
+            }
+
+            .btn i {
+                font-size: 18px;
+            }
+
+            .btn {
+                padding: 12px;
+                border-radius: 20px;
+                flex: 1;
+                justify-content: center;
+            }
+
+            .preview-canvas {
+                padding-top: 40px;
+                padding-bottom: 120px;
+            }
+
+            .paper-a4 {
+                display: none !important;
+            }
+
+            .paper-receipt {
+                width: 90%;
+                max-width: 300px;
+                transform: none;
+            }
+        }
+
+        /* --- PRINT OVERRIDES --- */
+        @media print {
+            .preview-controls {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+                padding: 0 !important;
+            }
+
+            .preview-canvas {
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            body.mode-thermal .paper-receipt {
+                width: 48mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                transform: none !important;
+            }
+
+            body.mode-thermal .paper-receipt::before,
+            body.mode-thermal .paper-receipt::after {
+                display: none !important;
+            }
+
+            body.mode-thermal .paper-a4 {
+                display: none !important;
+            }
+
+            body.mode-a4 .paper-a4 {
+                display: block !important;
+                width: 210mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                animation: none !important;
+            }
+
+            body.mode-a4 .paper-receipt {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="mode-thermal">
+    <!-- CONTROLS -->
+    <div class="preview-controls">
+        <button onclick="setMode('a4'); window.print()" class="btn btn-blue">
+            <i class="fas fa-file-invoice"></i> <span>A4 Print</span>
+        </button>
+        <button onclick="setMode('thermal'); window.print()" class="btn btn-green">
+            <i class="fas fa-receipt"></i> <span>Browser Print</span>
+        </button>
+        <button onclick="printViaRawBT()" class="btn btn-purple">
+            <i class="fas fa-print"></i> <span>RawBT/HP</span>
+        </button>
+        <button onclick="window.close()" class="btn btn-red">
+            <i class="fas fa-times"></i> <span>Close</span>
+        </button>
+    </div>
+
+    <div class="preview-canvas">
+
+        <!-- THERMAL RECEIPT VIEW -->
+        <div class="paper-receipt" id="thermal-content">
+            <div class="receipt-inner">
+                <div class="receipt-header">
+                    <div class="receipt-logo" style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">
+                        <%= (typeof companyInfo !== 'undefined' && companyInfo && companyInfo.company_name && companyInfo.company_name.trim() !== '') ?
+                            companyInfo.company_name.trim().toUpperCase() : 'WIFI BILLING' %>
+                    </div>
+                    <% if (typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_phone) { %>
+                        <div style="font-size: 9px; margin-top: 2px;">Telp/WA: <%= companyInfo.company_phone %>
+                        </div>
+                        <% } %>
+                            <% if (typeof companyInfo !=='undefined' && companyInfo && companyInfo.company_address) { %>
+                                <div style="font-size: 8px; opacity: 0.8;">
+                                    <%= companyInfo.company_address %>
+                                </div>
+                                <% } %>
+                </div>
+
+                <div class="receipt-divider" style="border-top: 2px solid #000; margin: 4px 0;"></div>
+
+                <% if (invoice.status==='paid' ) { %>
+                    <div
+                        style="text-align: center; border: 2px solid #000; padding: 4px; margin: 5px 0; font-weight: 900; font-size: 16px;">
+                        LUNAS / PAID
+                    </div>
+                    <% } %>
+
+                        <div class="receipt-row" style="font-size: 9px;">
+                            <span>TGL: <%= new Date().toLocaleDateString('id-ID', {day: '2-digit' , month: '2-digit' ,
+                                    year: 'numeric' }) %></span>
+                        </div>
+                        <div class="receipt-row" style="font-size: 9px; margin-top: 2px;">
+                            <span>REF: #<%= invoice.invoice_number %></span>
+                        </div>
+
+                        <div class="receipt-divider"></div>
+
+                        <div style="margin: 4px 0; font-size: 10px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                                <tr>
+                                    <td style="width: 45px; vertical-align: top;">ID PEL</td>
+                                    <td style="width: 10px; text-align: center; vertical-align: top;">:</td>
+                                    <td class="receipt-bold" style="vertical-align: top;"><%= invoice.customer_code || ('PEL-' + invoice.customer_id) %></td>
+                                </tr>
+                                <tr>
+                                    <td style="vertical-align: top;">NAMA</td>
+                                    <td style="text-align: center; vertical-align: top;">:</td>
+                                    <td class="receipt-bold" style="vertical-align: top;"><%= invoice.customer_name.toUpperCase().substring(0, 20) %></td>
+                                </tr>
+                                <tr>
+                                    <td style="vertical-align: top;">PERIODE</td>
+                                    <td style="text-align: center; vertical-align: top;">:</td>
+                                    <td class="receipt-bold" style="vertical-align: top;"><%= invoice.period %></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="receipt-divider" style="border-top: 1px solid #000;"></div>
+
+                        <div class="receipt-row receipt-bold" style="font-size: 10px; margin-bottom: 5px;">
+                            <span>RINCIAN TAGIHAN</span>
+                            <span>TOTAL</span>
+                        </div>
+
+                        <% 
+                            let thisMonthItems = [];
+                            let kekuranganItems = [];
+                            
+                            if (items && items.length > 0) {
+                                items.forEach(item => {
+                                    if (!item.description.includes('Tunggakan') && !item.description.includes('Kekurangan Tagihan Bulan')) {
+                                        thisMonthItems.push(item);
+                                    } else {
+                                        kekuranganItems.push(item);
+                                    }
+                                });
+                            } else {
+                                thisMonthItems.push({
+                                    description: 'Layanan Internet ' + (invoice.period || ''),
+                                    total_price: invoice.total_amount
+                                });
+                            }
+                            
+                            // ITEM-BASED MATH
+                            let subtotalCurrent = thisMonthItems.reduce((sum, item) => sum + parseFloat(item.total_price || 0), 0);
+                            let kekuranganTotal = kekuranganItems.reduce((sum, item) => sum + parseFloat(item.total_price || 0), 0);
+                            let totalBayar = subtotalCurrent + kekuranganTotal - parseFloat(invoice.paid_amount || 0);
+                        %>
+                        <!-- DEBUG: items count=<%= items ? items.length : 'null' %>, thisMonth=<%= thisMonthItems.length %>, kekurangan=<%= kekuranganItems.length %>, subtotalCurrent=<%= subtotalCurrent %>, kekuranganTotal=<%= kekuranganTotal %>, totalBayar=<%= totalBayar %>, invoice.total_amount=<%= invoice.total_amount %>, invoice.paid_amount=<%= invoice.paid_amount %> -->
+                        <% if (items && items.length > 0) { items.forEach((it, idx) => { %>
+                        <!-- DEBUG ITEM[<%= idx %>]: desc=<%= it.description %>, total_price=<%= it.total_price %>, qty=<%= it.quantity %>, unit_price=<%= it.unit_price %> -->
+                        <% }); } %>
+                        <% thisMonthItems.forEach((item) => { %>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; font-size: 10px;">
+                            <div class="receipt-bold" style="flex: 1; padding-right: 10px; word-break: break-word; line-height: 1.2;">
+                                <%= item.description.toUpperCase().replace(/\s*-\s*\d{4}-\d{2}$/, '') %>
+                            </div>
+                            <div class="receipt-bold" style="white-space: nowrap;">
+                                <%= new Intl.NumberFormat('id-ID').format(item.total_price) %>
+                            </div>
+                        </div>
+                        <% }); %>
+
+                                <div class="receipt-divider"
+                                    style="border-top: 2px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 5px 0;">
+                                </div>
+
+                                <div class="receipt-row" style="font-size: 10px; margin-top: 5px;">
+                                    <span>SUBTOTAL</span>
+                                    <span>Rp <%= new Intl.NumberFormat('id-ID').format(subtotalCurrent) %></span>
+                                </div>
+
+                                <div class="receipt-row" style="font-size: 10px; margin-top: 5px;">
+                                    <span>KEKURANGAN</span>
+                                    <span>Rp <%= new Intl.NumberFormat('id-ID').format(kekuranganTotal) %></span>
+                                </div>
+                                <% if (invoice.discount_amount && invoice.discount_amount> 0) { %>
+                                    <div class="receipt-row" style="font-size: 10px; font-weight: 800; border: 1px solid #000; padding: 4px; margin: 5px 0;">
+                                        <span>DISKON <%= (typeof discounts !=='undefined' && discounts.length> 0) ?
+                                                '('+discounts[0].discount_type.toUpperCase()+')' : '' %></span>
+                                        <span>- Rp <%= new Intl.NumberFormat('id-ID').format(invoice.discount_amount) %>
+                                        </span>
+                                    </div>
+                                    <% if (typeof discounts !=='undefined' && discounts.length> 0 &&
+                                        discounts[0].reason) { %>
+                                        <div
+                                            style="font-size: 8px; text-align: left; margin-top: -2px; margin-bottom: 4px; padding-left: 5px; opacity: 0.8;">
+                                            * <%= discounts[0].reason %>
+                                        </div>
+                                        <% } %>
+                                <% } %>
+                                            <div class="receipt-row" style="font-size: 10px;">
+                                                <span>PPN</span>
+                                                <span>Rp 0</span>
+                                            </div>
+
+                                            <div class="receipt-divider"
+                                                style="border-top: 1px solid #000; margin: 3px 0;">
+                                            </div>
+
+                                            <div class="receipt-row" style="margin-top: 5px;">
+                                                <span class="receipt-bold">TOTAL BAYAR</span>
+                                                <span class="receipt-bold" style="font-size: 16px;">Rp <%= new
+                                                        Intl.NumberFormat('id-ID').format(Math.max(0, totalBayar) - parseFloat(invoice.discount_amount || 0) + parseFloat(invoice.ppn_amount || 0)) %>
+                                                        </span>
+                                            </div>
+                                                            <div class="receipt-divider"></div>
+
+                                                            <!-- Removed Info Box -->
+
+                                                            <div style="text-align: center; margin-top: 15px;">
+                                                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= encodeURIComponent('VERIFIED OK: ' + invoice.invoice_number + ' | ' + invoice.customer_name + ' | ' + invoice.total_amount) %>"
+                                                                    style="width: 70px; height: 70px; filter: grayscale(1);"
+                                                                    alt="QR Code">
+                                                                <div
+                                                                    style="font-size: 8px; margin-top: 5px; opacity: 0.6; font-weight: 700;">
+                                                                    E-RECEIPT VERIFICATION SYSTEM</div>
+                                                            </div>
+
+                                                            <div class="receipt-footer"
+                                                                style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
+                                                            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- A4 INVOICE VIEW -->
+    <div class="paper-a4" id="view-a4">
+        <div class="a4-header">
+            <div class="a4-brand">
+                <h1><%= (typeof companyInfo !== 'undefined' && companyInfo && companyInfo.company_name) ? companyInfo.company_name.toUpperCase() : 'WIFI BILLING' %></h1>
+                <% if (typeof companyInfo !== 'undefined' && companyInfo && companyInfo.company_website) { %>
+                    <p style="color: #64748b; font-size: 14px;"><%= companyInfo.company_website %></p>
+                <% } else { %>
+                    <p style="color: #64748b; font-size: 14px;">Internet Service Provider</p>
+                <% } %>
+            </div>
+            <div class="a4-invoice-info">
+                <h2>INVOICE</h2>
+                <p style="font-weight: 700; color: #1e293b;">#<%= invoice.invoice_number %>
+                </p>
+            </div>
+        </div>
+
+        <div class="a4-grid">
+            <div>
+                <div class="a4-section-title">TAGIHAN KEPADA</div>
+                <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">
+                    <%= invoice.customer_name %>
+                </div>
+                <div style="color: #64748b; font-size: 14px; line-height: 1.5;">
+                    <%= invoice.customer_address || 'No Address Provided' %>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div class="a4-section-title">WAKTU PENERBITAN</div>
+                <div style="font-size: 16px; font-weight: 700;">
+                    <%= new Date(invoice.created_at).toLocaleDateString('id-ID', {day: 'numeric' , month: 'long' ,
+                        year: 'numeric' }) %>
+                </div>
+                <div style="margin-top: 20px;">
+                    <span
+                        style="padding: 6px 12px; border-radius: 99px; font-size: 12px; font-weight: 800; <%= invoice.status === 'paid' ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;' %>">
+                        <%= invoice.status==='paid' ? 'LUNAS' : 'PENDING' %>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <table class="a4-table">
+            <thead>
+                <tr>
+                    <th width="80px">ITEM</th>
+                    <th>DESKRIPSI LAYANAN</th>
+                    <th style="text-align: right;">HARGA SATUAN</th>
+                    <th style="text-align: right;">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (items && items.length> 0) { items.forEach((item, index) => { %>
+                    <tr>
+                        <td style="color: #94a3b8; font-weight: 700;">#0<%= index + 1 %>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700;">
+                                <%= item.description.replace(/\s*-\s*\d{4}-\d{2}$/, '') %>
+                            </div>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Periode Layanan: <%= invoice.period %>
+                            </div>
+                        </td>
+                        <td style="text-align: right;">Rp <%= new Intl.NumberFormat('id-ID').format(item.unit_price) %>
+                        </td>
+                        <td style="text-align: right; font-weight: 700;">Rp <%= new
+                                Intl.NumberFormat('id-ID').format(item.total_price) %>
+                        </td>
+                    </tr>
+                    <% }); } %>
+            </tbody>
+        </table>
+
+        <div class="a4-totals-box">
+            <div class="a4-total-row">
+                <span>Subtotal</span>
+                <span>Rp <%= new Intl.NumberFormat('id-ID').format(subtotalCurrent) %></span>
+            </div>
+            <div class="a4-total-row">
+                <span>Kekurangan</span>
+                <span>Rp <%= new Intl.NumberFormat('id-ID').format(kekuranganTotal) %></span>
+            </div>
+            <div class="a4-total-row">
+                <span>Diskon</span>
+                <span>
+                    <% if (invoice.discount_amount> 0) { %>
+                        - Rp <%= new Intl.NumberFormat('id-ID').format(invoice.discount_amount) %>
+                            <% if (typeof discounts !=='undefined' && discounts.length> 0) { %>
+                                <div style="font-size: 10px; color: #64748b; text-align: right;">
+                                    <%= discounts[0].reason %>
+                                </div>
+                                <% } %>
+                                    <% } else { %>
+                                        Rp 0
+                                        <% } %>
+                </span>
+            </div>
+            <div class="a4-total-row a4-total-final">
+                <span>TOTAL</span>
+                <span>Rp <%= new Intl.NumberFormat('id-ID').format(Math.max(0, totalBayar) - parseFloat(invoice.discount_amount || 0) + parseFloat(invoice.ppn_amount || 0)) %></span>
+            </div>
+        </div>
+
+        <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+            <div style="width: 200px;">
+                <div class="a4-section-title" style="text-align: center;">TANDA TERIMA</div>
+                <div style="height: 80px;"></div>
+                <div style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
+                    PELANGGAN</div>
+            </div>
+            <div style="width: 200px;">
+                <div class="a4-section-title" style="text-align: center;">KASIR PENAGIHAN</div>
+                <div style="height: 80px;"></div>
+                <div style="border-top: 1px solid #e2e8f0; text-align: center; font-weight: 700; padding-top: 10px;">
+                    ADMIN BILLING</div>
+            </div>
+        </div>
+
+        <div
+            style="position: absolute; bottom: 25mm; left: 25mm; right: 25mm; border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; text-align: center;">
+            Generated by System Billing ISP • www.isp-billing.id • Thank you for your business!
+        </div>
+    </div>
+
+    <script>
+        function setMode(mode) {
+            const body = document.body;
+            const a4View = document.getElementById('view-a4');
+            const thermalView = document.getElementById('thermal-content');
+
+            if (mode === 'thermal') {
+                body.classList.remove('mode-a4');
+                body.classList.add('mode-thermal');
+                a4View.style.display = 'none';
+                thermalView.style.display = 'block';
+            } else {
+                body.classList.remove('mode-thermal');
+                body.classList.add('mode-a4');
+                thermalView.style.display = 'none';
+                a4View.style.display = 'block';
+            }
+        }
+
+        function printViaRawBT() {
+            setMode('thermal');
+            const content = document.getElementById('thermal-content').querySelector('.receipt-inner').innerHTML;
+            // Enhanced template for RawBT
+            const styledContent = `
+                <div style="font-family:'Courier New', monospace; width:48mm; font-size:12px; line-height:1.2;">
+                    ${content}
+                </div>
+            `;
+            const base64 = btoa(unescape(encodeURIComponent(styledContent)));
+            window.location.href = 'rawbt:data:text/html;base64,' + base64;
+        }
+
+        // Auto-adapt on load
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (window.innerWidth < 600 || urlParams.get('format') === 'thermal') {
+                setMode('thermal');
+            } else {
+                setMode('a4');
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,81 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Dist/Build
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.production
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env_server
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Storage/Uploads (unless you want to keep them)
+storage/*
+!storage/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# App-specific
+.baileys_auth/
+.whatsapp_lock
+whatsapp_auth_v3/
+.qoder/
+.test_auth_session/
+tmp/
+temp/
+backups/
+database_updates/
+check_zip/
+old_unused_files/
+eng.traineddata
+ind.traineddata
+cloudflared.deb
+Eng.traineddata
+Ind.traineddata
+ Eng.traineddata
+ Ind.traineddata
+eng.traineddata 
+ind.traineddata 
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.sql
+*.tmp
+*.bak
+*.txt
+*.b64
+!LICENSE
+!*.example
+!UPLOAD_INSTRUCTIONS.txt

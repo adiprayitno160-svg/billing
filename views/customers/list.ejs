@@ -1,0 +1,951 @@
+<head>
+	<style>
+		/* Robust responsive visibility */
+		@media (min-width: 768px) {
+			.desktop-only-view {
+				display: block !important;
+			}
+
+			.mobile-only-view {
+				display: none !important;
+			}
+		}
+
+		@media (max-width: 767px) {
+			.desktop-only-view {
+				display: none !important;
+			}
+
+			.mobile-only-view {
+				display: block !important;
+			}
+		}
+
+		/* Consistently modern initials */
+		.initial-avatar {
+			border-radius: 0.75rem !important;
+			display: flex !important;
+			align-items: center !important;
+			justify-content: center !important;
+			font-weight: 800 !important;
+			text-transform: uppercase !important;
+		}
+	</style>
+</head>
+
+<div class="max-w-7xl mx-auto space-y-6 pb-20 md:pb-6">
+	<!-- Premium Header -->
+	<div
+		class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm transition-all duration-300">
+		<div class="flex items-center gap-4">
+			<div
+				class="w-14 h-14 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center text-white">
+				<i class="fas fa-users text-2xl"></i>
+			</div>
+			<div>
+				<nav class="flex text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1"
+					aria-label="Breadcrumb">
+					<ol class="list-none p-0 inline-flex">
+						<li class="flex items-center text-blue-600">Pelanggan</li>
+						<i class="fas fa-chevron-right mx-2 text-[8px]"></i>
+						<li class="text-slate-400">Database</li>
+					</ol>
+				</nav>
+				<h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Data Pelanggan</h2>
+			</div>
+		</div>
+
+		<!-- Header Actions -->
+		<div class="grid grid-cols-2 sm:flex sm:items-center gap-2">
+			<button id="showImportModalBtn"
+				class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 shadow-sm transition-all active:scale-95">
+				<i class="fas fa-file-import"></i> <span class="hidden sm:inline">Import</span>
+			</button>
+			<button id="exportExcelBtn"
+				class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 font-bold text-xs hover:bg-emerald-100 transition-all active:scale-95">
+				<i class="fas fa-file-excel"></i> <span class="hidden sm:inline">Export</span>
+			</button>
+			<div class="col-span-2 sm:col-span-1 flex gap-2">
+				<a href="/customers/new-pppoe"
+					class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95 text-nowrap">
+					<i class="fas fa-plus"></i> PPPoE
+				</a>
+				<a href="/customers/new-static-ip"
+					class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-900 shadow-md shadow-slate-200 transition-all active:scale-95 text-nowrap">
+					<i class="fas fa-plus"></i> IP Statis
+				</a>
+			</div>
+		</div>
+	</div>
+
+	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+		<% 
+    let totalVal = 0; 
+    let activeVal = 0; 
+    let inactiveVal = 0; 
+    let isolirVal = 0; 
+    
+    if (typeof pagination !== 'undefined' && pagination) { 
+        totalVal = pagination.total; 
+    } else if (typeof stats !== 'undefined' && stats) {
+        totalVal = stats.total; 
+    } else if (typeof customers !== 'undefined' && customers) { 
+        totalVal = customers.length;
+    } 
+    
+    if (typeof stats !== 'undefined' && stats) { 
+        activeVal = stats.active; 
+        inactiveVal = stats.inactive;
+        isolirVal = stats.isolir; 
+    } 
+%>
+			<div class="bg-white/70 backdrop-blur-sm p-5 rounded-3xl border border-white/50 shadow-sm group">
+				<div class="flex items-center gap-4">
+					<div
+						class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm transition-all group-hover:bg-blue-600 group-hover:text-white">
+						<i class="fas fa-users"></i>
+					</div>
+					<div>
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</p>
+						<p class="text-xl font-black text-slate-800 tracking-tight">
+							<%= totalVal %>
+						</p>
+					</div>
+				</div>
+			</div>
+			<div class="bg-white/70 backdrop-blur-sm p-5 rounded-3xl border border-white/50 shadow-sm group">
+				<div class="flex items-center gap-4">
+					<div
+						class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm transition-all group-hover:bg-emerald-600 group-hover:text-white">
+						<i class="fas fa-check-circle"></i>
+					</div>
+					<div>
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aktif</p>
+						<p class="text-xl font-black text-emerald-600 tracking-tight">
+							<%= activeVal %>
+						</p>
+					</div>
+				</div>
+			</div>
+			<div class="bg-white/70 backdrop-blur-sm p-5 rounded-3xl border border-white/50 shadow-sm group">
+				<div class="flex items-center gap-4">
+					<div
+						class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-sm transition-all group-hover:bg-amber-600 group-hover:text-white">
+						<i class="fas fa-user-slash"></i>
+					</div>
+					<div>
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Isolir</p>
+						<p class="text-xl font-black text-amber-600 tracking-tight">
+							<%= isolirVal || 0 %>
+						</p>
+					</div>
+				</div>
+			</div>
+			<div class="bg-white/70 backdrop-blur-sm p-5 rounded-3xl border border-white/50 shadow-sm group">
+				<div class="flex items-center gap-4">
+					<div
+						class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm transition-all group-hover:bg-rose-600 group-hover:text-white">
+						<i class="fas fa-door-closed"></i>
+					</div>
+					<div>
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Off</p>
+						<p class="text-xl font-black text-rose-600 tracking-tight">
+							<%= inactiveVal %>
+						</p>
+					</div>
+				</div>
+			</div>
+	</div>
+
+	<!-- Filters -->
+	<div class="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 p-6">
+		<form method="GET" action="/customers/list" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+			<div class="md:col-span-1 relative">
+				<input type="text" name="search" id="searchInput"
+					value="<%= typeof filters !== 'undefined' && filters && filters.search ? filters.search : '' %>"
+					placeholder="Nama / Alamat / Serial..."
+					class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all">
+				<i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
+			</div>
+			<div>
+				<select name="connection_type" id="connectionTypeFilter"
+					class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-[10px] font-black uppercase tracking-tight text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-100 appearance-none cursor-pointer">
+					<option value="">Semua Koneksi</option>
+					<option value="pppoe" <%=typeof filters !== 'undefined' && filters &&
+						filters.connection_type==='pppoe' ? 'selected' : '' %>>PPPoE</option>
+					<option value="static_ip" <%=typeof filters !== 'undefined' && filters &&
+						filters.connection_type==='static_ip' ? 'selected' : '' %>>IP Statis</option>
+				</select>
+			</div>
+			<div>
+				<select name="status" id="statusFilter"
+					class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-[10px] font-black uppercase tracking-tight text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-100 appearance-none cursor-pointer">
+					<option value="">Semua Status</option>
+					<option value="active" <%=typeof filters !== 'undefined' && filters && filters.status==='active'
+						? 'selected' : '' %>>Aktif</option>
+					<option value="inactive" <%=typeof filters !== 'undefined' && filters && filters.status==='inactive'
+						? 'selected' : '' %>>Nonaktif</option>
+				</select>
+			</div>
+			<div class="flex gap-2">
+				<button type="submit"
+					class="flex-1 bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl py-2.5 hover:bg-slate-900 transition-all active:scale-95 shadow-lg shadow-slate-200">
+					<i class="fas fa-filter mr-1"></i> Saring
+				</button>
+				<% if (typeof filters !== 'undefined' && filters && (filters.search || filters.status ||
+					filters.connection_type)) { %>
+					<a href="/customers/list"
+						class="flex-1 bg-white border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-2xl py-2.5 text-center hover:bg-slate-50 transition-all active:scale-95">
+						Reset
+					</a>
+					<% } %>
+			</div>
+		</form>
+	</div>
+
+	<!-- Bulk Actions -->
+	<div id="bulkActionsBar" class="overflow-hidden transition-all duration-300 ease-in-out"
+		style="max-height: 0; opacity: 0;">
+		<div
+			class="bg-slate-900 rounded-3xl p-4 md:p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 text-white">
+			<div class="flex items-center gap-4">
+				<div class="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white">
+					<i class="fas fa-check-double text-xl"></i>
+				</div>
+				<div>
+					<h4 class="text-sm font-black uppercase tracking-widest"><span id="selectedCount">0</span> Terpilih
+					</h4>
+					<p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Aksi massal untuk
+						database pelanggan</p>
+				</div>
+			</div>
+			<div class="flex gap-2 w-full md:w-auto">
+				<button onclick="clearAllSelections()"
+					class="flex-1 md:flex-none px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-[10px] transition-all">
+					Batal
+				</button>
+				<button onclick="bulkDeleteSelected()"
+					class="flex-1 md:flex-none px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-900 transition-all">
+					Hapus Masal
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Main Content List -->
+	<div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden shadow-slate-200/50">
+		<!-- Desktop Table View -->
+		<div class="desktop-only-view overflow-x-auto">
+			<table class="w-full text-left">
+				<thead class="bg-slate-50/50">
+					<tr>
+						<th class="px-6 py-4">
+							<input type="checkbox" id="selectAll"
+								class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+						</th>
+						<th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Info
+							Pelanggan</th>
+						<th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Koneksi
+						</th>
+						<th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Paket &
+							Speed</th>
+						<th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status
+						</th>
+						<th
+							class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+							Aksi</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-slate-50">
+					<% if (customers && customers.length> 0) { %>
+						<% customers.forEach(customer=> { %>
+							<tr class="hover:bg-slate-50/50 transition-colors group">
+								<td class="px-6 py-4">
+									<input type="checkbox"
+										class="rowCheckbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+										value="<%= customer.id %>">
+								</td>
+								<td class="px-6 py-4">
+									<div class="flex items-center gap-3">
+										<div
+											class="w-10 h-10 initial-avatar bg-slate-100 text-slate-500 transition-all group-hover:bg-blue-100 group-hover:text-blue-600">
+											<%= customer.name.charAt(0) %>
+										</div>
+										<div>
+											<div class="font-bold text-slate-800 text-sm">
+												<%= customer.name %>
+											</div>
+											<div class="text-[10px] text-slate-400 font-medium flex items-center gap-2">
+												<i class="fas fa-phone-alt text-[8px]"></i>
+												<%= customer.phone || '-' %>
+													<% if (customer.address) { %>
+														<span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+														<i class="fas fa-map-marker-alt text-[8px]"></i> <span
+															class="truncate max-w-[150px]"
+															title="<%= customer.address %>">
+															<%= customer.address %>
+														</span>
+														<% } %>
+											</div>
+										</div>
+									</div>
+								</td>
+								<td class="px-6 py-4">
+									<% let connType=customer.connection_type==='static_ip' ? 'Static IP' : 'PPPoE' ; %>
+										<span
+											class="px-3 py-1 rounded-lg font-black text-[9px] uppercase tracking-tighter <%= customer.connection_type === 'pppoe' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600' %>">
+											<%= connType %>
+										</span>
+										<% if (customer.pppoe_username || customer.local_ip) { %>
+											<p class="text-[9px] font-bold text-slate-400 mt-1 uppercase">
+												<%= customer.pppoe_username || customer.local_ip %>
+											</p>
+											<% } %>
+								</td>
+								<td class="px-6 py-4">
+									<div class="flex items-center gap-2">
+										<i class="fas fa-box text-slate-300 text-[10px]"></i>
+										<span class="text-xs font-bold text-slate-600">
+											<%= customer.package_name || 'Tanpa Paket' %>
+										</span>
+									</div>
+									<% if (customer.speed_limit) { %>
+										<div class="flex items-center gap-1 mt-1">
+											<i class="fas fa-tachometer-alt text-[9px] text-slate-300"></i>
+											<span
+												class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+												<%= customer.speed_limit %>
+											</span>
+										</div>
+										<% } %>
+								</td>
+								<td class="px-6 py-4">
+									<label class="relative inline-flex items-center cursor-pointer">
+										<input type="checkbox" class="sr-only peer status-toggle"
+											<%=customer.status==='active' ? 'checked' : '' %>
+										onchange="toggleCustomerStatus('<%= customer.id %>', this)">
+											<div
+												class="w-10 h-5 bg-slate-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500">
+											</div>
+											<span
+												class="ml-2 text-[10px] font-black uppercase text-slate-400 peer-checked:text-emerald-600 status-label-<%= customer.id %>">
+												<%= customer.status==='active' ? 'Aktif' : 'Off' %>
+											</span>
+									</label>
+								</td>
+								<td class="px-6 py-4">
+									<div
+										class="flex items-center justify-end gap-1 transition-all">
+										<!-- Migration Mini Buttons -->
+										<% if (customer.billing_mode==='postpaid' || !customer.billing_mode) { %>
+											<button
+												class="migrateToPrepaidBtn w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-purple-50 hover:text-purple-600 transition-all"
+												data-id="<%= customer.id %>"
+												data-name="<%= (customer.name || '').replace(/'/g, "\'") %>"
+												title="Migrasi ke Prepaid">
+												<i class="fas fa-exchange-alt text-[10px]"></i>
+											</button>
+											<% } else { %>
+												<button
+													class="migrateToPostpaidBtn w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-orange-50 hover:text-orange-600 transition-all"
+													data-id="<%= customer.id %>"
+													data-name="<%= (customer.name || '').replace(/'/g, "\'") %>"
+													title="Migrasi ke Postpaid">
+													<i class="fas fa-undo text-[10px]"></i>
+												</button>
+												<% } %>
+
+													<a href="/customers/<%= customer.id %>"
+														class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all"
+														title="Detail">
+														<i class="fas fa-eye text-xs"></i>
+													</a>
+													<a href="/customers/<%= customer.id %>/edit"
+														class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+														title="Edit">
+														<i class="fas fa-edit text-xs"></i>
+													</a>
+													<button
+														class="deleteCustomerBtn w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all"
+														data-id="<%= customer.id %>"
+														data-name="<%= (customer.name || '').replace(/'/g, "\'") %>"
+														title="Hapus">
+														<i class="fas fa-trash-alt text-xs"></i>
+													</button>
+									</div>
+								</td>
+							</tr>
+							<% }) %>
+								<% } else { %>
+									<tr>
+										<td colspan="6" class="px-6 py-12 text-center text-slate-400">
+											<i class="fas fa-users-slash text-2xl mb-2"></i>
+											<p class="text-xs font-bold uppercase">Belum ada data pelanggan</p>
+										</td>
+									</tr>
+									<% } %>
+				</tbody>
+			</table>
+		</div>
+
+		<!-- Mobile Card View -->
+		<div class="mobile-only-view divide-y divide-slate-100">
+			<% if (customers && customers.length> 0) { %>
+				<% customers.forEach(customer=> { %>
+					<div class="p-5 space-y-4">
+						<div class="flex items-start justify-between">
+							<div class="flex items-center gap-3">
+								<input type="checkbox"
+									class="rowCheckbox w-5 h-5 rounded-lg border-slate-300 text-blue-600"
+									value="<%= customer.id %>">
+								<div
+									class="w-12 h-12 initial-avatar bg-blue-50 text-blue-600 font-black text-lg">
+									<%= customer.name.charAt(0) %>
+								</div>
+								<div>
+									<h4 class="font-black text-slate-800 text-base leading-none mb-1">
+										<%= customer.name %>
+									</h4>
+									<p class="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+										<i class="fas fa-tag"></i> ID: <%= customer.id %>
+									</p>
+								</div>
+							</div>
+							<div class="flex gap-1">
+								<a href="/customers/<%= customer.id %>"
+									class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 active:bg-blue-100 active:text-blue-600 shadow-sm transition-all border border-slate-100">
+									<i class="fas fa-eye"></i>
+								</a>
+								<a href="/customers/<%= customer.id %>/edit"
+									class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 active:bg-emerald-100 active:text-emerald-600 shadow-sm transition-all border border-slate-100">
+									<i class="fas fa-edit"></i>
+								</a>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+							<div>
+								<p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Telepon &
+									Alamat</p>
+								<div class="flex flex-col gap-1">
+									<span class="text-[10px] font-bold text-slate-700 italic truncate"><i
+											class="fas fa-phone mr-1 opacity-50 text-[8px]"></i>
+										<%= customer.phone || 'N/A' %>
+									</span>
+									<span class="text-[9px] font-medium text-slate-500 truncate"
+										title="<%= customer.address %>"><i
+											class="fas fa-map-marker-alt mr-1 opacity-50 text-[8px]"></i>
+										<%= customer.address || 'Unknown' %>
+									</span>
+								</div>
+							</div>
+							<div class="text-right">
+								<p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Paket
+									Info</p>
+								<span
+									class="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 text-[9px] font-black uppercase mb-1">
+									<%= customer.package_name || 'No Plan' %>
+								</span>
+								<p class="text-[9px] font-bold text-slate-400">
+									<%= customer.speed_limit || '--' %>
+								</p>
+							</div>
+						</div>
+
+						<div class="flex items-center justify-between pt-2">
+							<div class="flex items-center gap-2">
+								<span
+									class="px-3 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-wider <%= customer.connection_type === 'pppoe' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-amber-500 text-white shadow-lg shadow-amber-200' %>">
+									<%= customer.connection_type==='static_ip' ? 'Static IP' : 'PPPoE' %>
+								</span>
+								<span class="text-[10px] font-black text-slate-400 uppercase truncate max-w-[80px]">
+									<%= customer.pppoe_username || customer.local_ip || '' %>
+								</span>
+							</div>
+							<div class="flex items-center gap-3">
+								<!-- Mobile Migration -->
+								<% if (customer.billing_mode==='postpaid' || !customer.billing_mode) { %>
+									<button
+										class="migrateToPrepaidBtn text-[10px] font-black text-purple-600 uppercase underline decoration-purple-200"
+										data-id="<%= customer.id %>"
+										data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
+										Prepaid
+									</button>
+									<% } else { %>
+										<button
+											class="migrateToPostpaidBtn text-[10px] font-black text-orange-600 uppercase underline decoration-orange-200"
+											data-id="<%= customer.id %>"
+											data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
+											Postpaid
+										<% } %>
+										
+											<a href="/customers/<%= customer.id %>"
+												class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 border border-blue-100"
+												title="Detail">
+												<i class="fas fa-eye"></i>
+											</a>
+											<a href="/customers/<%= customer.id %>/edit"
+												class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 border border-emerald-100"
+												title="Edit">
+												<i class="fas fa-edit"></i>
+											</a>
+
+											<label class="relative inline-flex items-center cursor-pointer">
+												<input type="checkbox" class="sr-only peer status-toggle"
+													<%=customer.status==='active' ? 'checked' : '' %>
+												onchange="toggleCustomerStatus('<%= customer.id %>', this)">
+													<div
+														class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
+													</div>
+											</label>
+											<button
+												class="deleteCustomerBtn w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 active:bg-rose-600 active:text-white transition-all"
+												data-id="<%= customer.id %>"
+												data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
+												<i class="fas fa-trash-alt"></i>
+											</button>
+							</div>
+						</div>
+					</div>
+					<% }) %>
+						<% } else { %>
+							<div class="p-10 text-center text-slate-400">
+								<i class="fas fa-search mb-3 text-4xl block opacity-20"></i>
+								<p class="text-xs font-black uppercase tracking-widest">Data Kosong</p>
+							</div>
+							<% } %>
+		</div>
+	</div>
+
+	<!-- Pagination -->
+	<% if (typeof pagination !== 'undefined' && pagination && pagination.pages> 1) { %>
+		<div
+			class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/70 backdrop-blur-md p-6 rounded-[2rem] border border-white/20 shadow-sm">
+			<p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+				Showing <span class="text-slate-800">
+					<%= ((pagination.page - 1) * pagination.limit) + 1 %>
+				</span> -
+				<span class="text-slate-800">
+					<%= Math.min(pagination.page * pagination.limit, pagination.total) %>
+				</span> of
+				<span class="text-blue-600">
+					<%= pagination.total %>
+				</span> Customers
+			</p>
+
+			<div class="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0">
+				<% if (pagination.page> 1) { %>
+					<a href="?page=<%= pagination.page - 1 %>&search=<%= filters.search %>&status=<%= filters.status %>&connection_type=<%= filters.connection_type %>"
+						class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all">
+						<i class="fas fa-chevron-left text-[10px]"></i>
+					</a>
+					<% } %>
+
+						<% let maxVisible=5; let start=Math.max(1, pagination.page - 2); let
+							end=Math.min(pagination.pages, start + maxVisible - 1); if (end - start < maxVisible - 1)
+							start=Math.max(1, end - maxVisible + 1); %>
+
+							<% for (let i=start; i <=end; i++) { %>
+								<a href="?page=<%= i %>&search=<%= filters.search %>&status=<%= filters.status %>&connection_type=<%= filters.connection_type %>"
+									class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg font-black text-[10px] transition-all <%= i === pagination.page ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50' %>">
+									<%= i %>
+								</a>
+								<% } %>
+
+									<% if (pagination.page < pagination.pages) { %>
+										<a href="?page=<%= pagination.page + 1 %>&search=<%= filters.search %>&status=<%= filters.status %>&connection_type=<%= filters.connection_type %>"
+											class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all">
+											<i class="fas fa-chevron-right text-[10px]"></i>
+										</a>
+										<% } %>
+			</div>
+		</div>
+		<% } %>
+</div>
+
+<!-- Bulk Delete Confirmation Modal -->
+<div id="deleteConfirmModal"
+	class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[2000] flex items-center justify-center p-4">
+	<div
+		class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-300">
+		<div class="p-8 text-center">
+			<div
+				class="w-20 h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6">
+				<i class="fas fa-trash-alt"></i>
+			</div>
+			<h3 class="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Hapus Massal</h3>
+			<p class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-8">Anda akan menghapus <span
+					id="deleteCount" class="text-rose-600 font-black">0</span> pelanggan terpilih. <br>Lanjutkan?</p>
+
+			<div class="flex gap-3">
+				<button onclick="closeDeleteModal()"
+					class="flex-1 py-4 rounded-2xl bg-slate-100 text-slate-500 font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">
+					Batal
+				</button>
+				<button id="bulkDeleteBtn" onclick="confirmBulkDelete()"
+					class="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-black uppercase tracking-widest text-[10px] shadow-xl shadow-rose-200 hover:bg-rose-700 transition-all animate-pulse">
+					Ya, Hapus!
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Import Excel Modal -->
+<div id="importModal"
+	class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[2000] flex items-center justify-center p-4">
+	<div
+		class="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-300">
+		<div class="p-8">
+			<div class="flex items-center justify-between mb-6">
+				<h3 class="text-xl font-black text-slate-800 uppercase tracking-tight">Import Database</h3>
+				<button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 transition-colors"><i
+						class="fas fa-times"></i></button>
+			</div>
+
+			<div class="p-6 bg-emerald-50 border-2 border-dashed border-emerald-200 rounded-3xl text-center mb-6">
+				<div
+					class="w-16 h-16 bg-emerald-500 text-white rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg shadow-emerald-100">
+					<i class="fas fa-file-excel"></i>
+				</div>
+				<h4 class="text-sm font-black text-emerald-800 uppercase tracking-tight mb-2">Pilih File Excel</h4>
+				<p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mb-4">Maksimal file size 10MB
+				</p>
+
+				<form id="importForm" class="space-y-4">
+					<input type="file" id="excelFileInput" name="excelFile" accept=".xlsx, .xls" class="hidden">
+					<button type="button" onclick="document.getElementById('excelFileInput').click()"
+						class="w-full py-4 rounded-2xl bg-white border border-emerald-200 text-emerald-600 font-black uppercase tracking-widest text-xs hover:bg-emerald-100 transition-all mb-2">
+						<i class="fas fa-search mr-2"></i> Cari File
+					</button>
+					<button type="button" id="submitImportBtn"
+						class="w-full py-4 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95">
+						Import Data
+					</button>
+				</form>
+			</div>
+
+			<div class="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 mb-6">
+				<p class="text-[9px] font-black text-blue-800 uppercase tracking-widest mb-2"><i
+						class="fas fa-info-circle mr-1"></i> Petunjuk:</p>
+				<ul class="text-[9px] font-bold text-blue-600 space-y-1">
+					<li>• Gunakan template yang disediakan</li>
+					<li>• Jangan ubah header kolom</li>
+					<li>• Format kolom wajib: Nama, Telepon</li>
+				</ul>
+			</div>
+
+			<a href="/customers/template"
+				class="block w-full text-center py-3 text-emerald-600 font-black uppercase tracking-widest text-[9px] hover:underline">
+				<i class="fas fa-download mr-1"></i> Download Template v1.0
+			</a>
+		</div>
+	</div>
+</div>
+
+<!-- Migration Confirmation Modal -->
+<div id="migrationConfirmModal"
+	class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[2000] flex items-center justify-center p-4">
+	<div
+		class="bg-white rounded-[2.5rem] shadow-2xl max-md w-full overflow-hidden animate-in zoom-in-95 duration-300">
+		<div id="migrationModalContent">
+			<!-- Content dynamically inserted -->
+		</div>
+	</div>
+</div>
+
+<script>
+	// Initialize checkbox behaviors and bulk button state
+	document.addEventListener('DOMContentLoaded', function () {
+		const selectAll = document.getElementById('selectAll');
+		const rowCheckboxes = document.querySelectorAll('.rowCheckbox');
+
+		function refreshHeaderState() {
+			if (!selectAll) return;
+			const checked = Array.from(document.querySelectorAll('.rowCheckbox')).filter(cb => cb.checked).length;
+			const total = document.querySelectorAll('.rowCheckbox').length;
+			selectAll.indeterminate = checked > 0 && checked < total;
+			selectAll.checked = total > 0 && checked === total;
+		}
+
+		if (selectAll) {
+			selectAll.addEventListener('change', function () {
+				document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = selectAll.checked);
+				updateBulkState();
+			});
+		}
+
+		rowCheckboxes.forEach(cb => {
+			cb.addEventListener('change', () => {
+				updateBulkState();
+				refreshHeaderState();
+			});
+		});
+
+		// Bulk Actions state
+		updateBulkState();
+
+		// Bind delete buttons
+		document.querySelectorAll('.deleteCustomerBtn').forEach(btn => {
+			btn.addEventListener('click', function () {
+				deleteCustomer(this.dataset.id, this.dataset.name);
+			});
+		});
+
+		// Migration buttons
+		document.querySelectorAll('.migrateToPrepaidBtn').forEach(btn => {
+			btn.addEventListener('click', function () {
+				showMigrationConfirmModal(this.dataset.id, this.dataset.name, 'prepaid');
+			});
+		});
+
+		document.querySelectorAll('.migrateToPostpaidBtn').forEach(btn => {
+			btn.addEventListener('click', function () {
+				showMigrationConfirmModal(this.dataset.id, this.dataset.name, 'postpaid');
+			});
+		});
+
+		// Import binding
+		const submitImportBtn = document.getElementById('submitImportBtn');
+		if (submitImportBtn) {
+			submitImportBtn.addEventListener('click', handleImportClick);
+		}
+	});
+
+	async function deleteCustomer(id, name) {
+		const result = await Swal.fire({
+			title: 'Hapus Pelanggan?',
+			html: `Yakin ingin menghapus <b>"${name}"</b>?<br><p class="text-[10px] font-black uppercase text-rose-500 mt-2">Data tagihan & log akan hilang!</p>`,
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonText: 'YA, HAPUS',
+			confirmButtonColor: '#e11d48',
+			cancelButtonText: 'BATAL',
+			customClass: { popup: 'rounded-[2rem]' }
+		});
+
+		if (result.isConfirmed) {
+			Swal.fire({ title: 'Menghapus...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+			try {
+				const res = await fetch(`/customers/${id}`, { method: 'DELETE' });
+				const data = await res.json();
+				if (data.success) {
+					await Swal.fire({ icon: 'success', title: 'Terhapus!', timer: 1500, showConfirmButton: false });
+					location.reload();
+				} else {
+					Swal.fire('Gagal!', data.error || 'Terjadi kesalahan', 'error');
+				}
+			} catch (err) {
+				Swal.fire('Error!', 'System error', 'error');
+			}
+		}
+	}
+
+	async function toggleCustomerStatus(id, checkbox) {
+		const status = checkbox.checked ? 'active' : 'inactive';
+		const label = document.querySelector(`.status-label-${id}`);
+		checkbox.disabled = true;
+
+		try {
+			const res = await fetch(`/customers/${id}/toggle-status`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status })
+			});
+			const data = await res.json();
+			if (data.success) {
+				if (label) {
+					label.textContent = status === 'active' ? 'Aktif' : 'Off';
+					label.className = `ml-2 text-[10px] font-black uppercase transition-all ${status === 'active' ? 'text-emerald-600' : 'text-slate-400'}`;
+				}
+				const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+				toast.fire({ icon: 'success', title: `Status ${status === 'active' ? 'Aktif' : 'Nonaktif'}` });
+			} else {
+				throw new Error(data.error);
+			}
+		} catch (e) {
+			checkbox.checked = !checkbox.checked;
+			Swal.fire('Gagal!', e.message || 'Gagal mengubah status', 'error');
+		} finally {
+			checkbox.disabled = false;
+		}
+	}
+
+	function updateBulkState() {
+		const ids = Array.from(document.querySelectorAll('.rowCheckbox:checked')).map(cb => cb.value);
+		const bar = document.getElementById('bulkActionsBar');
+		const count = document.getElementById('selectedCount');
+		if (bar) {
+			if (ids.length > 0) {
+				bar.style.maxHeight = '200px';
+				bar.style.opacity = '1';
+				bar.classList.add('mb-6');
+				if (count) count.textContent = ids.length;
+			} else {
+				bar.style.maxHeight = '0';
+				bar.style.opacity = '0';
+				bar.classList.remove('mb-6');
+			}
+		}
+	}
+
+	function clearAllSelections() {
+		document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = false);
+		const selectAll = document.getElementById('selectAll');
+		if (selectAll) selectAll.checked = false;
+		updateBulkState();
+		if (selectAll) selectAll.indeterminate = false;
+	}
+
+	async function bulkDeleteSelected() {
+		const ids = Array.from(document.querySelectorAll('.rowCheckbox:checked')).map(cb => cb.value);
+		if (ids.length === 0) return;
+		document.getElementById('deleteCount').textContent = ids.length;
+		document.getElementById('deleteConfirmModal').classList.remove('hidden');
+	}
+
+	function closeDeleteModal() {
+		document.getElementById('deleteConfirmModal').classList.add('hidden');
+	}
+
+	async function confirmBulkDelete() {
+		const ids = Array.from(document.querySelectorAll('.rowCheckbox:checked')).map(cb => cb.value);
+		closeDeleteModal();
+		Swal.fire({ title: 'Menghapus Masal...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+		try {
+			const res = await fetch('/customers/bulk-delete', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ids })
+			});
+			const data = await res.json();
+			if (data.success) {
+				await Swal.fire({ icon: 'success', title: 'Berhasil!', text: `${data.results.deleted.length} pelanggan dihapus.` });
+				location.reload();
+			} else {
+				Swal.fire('Gagal!', data.error || 'Operasi gagal', 'error');
+			}
+		} catch (err) {
+			Swal.fire('Error!', 'System error', 'error');
+		}
+	}
+
+	function handleImportClick() {
+		const fileInput = document.getElementById('excelFileInput');
+		const submitBtn = document.getElementById('submitImportBtn');
+		if (!fileInput.files.length) return Swal.fire('Error', 'Pilih file excel!', 'error');
+
+		const formData = new FormData();
+		formData.append('excelFile', fileInput.files[0]);
+		submitBtn.disabled = true;
+		submitBtn.textContent = 'MENGIMPORT...';
+
+		fetch('/customers/import', { method: 'POST', body: formData })
+			.then(res => res.json())
+			.then(data => {
+				if (data.success) {
+					Swal.fire('Sukses!', `Berhasil import ${data.details.success} data.`, 'success').then(() => location.reload());
+				} else {
+					Swal.fire('Gagal!', data.error || 'Import gagal', 'error');
+				}
+			})
+			.catch(() => Swal.fire('Error', 'Sytem error', 'error'))
+			.finally(() => {
+				submitBtn.disabled = false;
+				submitBtn.textContent = 'Import Data';
+			});
+	}
+
+	function exportToExcel() {
+		const params = new URLSearchParams(window.location.search);
+		location.href = `/customers/export?${params.toString()}`;
+	}
+
+	function closeImportModal() {
+		document.getElementById('importModal').classList.add('hidden');
+		document.getElementById('importForm').reset();
+	}
+
+	// Migration Logic (Ported from original)
+	function showMigrationConfirmModal(customerId, customerName, toMode) {
+		const modal = document.getElementById('migrationConfirmModal');
+		const container = document.getElementById('migrationModalContent');
+
+		let content = '';
+		if (toMode === 'prepaid') {
+			content = `
+                <div class="p-8">
+                    <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4"><i class="fas fa-exchange-alt"></i></div>
+                    <h3 class="text-lg font-black text-slate-800 uppercase text-center mb-1">Migrasi ke Prepaid</h3>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase text-center mb-6">${customerName}</p>
+                    <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100 mb-6">
+                        <p class="text-[9px] font-black text-amber-800 uppercase tracking-widest mb-2">Konsekuensi:</p>
+                        <ul class="text-[9px] font-bold text-amber-600 space-y-1">
+                            <li>• Paket postpaid dinonaktifkan</li>
+                            <li>• Customer di-redirect ke portal login</li>
+                            <li>• Tagihan lama tetap ada</li>
+                        </ul>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="closeMigrationModal()" class="flex-1 py-3 bg-slate-50 text-slate-500 rounded-xl font-black text-[10px] uppercase">Batal</button>
+                        <button onclick="executeMigration('${customerId}', '${customerName}', 'prepaid')" class="flex-1 py-3 bg-purple-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-purple-100">Migrasi</button>
+                    </div>
+                </div>
+            `;
+		} else {
+			content = `
+                <div class="p-8">
+                    <div class="w-16 h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4"><i class="fas fa-undo"></i></div>
+                    <h3 class="text-lg font-black text-slate-800 uppercase text-center mb-1">Kembali ke Postpaid</h3>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase text-center mb-6">${customerName}</p>
+                    <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 mb-6">
+                        <p class="text-[9px] font-black text-blue-800 uppercase tracking-widest mb-2">Apa yang terjadi?</p>
+                        <ul class="text-[9px] font-bold text-blue-600 space-y-1">
+                            <li>• Internet kembali normal (No Redirect)</li>
+                            <li>• Billing bulanan aktif kembali</li>
+                        </ul>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="closeMigrationModal()" class="flex-1 py-3 bg-slate-50 text-slate-500 rounded-xl font-black text-[10px] uppercase">Batal</button>
+                        <button onclick="executeMigration('${customerId}', '${customerName}', 'postpaid')" class="flex-1 py-3 bg-orange-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-orange-100">Kembalikan</button>
+                    </div>
+                </div>
+            `;
+		}
+
+		container.innerHTML = content;
+		modal.classList.remove('hidden');
+	}
+
+	function closeMigrationModal() {
+		document.getElementById('migrationConfirmModal').classList.add('hidden');
+	}
+
+	async function executeMigration(id, name, toMode) {
+		Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+		const endpoint = toMode === 'prepaid' ? `/customers/${id}/migrate-to-prepaid` : `/customers/${id}/migrate-to-postpaid`;
+
+		try {
+			const res = await fetch(endpoint, { method: 'POST' });
+			const data = await res.json();
+			if (data.success) {
+				if (toMode === 'prepaid') {
+					await Swal.fire({
+						icon: 'success',
+						title: 'Migrasi Berhasil!',
+						html: `Portal ID: ${data.portal_id}<br>PIN: ${data.portal_pin}`,
+						confirmButtonText: 'OKE'
+					});
+				} else {
+					await Swal.fire({ icon: 'success', title: 'Berhasil dikembalikan!', timer: 2000, showConfirmButton: false });
+				}
+				location.reload();
+			} else {
+				Swal.fire('Gagal!', data.error || 'Migration failed', 'error');
+			}
+		} catch (e) {
+			Swal.fire('Error!', 'System error during migration', 'error');
+		}
+	}
+</script>

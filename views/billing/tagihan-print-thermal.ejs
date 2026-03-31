@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Invoice - Thermal</title>
+    <style>
+        /* CSS 58MM ULTRA-STABLE FLOAT-BASED (FOR CHROME COMPATIBILITY) */
+        @page { size: 58mm auto; margin: 0; }
+        @media print {
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                width: 58mm; margin: 0; padding: 0; 
+            }
+            .no-print { display: none !important; }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8pt;
+            line-height: 1.1;
+            color: #000;
+            background: #fff;
+        }
+        .no-print { text-align: center; padding: 10px; background: #eee; border-bottom: 1px solid #ccc; position: sticky; top: 0; z-index: 100; }
+        .btn-print { padding: 10px 20px; cursor: pointer; color: white; background: #007bff; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-close { padding: 10px 20px; cursor: pointer; margin-left: 10px; border-radius: 4px; border: 1px solid #ccc; background: white; }
+
+        /* RECEIPT WRAPPER */
+        .receipt { 
+            width: 48mm; 
+            margin: 0 auto; 
+            padding: 2mm 0; 
+            overflow: hidden;
+            display: block; 
+            clear: both;
+        }
+
+        .header { text-align: center; margin-bottom: 2mm; width: 100%; display: block; clear: both; }
+        .logo { font-size: 11pt; font-weight: bold; display: block; margin-bottom: 1mm; }
+        .company-info { font-size: 7.5pt; display: block; }
+        
+        .sep { border: none; border-top: 1px dashed #000; margin: 1.5mm 0; width: 100%; display: block; clear: both; }
+        .sep-bold { border: none; border-top: 1.5px solid #000; margin: 1.5mm 0; width: 100%; display: block; clear: both; }
+        
+        /* FLOAT-BASED ROWS FOR BETTER CHROME SUPPORT */
+        .row { width: 100%; display: block; clear: both; margin-bottom: 0.8mm; line-height: 1.2; font-size: 8pt; vertical-align: top; overflow: hidden; }
+        .lbl { float: left; width: 35%; display: inline-block; font-weight: normal; }
+        .val { float: right; width: 65%; text-align: right; display: inline-block; font-weight: bold; word-break: break-all; }
+        .full { display: block; width: 100%; font-weight: bold; clear: both; margin-bottom: 0.5mm; }
+        
+        .red { color: #f00 !important; }
+        .total-row { border-top: 1.5px solid #000; padding-top: 1.5mm; margin-top: 1mm; display: block; clear: both; width: 100%; overflow: hidden; font-size: 10pt; font-weight: bold; }
+        .total-row .lbl { float: left; width: 50%; }
+        .total-row .val { float: right; width: 50%; text-align: right; font-size: 11pt; }
+        
+        .footer { text-align: center; margin-top: 4mm; font-size: 8pt; width: 100%; display: block; clear: both; }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()">🖨️ CETAK INVOICE (FIX CHROME)</button>
+        <button class="btn-close" onclick="window.close()">✖️ TUTUP</button>
+    </div>
+
+    <!-- WRAP IN ARRAY IF SINGLE -->
+    <% 
+        const renderInvoices = typeof invoices !== 'undefined' ? invoices : (typeof invoice !== 'undefined' ? [invoice] : []);
+    %>
+
+    <% renderInvoices.forEach(inv => { %>
+        <div class="receipt">
+            <div class="header">
+                <div class="logo"><%= companyInfo?.company_name || 'ID.NET BY DBN' %></div>
+                <div class="company-info">WA: <%= companyInfo?.company_phone || '089678630707' %></div>
+            </div>
+            <div class="sep-bold"></div>
+            
+            <div class="row">
+                <span class="lbl"><%= new Date(inv.created_at).toLocaleDateString('id-ID') %></span>
+                <span class="val">REF: #<%= inv.invoice_number %></span>
+            </div>
+            <div class="sep"></div>
+            
+            <div class="row"><span class="lbl">Pelanggan:</span><span class="val"><%= inv.customer_name %></span></div>
+            <div class="row"><span class="lbl">Jatuh Tempo:</span><span class="val"><%= new Date(inv.due_date).toLocaleDateString('id-ID') %></span></div>
+            <div class="sep"></div>
+
+            <!-- ITEMS -->
+            <% (inv.items || []).forEach(item => { %>
+                <div class="row">
+                    <span class="lbl" style="width: 60%;"><%= item.description.replace(/\s*-\s*\d{4}-\d{2}$/, '') %></span>
+                    <span class="val" style="width: 40%;">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %></span>
+                </div>
+            <% }); %>
+
+            <div class="row"><span class="lbl">TOTAL BULAN INI</span><span class="val">Rp <%= new Intl.NumberFormat('id-ID').format(inv.total_amount) %></span></div>
+
+            <!-- TUNGGAKAN LOGIC (ALIGNED WITH TAGIHAN-PRINT-ALL) -->
+            <% if (typeof inv.total_balance !== 'undefined' && inv.total_balance > inv.total_amount) { 
+                const tunggakan = inv.total_balance - inv.total_amount;
+                let periodeKet = '';
+                if (inv.unpaid_periods) {
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                    const months = inv.unpaid_periods.split(',')
+                        .filter(p => p !== (inv.raw_period || inv.period)) // Skip current invoice period
+                        .map(p => {
+                            const [year, month] = p.split('-');
+                            const mIdx = parseInt(month) - 1;
+                            return (monthNames[mIdx] || month) + ' ' + (year.substring(2));
+                        });
+                    if (months.length > 0) periodeKet = ' (' + months.join(', ') + ')';
+                }
+            %>
+                <div class="row red">
+                    <span class="lbl">TUNGGAKAN <%= periodeKet %></span>
+                    <span class="val">Rp <%= new Intl.NumberFormat('id-ID').format(tunggakan) %></span>
+                </div>
+            <% } %>
+
+            <div class="total-row">
+                <div class="lbl">TOTAL BAYAR</div>
+                <div class="val">Rp <%= new Intl.NumberFormat('id-ID').format(inv.total_balance || inv.total_amount) %></div>
+            </div>
+        </div>
+        
+        <!-- PAGE BREAKER FOR THERMAL -->
+        <div style="page-break-after: always; height: 1px;"></div>
+    <% }); %>
+
+    <script>
+        // Auto-print if needed
+        // window.onload = () => window.print();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>
+		<%= typeof title !=='undefined' ? title : (typeof companyInfo !== 'undefined' && companyInfo && companyInfo.company_name ? companyInfo.company_name : 'Billing') %>
+	</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+		rel="stylesheet">
+	<link rel="stylesheet" href="/assets/styles.css" />
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+	<!-- Chart.js for Interface Traffic Realtime -->
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+	<!-- SweetAlert2 -->
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<style>
+		/* CRITICAL: Force SweetAlert2 to be centered and fixed */
+		div:where(.swal2-container) {
+			display: grid !important;
+			place-items: center !important;
+			position: fixed !important;
+			inset: 0 !important;
+			z-index: 999999 !important;
+			background-color: rgba(0, 0, 0, 0.4) !important;
+			overflow-y: auto !important;
+			padding: 10px !important;
+		}
+
+		div:where(.swal2-popup) {
+			margin: auto !important;
+			font-size: 0.9rem !important;
+			display: grid !important;
+			/* Ensure content flows */
+		}
+
+		body.swal2-shown {
+			overflow: hidden !important;
+			/* Prevent body scroll */
+		}
+	</style>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+		integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+		integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+	<!-- Define toggleMenu IMMEDIATELY before any HTML is rendered -->
+	<script>
+		// CRITICAL: Define toggleMenu immediately to prevent "toggleMenu is not defined" errors
+		// This MUST be defined before any HTML with onclick is parsed
+		(function () {
+			// Define on window object immediately
+			window.toggleMenu = function (menuName, event) {
+				try {
+					if (event) {
+						event.preventDefault();
+						event.stopPropagation();
+					}
+					const menuContent = document.getElementById(menuName + '-menu');
+					const arrow = document.getElementById(menuName + '-arrow');
+					if (menuContent && arrow) {
+						const isHidden = menuContent.style.display === 'none' ||
+							menuContent.classList.contains('hidden') ||
+							(typeof getComputedStyle !== 'undefined' && getComputedStyle(menuContent).display === 'none');
+						if (isHidden) {
+							menuContent.style.display = 'block';
+							menuContent.classList.remove('hidden');
+							menuContent.style.pointerEvents = 'auto';
+							arrow.style.transform = 'rotate(180deg)';
+						} else {
+							menuContent.style.display = 'none';
+							menuContent.classList.add('hidden');
+							arrow.style.transform = 'rotate(0deg)';
+						}
+					}
+				} catch (e) {
+					console.error('Error in toggleMenu:', e);
+				}
+				return false;
+			};
+
+			// Also define on global scope
+			if (typeof globalThis !== 'undefined') {
+				globalThis.toggleMenu = window.toggleMenu;
+			}
+
+			// Verify it's defined
+			console.log('✅ toggleMenu function defined immediately, available:', typeof window.toggleMenu !== 'undefined');
+		})();
+	</script>
+	<!-- Load sidebar.js to override with enhanced version -->
+	<script src="/assets/sidebar.js" defer></script>
+	<script>
+		// Remove all onclick attributes from menu buttons as soon as DOM is available
+		(function () {
+			function removeOnclickAttributes() {
+				if (typeof document !== 'undefined' && document.querySelectorAll) {
+					// Remove from all buttons with onclick containing toggleMenu
+					const allButtons = document.querySelectorAll('button[onclick], [onclick]');
+					allButtons.forEach(function (btn) {
+						const onclick = btn.getAttribute('onclick');
+						if (onclick && onclick.includes('toggleMenu')) {
+							btn.removeAttribute('onclick');
+							console.log('✅ Removed onclick from:', btn.getAttribute('data-menu') || btn.className || btn.tagName);
+						}
+					});
+
+					// Also remove from menu-toggle buttons specifically
+					const menuButtons = document.querySelectorAll('.menu-toggle[data-menu]');
+					menuButtons.forEach(function (btn) {
+						if (btn.hasAttribute('onclick')) {
+							btn.removeAttribute('onclick');
+							console.log('✅ Removed onclick from menu:', btn.getAttribute('data-menu'));
+						}
+					});
+				}
+			}
+
+			// Run immediately if DOM is ready
+			if (typeof document !== 'undefined') {
+				// Run before DOMContentLoaded
+				removeOnclickAttributes();
+
+				if (document.readyState === 'loading') {
+					document.addEventListener('DOMContentLoaded', removeOnclickAttributes);
+				}
+
+				// Run multiple times to catch late-loading elements
+				setTimeout(removeOnclickAttributes, 0);
+				setTimeout(removeOnclickAttributes, 10);
+				setTimeout(removeOnclickAttributes, 50);
+				setTimeout(removeOnclickAttributes, 100);
+				setTimeout(removeOnclickAttributes, 200);
+				setTimeout(removeOnclickAttributes, 500);
+				setTimeout(removeOnclickAttributes, 1000);
+			}
+		})();
+	</script>
+	<style>
+		:root {
+			--sidebar-width: 17rem;
+			--primary-blue: #3b82f6;
+			--primary-deep: #1e3a8a;
+			--primary-indigo: #6366f1;
+			--glass-bg: rgba(255, 255, 255, 0.7);
+			--glass-border: rgba(255, 255, 255, 0.3);
+			--bg-main: #f8fafc;
+			--accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+		}
+
+		body {
+			font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+			-webkit-font-smoothing: antialiased;
+			background-color: var(--bg-main);
+			overflow-x: hidden;
+		}
+
+		/* Global Glassmorphism Class */
+		.glass-panel {
+			background: var(--glass-bg);
+			backdrop-filter: blur(12px);
+			-webkit-backdrop-filter: blur(12px);
+			border: 1px solid var(--glass-border);
+		}
+
+		/* Sidebar - Modern Premium Glass */
+		#sidebar {
+			background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+			backdrop-filter: blur(10px);
+			border-right: 1px solid rgba(255, 255, 255, 0.05);
+			box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+		}
+
+		/* Custom Scrollbar - Minimalist */
+		::-webkit-scrollbar {
+			width: 6px;
+			height: 6px;
+		}
+
+		::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		::-webkit-scrollbar-thumb {
+			background: #cbd5e1;
+			border-radius: 10px;
+		}
+
+		::-webkit-scrollbar-thumb:hover {
+			background: #94a3b8;
+		}
+
+		/* ========== MODERN PREMIUM STYLES ========== */
+
+		/* Glassmorphism Card */
+		.card-glass {
+			background: rgba(255, 255, 255, 0.85);
+			backdrop-filter: blur(12px);
+			-webkit-backdrop-filter: blur(12px);
+			border: 1px solid rgba(255, 255, 255, 0.3);
+			box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+		}
+
+		/* Premium Button */
+		.btn-premium {
+			position: relative;
+			overflow: hidden;
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+
+		.btn-premium::before {
+			content: '';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: 0;
+			height: 0;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.3);
+			transform: translate(-50%, -50%);
+			transition: width 0.6s, height 0.6s;
+		}
+
+		.btn-premium:hover::before {
+			width: 300px;
+			height: 300px;
+		}
+
+		/* Smooth Fade In Animation */
+		@keyframes fadeInUp {
+			from {
+				opacity: 0;
+				transform: translateY(20px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		@keyframes fadeIn {
+			from {
+				opacity: 0;
+			}
+
+			to {
+				opacity: 1;
+			}
+		}
+
+		@keyframes slideInRight {
+			from {
+				opacity: 0;
+				transform: translateX(30px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translateX(0);
+			}
+		}
+
+		@keyframes pulse-glow {
+
+			0%,
+			100% {
+				box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+			}
+
+			50% {
+				box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+			}
+		}
+
+		/* Apply animations to content */
+		#main-content>* {
+			animation: fadeInUp 0.6s ease-out;
+		}
+
+		/* Stagger animation for cards */
+		.space-y-6>*:nth-child(1) {
+			animation-delay: 0.1s;
+		}
+
+		.space-y-6>*:nth-child(2) {
+			animation-delay: 0.2s;
+		}
+
+		.space-y-6>*:nth-child(3) {
+			animation-delay: 0.3s;
+		}
+
+		.space-y-6>*:nth-child(4) {
+			animation-delay: 0.4s;
+		}
+
+		/* Enhanced Card Hover */
+		.bg-white.rounded-xl {
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+
+		.bg-white.rounded-xl:hover {
+			transform: translateY(-4px);
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+		}
+
+		/* Gradient Text */
+		.gradient-text {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+
+		/* Floating Animation */
+		@keyframes float {
+
+			0%,
+			100% {
+				transform: translateY(0px);
+			}
+
+			50% {
+				transform: translateY(-10px);
+			}
+		}
+
+		.float-animation {
+			animation: float 3s ease-in-out infinite;
+		}
+
+		/* Shimmer Effect */
+		@keyframes shimmer {
+			0% {
+				background-position: -1000px 0;
+			}
+
+			100% {
+				background-position: 1000px 0;
+			}
+		}
+
+		.shimmer {
+			background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+			background-size: 1000px 100%;
+			animation: shimmer 2s infinite;
+		}
+
+		/* Enhanced Main Content Background */
+		#main-content {
+			background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+			min-height: 100vh;
+			position: relative;
+		}
+
+		/* Decorative Background Shapes */
+		#main-content::before {
+			content: '';
+			position: absolute;
+			top: -100px;
+			right: -100px;
+			width: 400px;
+			height: 400px;
+			background: radial-gradient(circle, rgba(96, 165, 250, 0.1) 0%, transparent 70%);
+			border-radius: 50%;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		#main-content::after {
+			content: '';
+			position: absolute;
+			bottom: -150px;
+			left: -150px;
+			width: 500px;
+			height: 500px;
+			background: radial-gradient(circle, rgba(147, 51, 234, 0.08) 0%, transparent 70%);
+			border-radius: 50%;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		/* Ensure content is above decorative shapes */
+		#main-content>* {
+			position: relative;
+			z-index: 1;
+		}
+
+
+		/* Ensure sidebar menu items are clickable */
+		#sidebar {
+			pointer-events: auto !important;
+			z-index: 1000 !important;
+			/* REMOVED global relative position to allow fixed on mobile */
+		}
+
+		@media (min-width: 768px) {
+			#sidebar {
+				position: relative !important;
+			}
+		}
+
+		@media (max-width: 767px) {
+			#sidebar {
+				position: fixed !important;
+				height: 100vh;
+				z-index: 9999 !important;
+			}
+
+			#main-content {
+				width: 100vw !important;
+				max-width: 100vw !important;
+				margin-left: 0 !important;
+				flex: none !important;
+				min-width: 100vw !important;
+				/* Force full viewport width */
+			}
+		}
+
+		/* Sidebar hidden state for desktop */
+		#sidebar.sidebar-hidden {
+			transform: translateX(-100%);
+			width: 0 !important;
+			min-width: 0 !important;
+			max-width: 0 !important;
+			padding: 0 !important;
+			overflow: hidden;
+			visibility: hidden;
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		/* Main content expands when sidebar is hidden */
+		#sidebar.sidebar-hidden~#main-content {
+			width: 100%;
+			max-width: 100%;
+			margin-left: 0;
+		}
+
+		/* Ensure smooth transition */
+		#sidebar {
+			transition: transform 0.3s ease-in-out, width 0.3s ease-in-out, min-width 0.3s ease-in-out, max-width 0.3s ease-in-out, opacity 0.3s ease-in-out, visibility 0.3s ease-in-out, padding 0.3s ease-in-out;
+		}
+
+		#main-content {
+			transition: width 0.3s ease-in-out, max-width 0.3s ease-in-out, margin-left 0.3s ease-in-out;
+		}
+
+		#sidebar * {
+			pointer-events: auto !important;
+		}
+
+		#sidebar a,
+		#sidebar button {
+			pointer-events: auto !important;
+			cursor: pointer !important;
+			position: relative;
+			z-index: 1003 !important;
+			user-select: none;
+		}
+
+		#sidebar .menu-group {
+			position: relative;
+			z-index: 1003 !important;
+			pointer-events: auto !important;
+		}
+
+		#sidebar .menu-content {
+			pointer-events: auto !important;
+			z-index: 1004 !important;
+		}
+
+		#sidebar .menu-content a {
+			pointer-events: auto !important;
+			cursor: pointer !important;
+			z-index: 1005 !important;
+		}
+
+		/* Ensure menu toggle buttons are always clickable */
+		#sidebar .menu-toggle {
+			pointer-events: auto !important;
+			cursor: pointer !important;
+			position: relative !important;
+			z-index: 10003 !important;
+			user-select: none !important;
+		}
+
+		/* Let child elements be clickable too - they will bubble up to button */
+		#sidebar .menu-toggle * {
+			pointer-events: auto !important;
+		}
+
+		/* Ensure menu toggle buttons are not blocked by any overlay */
+		#sidebar .menu-toggle::before,
+		#sidebar .menu-toggle::after {
+			pointer-events: none !important;
+		}
+
+		/* Prevent footer from blocking sidebar */
+		#footer {
+			z-index: 50 !important;
+		}
+
+		/* Prevent any overlay from blocking sidebar */
+		body>*:not(#sidebar) {
+			position: relative;
+		}
+
+		/* Ensure no element covers sidebar */
+		aside#sidebar {
+			z-index: 1000 !important;
+			/* Position handled by media queries above */
+		}
+
+		/* Force sidebar to be on top and clickable */
+		aside#sidebar,
+		aside#sidebar * {
+			pointer-events: auto !important;
+			cursor: default !important;
+		}
+
+		aside#sidebar a,
+		aside#sidebar button,
+		aside#sidebar .menu-toggle {
+			cursor: pointer !important;
+		}
+
+		/* Ensure sidebar container doesn't get blocked */
+		.flex.h-screen>aside#sidebar {
+			z-index: 1000 !important;
+			/* Position handled by media queries above */
+		}
+
+		/* Prevent dashboard elements from covering sidebar */
+		body>div.flex {
+			width: 100%;
+			overflow-x: hidden;
+		}
+
+		body>div.flex.h-screen>main {
+			z-index: 1 !important;
+			min-width: 0;
+			/* Critical for flex layout not to blow out or squeeze */
+		}
+	</style>
+
+</head>
+
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 antialiased"
+	data-auto-logout="<%= (typeof autoLogoutEnabled !== 'undefined' ? autoLogoutEnabled : false) %>"
+	data-auto-logout-timeout="<%= (typeof autoLogoutTimeout !== 'undefined' ? autoLogoutTimeout : 30) %>"
+	data-logged-in="<%= ((typeof user !== 'undefined' && user !== null) || (typeof userId !== 'undefined' && userId !== null)) ? 'true' : 'false' %>">
+	<!-- CRITICAL: Remove all onclick attributes before sidebar is rendered -->
+	<script>
+		// Intercept and remove onclick before DOM is fully parsed
+		(function () {
+			const originalCreateElement = document.createElement;
+			document.createElement = function (tagName) {
+				const element = originalCreateElement.call(document, tagName);
+				if (tagName.toLowerCase() === 'button') {
+					const originalSetAttribute = element.setAttribute;
+					element.setAttribute = function (name, value) {
+						if (name === 'onclick' && typeof value === 'string' && value.includes('toggleMenu')) {
+							console.log('Blocked onclick with toggleMenu:', value);
+							return; // Don't set onclick
+						}
+						return originalSetAttribute.call(this, name, value);
+					};
+				}
+				return element;
+			};
+		})();
+	</script>
+	<div class="flex h-screen overflow-hidden bg-slate-50">
+		<!-- Mobile Sidebar Overlay -->
+		<div id="sidebarOverlay"
+			class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[990] hidden md:hidden transition-opacity duration-300 opacity-0">
+		</div>
+
+		<!-- Sidebar -->
+		<% if (typeof include !=='function' ) { %>
+			<div style="background: red; color: white; padding: 20px; position: fixed; z-index: 9999;">
+				CRITICAL ERROR: 'include' is a <%= typeof include %>.
+					Value: <%= JSON.stringify(include) %>
+			</div>
+			<% } %>
+				<aside id="sidebar"
+					class="fixed inset-y-0 left-0 w-72 md:relative md:translate-x-0 -translate-x-full text-white bg-[#0f172a] h-full overflow-y-auto shadow-2xl transition-all duration-300 ease-in-out z-[1000]">
+					<%- include('../partials/sidebar') %>
+				</aside>
+
+				<!-- Main Content -->
+				<main id="main-content" class="flex-1 h-full overflow-y-auto bg-white relative z-10 w-full">
+					<div class="flex flex-col min-h-full">
+						<div class="w-full p-3 sm:p-4 md:p-6 lg:p-8 max-w-[1920px] mx-auto flex-grow">
+							<header class="mb-4 md:mb-8 sticky top-0 md:relative z-40">
+								<%- include('../partials/header', { title: typeof title !=='undefined' ? title
+									: 'Billing' }) %>
+							</header>
+
+							<div class="relative">
+								<%- include('../partials/flash') %>
+									<section class="space-y-4 md:space-y-8 animate-fadeIn">
+										<%- body %>
+									</section>
+							</div>
+						</div>
+						<div class="mt-auto w-full">
+							<%- include('../partials/footer') %>
+						</div>
+					</div>
+				</main>
+	</div>
+	<script>
+		// Fix sidebar clickability - ensure menu buttons are always clickable
+		(function () {
+			function fixSidebar() {
+				const sidebar = document.getElementById('sidebar');
+				if (!sidebar) return;
+
+				// Force sidebar to be on top but respect hidden state
+				// sidebar.style.zIndex = '10000'; // Removed to avoid z-index wars, handled by CSS
+				// sidebar.style.position = 'relative'; // Removed to allow CSS classes to control position
+
+				// Ensure menu buttons are clickable
+				const menuButtons = sidebar.querySelectorAll('.menu-toggle[data-menu]');
+				menuButtons.forEach(button => {
+					button.style.cursor = 'pointer';
+					// Ensure all child elements don't block clicks
+					const children = button.querySelectorAll('*');
+					children.forEach(child => {
+						child.style.pointerEvents = 'none'; // Let clicks bubble to button
+					});
+					// Button itself captures clicks
+					button.style.pointerEvents = 'auto';
+				});
+
+				// Check for mobile close button explicitly
+				const closeBtn = document.getElementById('sidebarCloseMobile');
+				if (closeBtn) {
+					closeBtn.style.pointerEvents = 'auto';
+					closeBtn.style.cursor = 'pointer';
+					closeBtn.style.zIndex = '10010';
+				}
+			}
+
+			// Run once on load
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', fixSidebar);
+			} else {
+				fixSidebar();
+			}
+		})();
+	</script>
+
+	<!-- Real-time Clock Update -->
+	<!-- Real-time Clock Update (Server Synced) -->
+	<script>
+		(function () {
+			let timeOffset = 0;
+
+			// Sync with server time
+			function syncTime() {
+				fetch('/api/server-time')
+					.then(response => response.json())
+					.then(data => {
+						if (data.success && data.timestamp) {
+							const serverTime = data.timestamp;
+							const clientTime = Date.now();
+							timeOffset = serverTime - clientTime;
+							console.log('Server time synced. Offset:', timeOffset, 'ms');
+
+							// Update clock immediately after sync
+							updateClock();
+						}
+					})
+					.catch(err => console.error('Failed to sync time:', err));
+			}
+
+			function updateClock() {
+				// Use offset to get server time
+				const now = new Date(Date.now() + timeOffset);
+
+				// Format time: HH:MM:SS
+				const hours = String(now.getHours()).padStart(2, '0');
+				const minutes = String(now.getMinutes()).padStart(2, '0');
+				const seconds = String(now.getSeconds()).padStart(2, '0');
+				const timeString = `${hours}:${minutes}:${seconds}`;
+
+				// Format date: Hari, DD Bulan YYYY
+				const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+				const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+				const dayName = days[now.getDay()];
+				const day = now.getDate();
+				const month = months[now.getMonth()];
+				const year = now.getFullYear();
+				const dateString = `${dayName}, ${day} ${month} ${year}`;
+
+				// Update DOM
+				const timeElement = document.getElementById('currentTime');
+				const dateElement = document.getElementById('currentDate');
+
+				if (timeElement) timeElement.textContent = timeString;
+				if (dateElement) dateElement.textContent = dateString;
+			}
+
+			// Initial sync
+			syncTime();
+
+			// Re-sync every 5 minutes to prevent drift
+			setInterval(syncTime, 5 * 60 * 1000);
+
+			// Update UI every second
+			setInterval(updateClock, 1000);
+		})();
+	</script>
+
+	<!-- Sidebar Toggle Functionality (Responsive) -->
+	<script>
+		(function () {
+			const STORAGE_KEY = 'sidebarHidden';
+
+			// Helper to get elements freshly
+			const getElements = () => ({
+				sidebar: document.getElementById('sidebar'),
+				sidebarToggle: document.getElementById('sidebarToggle'),
+				overlay: document.getElementById('sidebarOverlay'),
+				mainContent: document.getElementById('main-content')
+			});
+
+			function isMobile() {
+				return window.innerWidth < 768;
+			}
+
+			function toggleSidebar() {
+				const { sidebar, overlay, sidebarToggle } = getElements();
+				if (!sidebar) return;
+
+				const isMob = isMobile();
+				console.log('Toggling sidebar. Mobile:', isMob);
+
+				if (isMob) {
+					const isHidden = sidebar.classList.contains('-translate-x-full');
+					if (isHidden) {
+						// Open on mobile
+						console.log('Mobile: Opening sidebar');
+						sidebar.classList.remove('-translate-x-full');
+						sidebar.style.transform = ''; // Clear any inline transform
+						sidebar.style.display = 'block'; // Ensure it's visible
+						if (overlay) {
+							overlay.classList.remove('hidden');
+							overlay.style.display = 'block';
+							// Small delay to allow display block to apply before opacity transition
+							requestAnimationFrame(() => {
+								overlay.classList.add('opacity-100');
+							});
+						}
+					} else {
+						// Close on mobile
+						console.log('Mobile: Closing sidebar');
+						closeSidebarMobile();
+					}
+				} else {
+					// Desktop toggle
+					const isHidden = sidebar.classList.contains('sidebar-hidden');
+					if (isHidden) {
+						// SHOW SIDEBAR
+						console.log('Desktop: Showing sidebar');
+						sidebar.classList.remove('sidebar-hidden');
+						localStorage.setItem(STORAGE_KEY, 'false');
+						updateToggleIcon(false);
+					} else {
+						// HIDE SIDEBAR
+						console.log('Desktop: Hiding sidebar');
+						sidebar.classList.add('sidebar-hidden');
+						localStorage.setItem(STORAGE_KEY, 'true');
+						updateToggleIcon(true);
+					}
+				}
+			}
+
+			function closeSidebarMobile() {
+				const { sidebar, overlay } = getElements();
+				if (!sidebar) return;
+
+				console.log('Forcing sidebar close');
+				sidebar.classList.add('-translate-x-full');
+
+				// Force via direct style to override any conflicts
+				sidebar.style.transform = 'translateX(-100%)';
+
+				if (overlay) {
+					overlay.classList.remove('opacity-100');
+					setTimeout(() => {
+						overlay.classList.add('hidden');
+						overlay.style.display = 'none';
+					}, 300);
+				}
+			}
+
+			function updateToggleIcon(isHidden) {
+				const { sidebarToggle } = getElements();
+				if (!sidebarToggle) return;
+
+				const iconSvg = sidebarToggle.querySelector('svg');
+				if (!iconSvg) return;
+
+				if (isHidden) {
+					// Sidebar is HIDDEN -> Show Hamburger to open
+					iconSvg.innerHTML = '<path d="M4 6h16M4 12h16M4 18h16"></path>';
+				} else {
+					// Sidebar is VISIBLE -> Show X to close (or Hamburger depending on pref, but X is better feedback)
+					// Actually, if it's visible, user might expect to "collapse" it.
+					// Standard icon for closing/collapsing is often a different one, but let's stick to X or Hamburger logic.
+					// Providing "<-" arrow or X. Using X for now as per previous logic.
+					iconSvg.innerHTML = '<path d="M6 18L18 6M6 6l12 12"></path>';
+				}
+			}
+
+			// Initial state
+			function init() {
+				const { sidebar, sidebarToggle } = getElements();
+				if (!sidebar || !sidebarToggle) return;
+
+				const isMob = isMobile();
+				if (!isMob) {
+					const savedState = localStorage.getItem(STORAGE_KEY);
+					if (savedState === 'true') {
+						sidebar.classList.add('sidebar-hidden');
+						updateToggleIcon(true);
+					} else {
+						sidebar.classList.remove('sidebar-hidden');
+						updateToggleIcon(false);
+					}
+				} else {
+					// Always start closed on mobile
+					sidebar.classList.add('-translate-x-full');
+					updateToggleIcon(true);
+				}
+			}
+
+			// Expose functions globally for direct access
+			window.toggleSidebar = function (e) {
+				if (e) { e.preventDefault(); e.stopPropagation(); }
+				toggleSidebar();
+			};
+
+			window.closeSidebarMobile = function (e) {
+				if (e) { e.preventDefault(); e.stopPropagation(); }
+				console.log('Global closeSidebarMobile called');
+				closeSidebarMobile();
+			};
+
+			// Mobile Action Sheet (Bottom Sheet) Control
+			window.openMobileActionSheet = function (invoiceId, isolationAction, customerId, customerName) {
+				console.log('Opening Mobile Action Sheet for invoice:', invoiceId, 'Action:', isolationAction);
+				const sheet = document.getElementById('mobileActionSheet');
+				const overlay = document.getElementById('mobileActionSheetOverlay');
+
+				if (!sheet || !overlay) {
+					console.error('Mobile Action Sheet HTML not found!');
+					return;
+				}
+
+				// Try to get customerId/customerName from the mobile card if not passed
+				if (!customerId || !customerName) {
+					const checkbox = document.querySelector(`input[value="${invoiceId}"].invoice-checkbox`);
+					if (checkbox) {
+						const card = checkbox.closest('.bg-white');
+						if (card) {
+							const nameEl = card.querySelector('.text-sm.font-black.text-slate-800');
+							if (nameEl) customerName = nameEl.textContent.trim();
+						}
+					}
+				}
+
+				// Direct action: Print Invoice
+				document.getElementById('mas-print-pdf').onclick = () => {
+					window.closeMobileActionSheet();
+					window.open(`/billing/tagihan/${invoiceId}/print?format=thermal`, '_blank');
+				};
+
+				// Direct action: Send WhatsApp
+				document.getElementById('mas-send-wa').onclick = async () => {
+					window.closeMobileActionSheet();
+					const ok = await Swal.fire({ title: 'Kirim WhatsApp?', text: 'Kirim rincian tagihan via WA?', icon: 'question', showCancelButton: true });
+					if (ok.isConfirmed) {
+						Swal.fire({ title: 'Mengirim...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+						try {
+							const res = await fetch(`/billing/tagihan/${invoiceId}/send-whatsapp`, { method: 'POST' });
+							const data = await res.json();
+							Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
+						} catch (err) {
+							Swal.fire('Error', err.message, 'error');
+						}
+					}
+				};
+
+				// Direct action: Delete
+				document.getElementById('mas-delete').onclick = async () => {
+					window.closeMobileActionSheet();
+					const del = await Swal.fire({ title: 'Hapus Tagihan?', text: 'Data tidak bisa dikembalikan!', icon: 'warning', showCancelButton: true });
+					if (del.isConfirmed) {
+						const res = await fetch(`/billing/tagihan/${invoiceId}`, { method: 'DELETE' });
+						const d = await res.json();
+						if (d.success) location.reload();
+						else Swal.fire('Gagal', d.message, 'error');
+					}
+				};
+
+				// Handle Isolation/Restoration
+				const btnRestore = document.getElementById('mas-restore');
+				const btnIsolate = document.getElementById('mas-isolate');
+
+				if (btnRestore) btnRestore.classList.add('hidden');
+				if (btnIsolate) btnIsolate.classList.add('hidden');
+
+				if (isolationAction === 'restore' && btnRestore) {
+					btnRestore.classList.remove('hidden');
+					btnRestore.onclick = async () => {
+						window.closeMobileActionSheet();
+						const { value: reason } = await Swal.fire({
+							title: 'Pulihkan Pelanggan?',
+							text: `Alasan untuk ${customerName || 'pelanggan'}:`,
+							input: 'text',
+							inputValue: 'Sudah bayar',
+							showCancelButton: true
+						});
+						if (reason) {
+							const cid = customerId || invoiceId;
+							const res = await fetch('/billing/customer/restore', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ customerId: cid, reason })
+							});
+							const d = await res.json();
+							if (d.success) location.reload();
+							else Swal.fire('Gagal', d.message, 'error');
+						}
+					};
+				} else if (isolationAction === 'isolate' && btnIsolate) {
+					btnIsolate.classList.remove('hidden');
+					btnIsolate.onclick = async () => {
+						window.closeMobileActionSheet();
+						const { value: reason } = await Swal.fire({
+							title: 'Isolir Pelanggan?',
+							text: `Alasan untuk ${customerName || 'pelanggan'}:`,
+							input: 'text',
+							inputValue: 'Tunggakan pembayaran',
+							showCancelButton: true
+						});
+						if (reason) {
+							const cid = customerId || invoiceId;
+							const res = await fetch('/billing/customer/isolate', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ customerId: cid, reason })
+							});
+							const d = await res.json();
+							if (d.success) location.reload();
+							else Swal.fire('Gagal', d.message, 'error');
+						}
+					};
+				}
+
+				// Show sheet
+				overlay.style.display = 'block';
+				sheet.style.display = 'block';
+
+				requestAnimationFrame(() => {
+					overlay.classList.remove('hidden', 'opacity-0');
+					sheet.classList.remove('translate-y-full');
+					sheet.style.pointerEvents = 'auto';
+					sheet.classList.add('translate-y-0');
+				});
+			};
+
+			window.closeMobileActionSheet = function () {
+				const sheet = document.getElementById('mobileActionSheet');
+				const overlay = document.getElementById('mobileActionSheetOverlay');
+
+				if (sheet) {
+					sheet.classList.add('translate-y-full');
+					sheet.classList.remove('translate-y-0');
+				}
+				if (overlay) {
+					overlay.classList.add('opacity-0');
+					setTimeout(() => {
+						overlay.classList.add('hidden');
+						overlay.style.display = 'none';
+						if (sheet) {
+							sheet.style.display = 'none';
+							sheet.style.pointerEvents = 'none'; // Disable interaction
+						}
+					}, 300);
+				}
+			};
+
+			// NUCLEAR OPTION: Raw Force Close Function (Works on both mobile and desktop)
+			window.forceCloseSidebar = function (e) {
+				if (e) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
+				console.log('FORCE CLOSING SIDEBAR');
+
+				const sb = document.getElementById('sidebar');
+				const ov = document.getElementById('sidebarOverlay');
+				const main = document.getElementById('main-content');
+
+				if (!sb) return false;
+
+				const isMob = window.innerWidth < 768;
+
+				if (isMob) {
+					// Mobile: Use translate
+					sb.style.transform = 'translateX(-100%)';
+					sb.classList.add('-translate-x-full');
+					sb.classList.remove('sidebar-hidden');
+				} else {
+					// Desktop: Use sidebar-hidden class
+					sb.classList.add('sidebar-hidden');
+					sb.classList.remove('-translate-x-full');
+					sb.style.transform = '';
+					localStorage.setItem('sidebarHidden', 'true');
+				}
+
+				// Hide Overlay
+				if (ov) {
+					ov.style.display = 'none';
+					ov.classList.add('hidden');
+					ov.classList.remove('opacity-100');
+				}
+
+				// Ensure Main Content is Visible/Interactive
+				if (main) {
+					main.style.opacity = '1';
+					main.style.visibility = 'visible';
+					main.style.pointerEvents = 'auto';
+				}
+
+				// Update toggle icon to hamburger (sidebar is now hidden)
+				const toggleBtn = document.getElementById('sidebarToggle');
+				if (toggleBtn) {
+					const iconSvg = toggleBtn.querySelector('svg');
+					if (iconSvg) {
+						iconSvg.innerHTML = '<path d="M4 6h16M4 12h16M4 18h16"></path>';
+					}
+				}
+
+				// Cleanup Body (Swal/Scroll locks)
+				document.body.classList.remove('swal2-shown');
+				document.body.classList.remove('overflow-hidden');
+				document.body.style.overflow = 'auto';
+
+				return false;
+			};
+
+			// Setup Event Listeners
+			function setupListeners() {
+				const { sidebarToggle, overlay } = getElements();
+
+				if (sidebarToggle) {
+					// Use a more standard approach: remove old listener by replacing element
+					const newToggle = sidebarToggle.cloneNode(true);
+					sidebarToggle.parentNode.replaceChild(newToggle, sidebarToggle);
+
+					newToggle.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						console.log('Sidebar toggle clicked (event listener)');
+						toggleSidebar();
+					});
+					console.log('Sidebar toggle listener attached');
+				} else {
+					console.warn('Sidebar toggle button not found during setup');
+				}
+
+				if (overlay) {
+					const newOverlay = overlay.cloneNode(true);
+					overlay.parentNode.replaceChild(newOverlay, overlay);
+
+					newOverlay.addEventListener('click', closeSidebarMobile);
+				}
+
+				// Note: sidebarCloseMobile listener is now handled via onclick attribute
+			}
+
+			// Initialization logic
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', () => {
+					init();
+					setupListeners();
+				});
+			} else {
+				init();
+				setupListeners();
+			}
+
+			// Handle window resize
+			let resizeTimer;
+			window.addEventListener('resize', () => {
+				clearTimeout(resizeTimer);
+				resizeTimer = setTimeout(() => {
+					init();
+				}, 250);
+			});
+		})();
+	</script>
+
+	<!-- Auto logout based on system settings -->
+	<script>
+		(function () {
+			// Check if auto logout is enabled from body data attribute
+			const autoLogoutEnabled = document.body.getAttribute('data-auto-logout') === 'true';
+			const timeoutMinutes = parseInt(document.body.getAttribute('data-auto-logout-timeout') || '30');
+			const isLoggedIn = document.body.getAttribute('data-logged-in') === 'true';
+
+			console.log('[AutoLogout] Config:', { enabled: autoLogoutEnabled, timeout: timeoutMinutes, loggedIn: isLoggedIn });
+
+			// If auto logout is disabled or user not logged in, don't run
+			if (!autoLogoutEnabled || !isLoggedIn) {
+				return;
+			}
+
+			let idleSeconds = 0;
+			const IDLE_TIMEOUT_SEC = timeoutMinutes * 60;
+			const WARNING_THRESHOLD_SEC = Math.max(IDLE_TIMEOUT_SEC - 300, IDLE_TIMEOUT_SEC * 0.8); // 5 mins before or 80% mark
+
+			// Don't log out if on public pages (though isLoggedIn should handle this)
+			const currentPath = window.location.pathname;
+			const publicPaths = ['/login', '/logout', '/auth', '/kasir/login'];
+			if (publicPaths.some(path => currentPath.startsWith(path))) {
+				return;
+			}
+
+			// Reset idle time on user activity
+			function resetIdleTime() {
+				if (idleSeconds >= WARNING_THRESHOLD_SEC) {
+					console.log('[AutoLogout] Activity detected, resetting idle timer');
+					// Ping server to keep session alive
+					fetch('/api/server-time').catch(err => console.log('Ping failed', err));
+				}
+				idleSeconds = 0;
+				// Remove warning if exists
+				const warning = document.getElementById('idleWarning');
+				if (warning) {
+					warning.remove();
+				}
+			}
+
+			// Listen for user activity
+			const events = ['mousemove', 'keypress', 'click', 'scroll', 'touchstart', 'mousedown', 'keydown'];
+			events.forEach(evt => document.addEventListener(evt, resetIdleTime, { passive: true }));
+
+			// Check idle time every 10 seconds for better responsiveness
+			const checkInterval = setInterval(function () {
+				idleSeconds += 10;
+
+				// Show warning
+				if (idleSeconds >= WARNING_THRESHOLD_SEC && idleSeconds < IDLE_TIMEOUT_SEC) {
+					if (!document.getElementById('idleWarning')) {
+						const warningDiv = document.createElement('div');
+						warningDiv.id = 'idleWarning';
+						warningDiv.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-4 rounded-2xl shadow-2xl z-[9999] animate-bounce border border-white/20 backdrop-blur-md';
+						warningDiv.style.minWidth = '300px';
+						document.body.appendChild(warningDiv);
+					}
+
+					const remainingSec = IDLE_TIMEOUT_SEC - idleSeconds;
+					const min = Math.floor(remainingSec / 60);
+					const sec = remainingSec % 60;
+					const timeStr = min > 0 ? `${min} menit ${sec} detik` : `${sec} detik`;
+
+					const warningDiv = document.getElementById('idleWarning');
+					warningDiv.innerHTML = `
+						<div class="flex items-center gap-4">
+							<div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+								<i class="fas fa-clock text-xl text-white"></i>
+							</div>
+							<div class="flex-1">
+								<div class="font-black text-sm uppercase tracking-wider">Sesi Akan Berakhir</div>
+								<div class="text-xs opacity-90 font-bold">Logout otomatis dalam <span class="text-yellow-300 font-black">${timeStr}</span></div>
+							</div>
+							<button onclick="resetIdleTime()" class="px-4 py-2 bg-white text-orange-600 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-orange-50 transition-all shadow-lg active:scale-95">
+								Lanjut
+							</button>
+						</div>
+					`;
+					// Make the resetIdleTime available from the button
+					window.resetIdleTime = resetIdleTime;
+				}
+
+				// Logout
+				if (idleSeconds >= IDLE_TIMEOUT_SEC) {
+					console.log('[AutoLogout] Timeout reached. Logging out...');
+					clearInterval(checkInterval);
+
+					// Final warning before redirect
+					const warningDiv = document.getElementById('idleWarning');
+					if (warningDiv) {
+						warningDiv.innerHTML = `
+							<div class="flex items-center gap-4">
+								<div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center animate-ping"></div>
+								<div class="font-black text-xs uppercase tracking-widest">Sesi Berakhir, Mengalihkan...</div>
+							</div>
+						`;
+					}
+
+					// Small delay to let the user see the "Redirecting" message
+					setTimeout(() => {
+						let logoutUrl = '/logout';
+						if (currentPath.startsWith('/kasir')) {
+							logoutUrl = '/kasir/logout';
+						}
+						window.location.href = logoutUrl + '?timeout=1';
+					}, 1500);
+				}
+			}, 10000);
+		})();
+	</script>
+
+	<%- include('../partials/fix_layout_emergency') %>
+
+		<!-- Global Mobile Action Sheet (Moved from tagihan.ejs for better positioning context) -->
+		<div id="mobileActionSheetOverlay" onclick="closeMobileActionSheet()"
+			class="fixed inset-0 bg-slate-900/60 z-[9990] hidden backdrop-blur-sm transition-opacity"
+			style="display: none;"></div>
+		<div id="mobileActionSheet" style="display: none; pointer-events: none;"
+			class="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] z-[9995] transform translate-y-full transition-all duration-300 pb-10 shadow-2xl border-t border-slate-100 px-6">
+			<div class="w-12 h-1.5 bg-slate-100 rounded-full mx-auto my-6"></div>
+			<div class="space-y-3">
+				<div class="text-center mb-6">
+					<h3 class="text-lg font-black text-slate-800 tracking-tight flex items-center justify-center gap-2">
+						<i class="fas fa-tasks text-blue-500 text-sm"></i>
+						PILIH AKSI
+					</h3>
+					<p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Opsi Pengelolaan Invoice
+					</p>
+				</div>
+
+				<div class="grid grid-cols-1 gap-3">
+					<button id="mas-print-pdf"
+						class="w-full flex items-center p-4 bg-slate-50 rounded-2xl hover:bg-white border border-transparent hover:border-blue-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
+							<i class="fas fa-print"></i>
+						</div>
+						<span
+							class="text-xs font-black text-slate-600 uppercase tracking-widest group-hover:text-blue-600">Print
+							Invoice</span>
+					</button>
+
+					<button id="mas-send-wa"
+						class="w-full flex items-center p-4 bg-emerald-50 rounded-2xl hover:bg-white border border-transparent hover:border-emerald-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">
+							<i class="fab fa-whatsapp"></i>
+						</div>
+						<span
+							class="text-xs font-black text-emerald-700 uppercase tracking-widest group-hover:text-emerald-800">WhatsApp
+							Notif</span>
+					</button>
+
+					<button id="mas-restore"
+						class="hidden w-full flex items-center p-4 bg-amber-50 rounded-2xl hover:bg-white border border-transparent hover:border-amber-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-sm group-hover:bg-amber-600 group-hover:text-white transition-all">
+							<i class="fas fa-unlock"></i>
+						</div>
+						<span class="text-xs font-black text-amber-700 uppercase tracking-widest">Buka Isolir</span>
+					</button>
+
+					<button id="mas-isolate"
+						class="hidden w-full flex items-center p-4 bg-rose-50 rounded-2xl hover:bg-white border border-transparent hover:border-rose-100 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shadow-sm group-hover:bg-rose-600 group-hover:text-white transition-all">
+							<i class="fas fa-lock"></i>
+						</div>
+						<span class="text-xs font-black text-rose-700 uppercase tracking-widest">Isolir Sekarang</span>
+					</button>
+
+					<button id="mas-delete"
+						class="w-full flex items-center p-4 bg-rose-50/50 rounded-2xl hover:bg-white border border-transparent hover:border-rose-200 transition-all gap-4 group">
+						<div
+							class="w-10 h-10 rounded-xl bg-white text-rose-500 flex items-center justify-center shadow-sm group-hover:bg-rose-600 group-hover:text-white transition-all border border-rose-100">
+							<i class="fas fa-trash-alt"></i>
+						</div>
+						<span class="text-xs font-black text-rose-700 uppercase tracking-widest">Hapus Tagihan</span>
+					</button>
+				</div>
+
+				<button onclick="closeMobileActionSheet()"
+					class="w-full py-5 mt-4 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-slate-200 active:scale-95 transition-all">
+					Tutup Dialog
+				</button>
+			</div>
+			<div class="h-6"></div> <!-- Padding for safe area -->
+		</div>
+</body>
+
+</html>

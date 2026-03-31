@@ -1,0 +1,460 @@
+﻿<div class="rounded border border-slate-200 bg-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Edit Paket IP Static</h2>
+        <a href="/packages/static-ip"
+            class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
+            ← Kembali
+        </a>
+    </div>
+
+    <% if (error && error.length> 0) { %>
+        <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+            <%= error[0] %>
+        </div>
+        <% } %>
+
+            <form method="post" action="/packages/static-ip/<%= package.id %>/update"
+                class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Baris 1: Nama Paket & Status -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nama Paket *</label>
+                    <input name="name" value="<%= package.name %>" required
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                    <select name="status"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="active" <%=package.status==='active' ? 'selected' : '' %>>Aktif</option>
+                        <option value="inactive" <%=package.status==='inactive' ? 'selected' : '' %>>Nonaktif</option>
+                    </select>
+                </div>
+
+                <!-- Baris 2: Harga & Durasi -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Harga (Rp) *</label>
+                    <input name="price" type="number" min="0" step="1000" value="<%= package.price %>" required
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+
+
+                <!-- Baris 3: Parent Upload & Parent Download (HIDDEN) -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Parent Upload</label>
+                    <select name="parent_upload_name"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white">
+                        <option value="UPLOAD ALL" <%=(!package.parent_upload_name ||
+                            package.parent_upload_name==='SIMPLE_QUEUE_PARENT' ||
+                            package.parent_upload_name==='UPLOAD ALL' ) ? 'selected' : '' %>>UPLOAD ALL (Default)
+                        </option>
+                        <option value="global" <%=(package.parent_upload_name==='global' ) ? 'selected' : '' %>>global
+                        </option>
+                        <% if (typeof interfaces !=='undefined' && interfaces.length> 0) { %>
+                            <optgroup label="Interfaces">
+                                <% interfaces.forEach(iface=> { %>
+                                    <option value="<%= iface %>" <%=package.parent_upload_name===iface ? 'selected' : ''
+                                        %>><%= iface %>
+                                    </option>
+                                    <% }); %>
+                            </optgroup>
+                            <% } else if (package.parent_upload_name && package.parent_upload_name
+                                !=='SIMPLE_QUEUE_PARENT' && package.parent_upload_name !=='global' &&
+                                package.parent_upload_name !=='UPLOAD ALL' ) { %>
+                                <option value="<%= package.parent_upload_name %>" selected>
+                                    <%= package.parent_upload_name %> (Current)
+                                </option>
+                                <% } %>
+                    </select>
+                    <p class="text-xs text-slate-500 mt-1">Pilih parent queue untuk Upload (Default: UPLOAD ALL).</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Parent Download</label>
+                    <select name="parent_download_name"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white">
+                        <option value="DOWNLOAD ALL" <%=(!package.parent_download_name ||
+                            package.parent_download_name==='SIMPLE_QUEUE_PARENT' ||
+                            package.parent_download_name==='DOWNLOAD ALL' ) ? 'selected' : '' %>>DOWNLOAD ALL (Default)
+                        </option>
+                        <option value="global" <%=(package.parent_download_name==='global' ) ? 'selected' : '' %>>global
+                        </option>
+                        <% if (typeof interfaces !=='undefined' && interfaces.length> 0) { %>
+                            <optgroup label="Interfaces">
+                                <% interfaces.forEach(iface=> { %>
+                                    <option value="<%= iface %>" <%=package.parent_download_name===iface ? 'selected'
+                                        : '' %>><%= iface %>
+                                    </option>
+                                    <% }); %>
+                            </optgroup>
+                            <% } else if (package.parent_download_name && package.parent_download_name
+                                !=='SIMPLE_QUEUE_PARENT' && package.parent_download_name !=='global' &&
+                                package.parent_download_name !=='DOWNLOAD ALL' ) { %>
+                                <option value="<%= package.parent_download_name %>" selected>
+                                    <%= package.parent_download_name %> (Current)
+                                </option>
+                                <% } %>
+                    </select>
+                    <p class="text-xs text-slate-500 mt-1">Pilih parent queue untuk Download (Default: DOWNLOAD ALL).
+                    </p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Max Limit Upload *</label>
+                    <input name="max_limit_upload" value="<%= package.max_limit_upload %>" required placeholder="10M"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p class="text-xs text-slate-500 mt-1">Contoh: 10M, 5M, 1M</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Limit At Upload</label>
+                    <input name="limit_at_upload" value="<%= package.limit_at_upload || '' %>" placeholder="mis: 2M"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Max Limit Download *</label>
+                    <input name="max_limit_download" value="<%= package.max_limit_download %>" required
+                        placeholder="20M"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p class="text-xs text-slate-500 mt-1">Contoh: 20M, 10M, 5M</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Limit At Download</label>
+                    <input name="limit_at_download" value="<%= package.limit_at_download || '' %>" placeholder="mis: 2M"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+
+                <!-- Baris 4: Max Clients & Sistem Share -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Max Clients *</label>
+                    <input name="max_clients" type="number" min="1" value="<%= package.max_clients || 1 %>" required
+                        placeholder="1"
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p class="text-xs text-slate-500 mt-1">Total pelanggan yang akan dimasukkan ke paket ini</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Rasio Sharing (1 : X)</label>
+                    <input name="sharing_ratio" type="number" min="1" value="1" required
+                        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div class="mt-1 text-xs text-slate-500">
+                        <p>• Isi <b>1</b> untuk Dedicated (1:1)</p>
+                        <p>• Isi <b>X</b> untuk Sharing (misal: 10M bagi 5 = 2M/user, isi 5)</p>
+                    </div>
+                </div>
+                <div class="sm:col-span-2">
+                    <div class="p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                        <p class="font-medium mb-1">ℹ️ Simulasi Hitungan Otomatis:</p>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li><b>Max Limit Pelanggan</b> = Total Bandwidth / Rasio</li>
+                            <li><b>Limit-At (Garansi)</b> = Total Bandwidth / Max Clients</li>
+                            <li><i>Contoh: Pipa 10M, Client 20, Rasio 5 (1:5)</i></li>
+                            <li><i>Hasil: Max 2M "Up To", Garansi 512k/user</i></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Garis Pembatas -->
+                <div class="sm:col-span-2 border-t border-slate-200 my-4"></div>
+
+                <!-- Child Template untuk Pelanggan -->
+                <div class="sm:col-span-2">
+                    <h3 class="text-lg font-semibold text-slate-700 mb-3">📋 Child Template untuk Pelanggan</h3>
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Nama Paket *</label>
+                                <input name="child_upload_name" value="<%= package.child_upload_name || '' %>" readonly
+                                    placeholder="PAKET_NAME_UPLOAD"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Diisi otomatis dari Nama Paket (format:
+                                    NAMA_PAKET_UPLOAD)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Nama Paket *</label>
+                                <input name="child_download_name" value="<%= package.child_download_name || '' %>"
+                                    readonly placeholder="PAKET_NAME_DOWNLOAD"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Diisi otomatis dari Nama Paket (format:
+                                    NAMA_PAKET_DOWNLOAD)</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Max Upload</label>
+                                <input name="child_upload_limit" value="<%= package.child_upload_limit || '' %>"
+                                    placeholder="5M"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Batas upload per pelanggan</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Max Download</label>
+                                <input name="child_download_limit" value="<%= package.child_download_limit || '' %>"
+                                    placeholder="10M"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Batas download per pelanggan</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Child Limit-At
+                                    Upload</label>
+                                <input name="child_limit_at_upload" value="<%= package.child_limit_at_upload || '' %>"
+                                    placeholder="2M"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Nilai limit-at upload (opsional)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Child Limit-At
+                                    Download</label>
+                                <input name="child_limit_at_download"
+                                    value="<%= package.child_limit_at_download || '' %>" placeholder="2M"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Nilai limit-at download (opsional)</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Child Burst Upload</label>
+                                <input name="child_burst_upload" value="<%= package.child_burst_upload || '' %>"
+                                    placeholder="10M"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Nilai burst-limit upload (opsional)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Child Burst
+                                    Download</label>
+                                <input name="child_burst_download" value="<%= package.child_burst_download || '' %>"
+                                    placeholder="10M"
+                                    class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <p class="text-xs text-slate-500 mt-1">Nilai burst-limit download (opsional)</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Queue Type Download</label>
+                                <select name="child_queue_type_download"
+                                    class="w-full rounded border border-slate-300 px-3 py-2">
+                                    <option value="pcq-download-default"
+                                        <%=(package.child_queue_type_download||'pcq-download-default')==='pcq-download-default'
+                                        ? 'selected' : '' %>>pcq-download-default</option>
+                                    <option value="default" <%=package.child_queue_type_download==='default'
+                                        ? 'selected' : '' %>>default</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Queue Type Upload</label>
+                                <select name="child_queue_type_upload"
+                                    class="w-full rounded border border-slate-300 px-3 py-2">
+                                    <option value="pcq-upload-default"
+                                        <%=(package.child_queue_type_upload||'pcq-upload-default')==='pcq-upload-default'
+                                        ? 'selected' : '' %>>pcq-upload-default</option>
+                                    <option value="default" <%=package.child_queue_type_upload==='default' ? 'selected'
+                                        : '' %>>default</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Priority Download</label>
+                                <select name="child_priority_download"
+                                    class="w-full rounded border border-slate-300 px-3 py-2">
+                                    <% for (var p=1;p<=8;p++){ %>
+                                        <option value="<%= p %>"
+                                            <%=String(package.child_priority_download||'8')===String(p) ? 'selected'
+                                            : '' %>><%= p %>
+                                        </option>
+                                        <% } %>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Priority Upload</label>
+                                <select name="child_priority_upload"
+                                    class="w-full rounded border border-slate-300 px-3 py-2">
+                                    <% for (var p=1;p<=8;p++){ %>
+                                        <option value="<%= p %>"
+                                            <%=String(package.child_priority_upload||'8')===String(p) ? 'selected' : ''
+                                            %>><%= p %>
+                                        </option>
+                                        <% } %>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Burst Configuration Removed -->
+                </div> <!-- End burstConfigSection -->
+                <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                    <p class="font-medium mb-1">ℹ️ Informasi Child Template:</p>
+                    <p>• Child ini akan dibuat otomatis di MikroTik untuk setiap pelanggan</p>
+                    <p>• Pelanggan A akan menggunakan child ini di bawah parent paket</p>
+                    <p>• Speed akan dibagi sesuai max_clients yang ditentukan</p>
+                    <p>• Template ini akan disimpan di database untuk referensi</p>
+                </div>
+                <script>
+                    (function () {
+                        var nameInput = document.querySelector('input[name="name"]');
+                        var upload = document.querySelector('input[name="child_upload_name"]');
+                        var download = document.querySelector('input[name="child_download_name"]');
+                        function sync() {
+                            var raw = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
+                            // Make it safe for MikroTik names (no spaces, special chars)
+                            var safeRaw = raw.replace(/[^a-zA-Z0-9-]/g, '_');
+
+                            if (upload) upload.value = safeRaw ? safeRaw + '_UPLOAD' : '';
+                            if (download) download.value = safeRaw ? safeRaw + '_DOWNLOAD' : '';
+                        }
+                        if (nameInput) {
+                            nameInput.addEventListener('input', sync);
+                            window.addEventListener('DOMContentLoaded', sync);
+                            sync();
+                        }
+                    })();
+                </script>
+</div>
+</div>
+
+<!-- Baris 5: Deskripsi -->
+<div class="sm:col-span-2">
+    <label class="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label>
+    <textarea name="description"
+        class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        rows="3" placeholder="Deskripsi paket (opsional)"><%= package.description || '' %></textarea>
+</div>
+<div class="sm:col-span-2 flex justify-end gap-3">
+    <button type="button" onclick="autoCalculateAll()"
+        class="px-4 py-2 rounded bg-amber-500 text-white hover:bg-amber-600 flex items-center gap-2 shadow-sm transition-all font-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+        Otomatis Isi Share & Burst
+    </button>
+    <a href="/packages/static-ip"
+        class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold">
+        Batal
+    </a>
+    <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-semibold shadow-sm">
+        Update Paket
+    </button>
+</div>
+<script>
+    function parseBandwidth(val) {
+        if (!val) return 0;
+        val = val.toUpperCase().trim();
+        let num = parseFloat(val);
+        if (val.endsWith('M')) return num * 1024 * 1024;
+        if (val.endsWith('K')) return num * 1024;
+        if (val.endsWith('G')) return num * 1024 * 1024 * 1024;
+        return num;
+    }
+
+    function formatBandwidth(bits) {
+        if (bits >= 1024 * 1024 * 1024) return Math.round(bits / (1024 * 1024 * 1024)) + 'G';
+        if (bits >= 1024 * 1024) return Math.round(bits / (1024 * 1024)) + 'M';
+        if (bits >= 1024) return Math.round(bits / 1024) + 'K';
+        return Math.round(bits);
+    }
+
+    function autoCalculateAll(silent = false) {
+        const maxUpRaw = document.querySelector('input[name="max_limit_upload"]').value;
+        const maxDownRaw = document.querySelector('input[name="max_limit_download"]').value;
+        const maxClients = parseInt(document.querySelector('input[name="max_clients"]').value) || 1;
+        const ratio = parseInt(document.querySelector('input[name="sharing_ratio"]').value) || 1;
+
+        if (!maxUpRaw || !maxDownRaw) {
+            if (!silent) alert('Silakan isi Max Limit Upload & Download terlebih dahulu!');
+            return;
+        }
+
+        const upBits = parseBandwidth(maxUpRaw);
+        const downBits = parseBandwidth(maxDownRaw);
+
+        // 1. Parent Limit-At (Optional, usually same as Max or half)
+        // Kita set setengahnya sebagai default safety untuk parent
+        document.querySelector('input[name="limit_at_upload"]').value = formatBandwidth(upBits / 2);
+        document.querySelector('input[name="limit_at_download"]').value = formatBandwidth(downBits / 2);
+
+        // 2. Child Max Limit (Janji "Up To") -> Dibagi Rasio
+        const childUpMax = upBits / ratio;
+        const childDownMax = downBits / ratio;
+
+        document.querySelector('input[name="child_upload_limit"]').value = formatBandwidth(childUpMax);
+        document.querySelector('input[name="child_download_limit"]').value = formatBandwidth(childDownMax);
+
+        // 3. Child Limit-At (Garansi Pasti) -> Dibagi Total Client
+        const childUpGuaranteed = upBits / maxClients;
+        const childDownGuaranteed = downBits / maxClients;
+
+        document.querySelector('input[name="child_limit_at_upload"]').value = formatBandwidth(childUpGuaranteed);
+        document.querySelector('input[name="child_limit_at_download"]').value = formatBandwidth(childDownGuaranteed);
+
+        // 4. Burst Calculator (Berdasarkan Child Max)
+        document.querySelector('input[name="child_burst_upload"]').value = formatBandwidth(childUpMax * 2);
+        document.querySelector('input[name="child_burst_download"]').value = formatBandwidth(childDownMax * 2);
+
+        // Burst Threshold: 80% dari Child Max
+        document.querySelector('input[name="child_burst_threshold_upload"]').value = formatBandwidth(childUpMax * 0.8);
+        document.querySelector('input[name="child_burst_threshold_download"]').value = formatBandwidth(childDownMax * 0.8);
+
+        // Burst Time: 20s (default stable)
+        document.querySelector('input[name="child_burst_time_upload"]').value = '20s';
+        document.querySelector('input[name="child_burst_time_download"]').value = '20s';
+
+
+        if (!silent) {
+            alert(`✅ Kalkulasi Selesai!\n\n📋 Simulasi:\n• Total Pipa: ${maxDownRaw}\n• User: ${maxClients} orang\n• Rasio: 1:${ratio}\n\n👉 Hasil:\n• User dapat Speed: ${formatBandwidth(childDownMax)} (Up To)\n• Garansi Macet: ${formatBandwidth(childDownGuaranteed)}`);
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        // Auto-calculate on input change for main package limits
+        const triggerInputs = ['input[name="max_limit_upload"]', 'input[name="max_limit_download"]', 'input[name="max_clients"]', 'input[name="sharing_ratio"]'];
+        triggerInputs.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.addEventListener('input', function () {
+                    // Use a small timeout/debounce to wait for user to finish typing
+                    if (this.dataset.timeout) clearTimeout(this.dataset.timeout);
+                    this.dataset.timeout = setTimeout(() => {
+                        // Silent mode (no alert) for automatic updates
+                        autoCalculateAll(true);
+                    }, 800);
+                });
+            }
+        });
+        // Burst Toggle Logic
+        const burstToggle = document.getElementById('enableBurst');
+        const burstSection = document.getElementById('burstConfigSection');
+        const burstInputs = document.querySelectorAll('.burst-input');
+
+        if (burstToggle && burstSection) {
+            burstToggle.addEventListener('change', function () {
+                if (this.checked) {
+                    burstSection.classList.remove('hidden');
+                    // Trigger calculation to fill default burst values if empty
+                    const currentVal = document.querySelector('input[name="child_burst_download"]').value;
+                    if (!currentVal) autoCalculateAll(true);
+                } else {
+                    burstSection.classList.add('hidden');
+                }
+            });
+        }
+    });
+
+    (function () {
+        var nameInput = document.querySelector('input[name="name"]');
+        var upload = document.querySelector('input[name="child_upload_name"]');
+        var download = document.querySelector('input[name="child_download_name"]');
+        function sync() {
+            var raw = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
+            // Make it safe for MikroTik names (no spaces, special chars)
+            var safeRaw = raw.replace(/[^a-zA-Z0-9-]/g, '_');
+
+            if (upload) upload.value = safeRaw ? safeRaw + '_UPLOAD' : '';
+            if (download) download.value = safeRaw ? safeRaw + '_DOWNLOAD' : '';
+        }
+        if (nameInput) {
+            nameInput.addEventListener('input', sync);
+            window.addEventListener('DOMContentLoaded', sync);
+        }
+    })();
+</script>
+</form>
+</div>

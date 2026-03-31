@@ -1,0 +1,260 @@
+<!-- Dashboard Kasir - Premium Version -->
+<div class="space-y-10 pb-20">
+    <!-- Hero Welcome Section -->
+    <div class="relative overflow-hidden bg-slate-900 rounded-[3rem] p-12 text-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-violet-600/20"></div>
+        <div class="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -mr-48 -mt-48 blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 w-64 h-64 bg-violet-500/10 rounded-full -ml-32 -mb-32 blur-3xl"></div>
+        
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div>
+                <p class="text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em] mb-3">CASHIER WORKSTATION</p>
+                <h1 class="text-4xl font-display font-black tracking-tight leading-tight">
+                    Selamat Datang,<br>
+                    <span class="text-indigo-300"><%= user.full_name %></span>
+                </h1>
+                <p class="text-sm font-semibold text-slate-400 mt-3 uppercase tracking-widest" id="dashboardDate"></p>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/kasir/payments" class="h-14 px-8 bg-indigo-500 hover:bg-indigo-600 active:scale-95 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center gap-3 transition-all shadow-xl shadow-indigo-500/20">
+                    <i class="fas fa-bolt"></i>
+                    Bayar Sekarang
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Center Search -->
+    <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100 relative overflow-hidden group">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 transition-all group-hover:scale-150 duration-500"></div>
+        <div class="relative z-10">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black text-sm shadow-lg shadow-indigo-200">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h3 class="text-lg font-display font-black text-slate-900 uppercase tracking-tight">Quick Locate & Pay</h3>
+            </div>
+            <div class="flex gap-4">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 text-lg"></i>
+                    <input type="text" id="quickSearch"
+                        class="w-full bg-slate-50 border-2 border-transparent focus:border-indigo-400 focus:bg-white rounded-2xl py-5 pl-16 pr-8 text-lg font-semibold text-slate-900 placeholder:text-slate-300 transition-all outline-none"
+                        placeholder="Customer Code, Nama, atau Telepon..." autofocus>
+                </div>
+                <button onclick="goToPayment()" class="h-[68px] px-10 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-slate-200 flex items-center gap-3">
+                    <i class="fas fa-arrow-right"></i>
+                    Process
+                </button>
+            </div>
+            <div id="quickSearchResults" class="hidden mt-6">
+                <div id="quickSearchList" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Metrics Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Today Transactions -->
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                    <i class="fas fa-receipt text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black tracking-widest rounded-full border border-emerald-100">TODAY</span>
+            </div>
+            <p class="text-4xl font-display font-black text-slate-900 leading-none"><%= stats.todayTransactions || 0 %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Transaksi</p>
+        </div>
+
+        <!-- Today Revenue -->
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                    <i class="fas fa-coins text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black tracking-widest rounded-full border border-emerald-100">REVENUE</span>
+            </div>
+            <p class="text-2xl font-display font-black text-slate-900 leading-none">Rp <%= (stats.todayRevenue || 0).toLocaleString('id-ID') %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Pendapatan Hari Ini</p>
+        </div>
+
+        <!-- Pending Payments -->
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                    <i class="fas fa-hourglass-half text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-amber-50 text-amber-600 text-[9px] font-black tracking-widest rounded-full border border-amber-100">PENDING</span>
+            </div>
+            <p class="text-4xl font-display font-black text-slate-900 leading-none"><%= stats.pendingPayments || 0 %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Perlu Tindakan</p>
+        </div>
+
+        <!-- Total Transactions -->
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center text-violet-500 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                    <i class="fas fa-chart-bar text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-violet-50 text-violet-600 text-[9px] font-black tracking-widest rounded-full border border-violet-100">ALL TIME</span>
+            </div>
+            <p class="text-4xl font-display font-black text-slate-900 leading-none"><%= stats.totalTransactions || 0 %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Total Transaksi</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Recent Activity -->
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-10">
+        <!-- Quick Operations (Left - wider) -->
+        <div class="lg:col-span-3 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-10 border-b border-slate-50">
+                <h3 class="text-xl font-display font-black text-slate-900 uppercase tracking-tight">Quick Operations</h3>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Akses Cepat Fitur Utama</p>
+            </div>
+            <div class="p-10 grid grid-cols-2 gap-5">
+                <a href="/kasir/payments" class="group p-6 bg-slate-50 hover:bg-indigo-50 rounded-3xl border border-transparent hover:border-indigo-100 transition-all flex items-center gap-5">
+                    <div class="w-14 h-14 bg-indigo-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                        <i class="fas fa-credit-card text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-display font-black text-slate-900">Pembayaran</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proses Bayar</p>
+                    </div>
+                </a>
+                <a href="/kasir/transactions" class="group p-6 bg-slate-50 hover:bg-emerald-50 rounded-3xl border border-transparent hover:border-emerald-100 transition-all flex items-center gap-5">
+                    <div class="w-14 h-14 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                        <i class="fas fa-receipt text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-display font-black text-slate-900">Transaksi</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Riwayat Log</p>
+                    </div>
+                </a>
+                <a href="/kasir/print-group" class="group p-6 bg-slate-50 hover:bg-violet-50 rounded-3xl border border-transparent hover:border-violet-100 transition-all flex items-center gap-5">
+                    <div class="w-14 h-14 bg-violet-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-violet-100 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                        <i class="fas fa-layer-group text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-display font-black text-slate-900">Print Group</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cetak Tagihan</p>
+                    </div>
+                </a>
+                <a href="/kasir/reports" class="group p-6 bg-slate-50 hover:bg-amber-50 rounded-3xl border border-transparent hover:border-amber-100 transition-all flex items-center gap-5">
+                    <div class="w-14 h-14 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-100 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                        <i class="fas fa-chart-line text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-display font-black text-slate-900">Laporan</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Analytics</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Session Intel (Right - narrower) -->
+        <div class="lg:col-span-2 bg-slate-900 rounded-[2.5rem] shadow-2xl shadow-slate-900/20 overflow-hidden text-white">
+            <div class="p-10 pb-6 border-b border-slate-800">
+                <h3 class="text-xl font-display font-black uppercase tracking-tight">Session Intel</h3>
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Shift Activity Feed</p>
+            </div>
+            <div class="p-6 space-y-3 max-h-[420px] overflow-y-auto custom-scrollbar">
+                <% if (typeof recentTransactions !== 'undefined' && recentTransactions && recentTransactions.length > 0) { %>
+                    <% recentTransactions.forEach(trx => { %>
+                        <div class="p-5 bg-slate-800/50 rounded-2xl border border-slate-800 hover:border-slate-700 transition-all group">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 <%= (trx.gateway_status === 'paid' || trx.gateway_status === 'settlement') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400' %> rounded-lg flex items-center justify-center">
+                                        <i class="fas <%= (trx.gateway_status === 'paid' || trx.gateway_status === 'settlement') ? 'fa-check' : 'fa-clock' %> text-xs"></i>
+                                    </div>
+                                    <p class="font-black text-sm text-white"><%= trx.customer_name || 'Client' %></p>
+                                </div>
+                                <span class="text-[9px] font-mono text-slate-500"><%= new Date(trx.payment_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) %></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">#<%= trx.id %></span>
+                                <span class="font-display font-black text-indigo-400">Rp <%= (trx.amount || 0).toLocaleString('id-ID') %></span>
+                            </div>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="flex flex-col items-center justify-center py-16 opacity-30">
+                        <i class="fas fa-inbox text-4xl mb-4 text-slate-600"></i>
+                        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">No Recent Activity</p>
+                    </div>
+                <% } %>
+            </div>
+            <div class="p-6 border-t border-slate-800">
+                <a href="/kasir/transactions" class="flex items-center justify-center gap-3 text-xs font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors">
+                    View All Transactions
+                    <i class="fas fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+</style>
+
+<script>
+    // Date display
+    (function() {
+        const now = new Date();
+        document.getElementById('dashboardDate').textContent = now.toLocaleDateString('id-ID', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+    })();
+
+    // Quick Search
+    let quickSearchTimeout;
+    document.getElementById('quickSearch').addEventListener('input', (e) => {
+        const q = e.target.value.trim();
+        clearTimeout(quickSearchTimeout);
+        if (q.length < 2) { document.getElementById('quickSearchResults').classList.add('hidden'); return; }
+        quickSearchTimeout = setTimeout(() => searchCustomersQuick(q), 400);
+    });
+
+    async function searchCustomersQuick(query) {
+        try {
+            const resp = await fetch(`/kasir/api/search-customer?q=${encodeURIComponent(query)}`);
+            const data = await resp.json();
+            const listEl = document.getElementById('quickSearchList');
+
+            if (data.success && data.data.length > 0) {
+                listEl.innerHTML = data.data.map(c => `
+                    <div class="flex items-center justify-between p-4 bg-slate-50 hover:bg-white border border-transparent hover:border-indigo-100 rounded-2xl cursor-pointer transition-all group" onclick="selectQuickCustomer(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.customer_code}')">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <p class="font-black text-slate-900">${c.name}</p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${c.customer_code} • ${c.pending_count > 0 ? `<span class="text-rose-500">${c.pending_count} PENDING</span>` : '<span class="text-emerald-500">LUNAS</span>'}</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-slate-300 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                `).join('');
+            } else {
+                listEl.innerHTML = '<p class="col-span-2 text-center py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest italic">No results found</p>';
+            }
+            document.getElementById('quickSearchResults').classList.remove('hidden');
+        } catch (e) { console.error(e); }
+    }
+
+    function selectQuickCustomer(id, name, code) {
+        document.getElementById('quickSearch').value = `${name} (${code})`;
+        document.getElementById('quickSearchResults').classList.add('hidden');
+    }
+
+    function goToPayment() {
+        const val = document.getElementById('quickSearch').value.trim();
+        if (!val) { alert('Cari pelanggan terlebih dahulu'); return; }
+        window.location.href = `/kasir/payments?search=${encodeURIComponent(val)}`;
+    }
+
+    document.getElementById('quickSearch').addEventListener('keypress', (e) => { if (e.key === 'Enter') goToPayment(); });
+</script>

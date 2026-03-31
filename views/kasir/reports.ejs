@@ -1,0 +1,275 @@
+<!-- Halaman Laporan Kasir - Premium Version -->
+<div class="space-y-10 pb-20">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div>
+            <h1 class="text-4xl font-display font-black text-slate-900 tracking-tight">Laporan Kasir</h1>
+            <p class="text-sm font-semibold text-slate-400 uppercase tracking-[0.2em] mt-2">Financial Analytics & Performance Metrics</p>
+        </div>
+        <button onclick="exportReport()" class="h-14 px-8 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center gap-3">
+            <i class="fas fa-download text-indigo-400"></i>
+            Export Report
+        </button>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
+        <div class="flex items-center gap-4 mb-8">
+            <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black text-sm shadow-lg shadow-indigo-200">
+                <i class="fas fa-sliders-h"></i>
+            </div>
+            <h3 class="text-lg font-display font-black text-slate-900 uppercase tracking-tight">Filter & Parameters</h3>
+        </div>
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 pl-2">Periode</label>
+                <select name="type" class="w-full bg-slate-50 border-2 border-transparent focus:border-indigo-400 focus:bg-white rounded-2xl py-4 px-6 font-black text-xs text-slate-700 outline-none appearance-none cursor-pointer transition-all">
+                    <option value="daily" <%= type === 'daily' ? 'selected' : '' %>>HARIAN</option>
+                    <option value="weekly" <%= type === 'weekly' ? 'selected' : '' %>>MINGGUAN</option>
+                    <option value="monthly" <%= type === 'monthly' ? 'selected' : '' %>>BULANAN</option>
+                    <option value="custom" <%= type === 'custom' ? 'selected' : '' %>>CUSTOM RANGE</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 pl-2">Start Date</label>
+                <input type="date" name="startDate" value="<%= startDate || '' %>"
+                    class="w-full bg-slate-50 border-2 border-transparent focus:border-indigo-400 focus:bg-white rounded-2xl py-4 px-6 font-bold text-sm text-slate-700 outline-none transition-all">
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 pl-2">End Date</label>
+                <input type="date" name="endDate" value="<%= endDate || '' %>"
+                    class="w-full bg-slate-50 border-2 border-transparent focus:border-indigo-400 focus:bg-white rounded-2xl py-4 px-6 font-bold text-sm text-slate-700 outline-none transition-all">
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100">
+                    Apply Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <%
+    const summary = reports && reports.summary ? reports.summary : {};
+    const totalTransactions = summary.total_transactions || 0;
+    const totalRevenue = summary.total_revenue || 0;
+    const avgPerTransaction = totalTransactions > 0 ? (totalRevenue / totalTransactions) : 0;
+    const daysCount = summary.days_count || 1;
+    const avgPerDay = daysCount > 0 ? (totalTransactions / daysCount) : 0;
+    %>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 transition-transform group-hover:scale-110">
+                    <i class="fas fa-receipt text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-indigo-50 text-indigo-600 text-[9px] font-black tracking-widest rounded-full border border-indigo-100">TRX</span>
+            </div>
+            <p class="text-4xl font-display font-black text-slate-900 leading-none"><%= totalTransactions %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Total Transaksi</p>
+            <p class="text-[9px] font-bold text-indigo-400 mt-2"><%= daysCount %> HARI PERIODE</p>
+        </div>
+
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 transition-transform group-hover:scale-110">
+                    <i class="fas fa-coins text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black tracking-widest rounded-full border border-emerald-100">REVENUE</span>
+            </div>
+            <p class="text-2xl font-display font-black text-slate-900 leading-none">Rp <%= new Intl.NumberFormat('id-ID').format(totalRevenue) %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Pendapatan Total</p>
+        </div>
+
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 transition-transform group-hover:scale-110">
+                    <i class="fas fa-calculator text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-amber-50 text-amber-600 text-[9px] font-black tracking-widest rounded-full border border-amber-100">AVG</span>
+            </div>
+            <p class="text-2xl font-display font-black text-slate-900 leading-none">Rp <%= new Intl.NumberFormat('id-ID').format(Math.round(avgPerTransaction)) %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Rata-rata / TRX</p>
+        </div>
+
+        <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 group hover:shadow-md transition-all">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center text-violet-500 transition-transform group-hover:scale-110">
+                    <i class="fas fa-chart-bar text-2xl"></i>
+                </div>
+                <span class="px-3 py-1 bg-violet-50 text-violet-600 text-[9px] font-black tracking-widest rounded-full border border-violet-100">DAILY</span>
+            </div>
+            <p class="text-4xl font-display font-black text-slate-900 leading-none"><%= avgPerDay.toFixed(1) %></p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">TRX per Hari</p>
+        </div>
+    </div>
+
+    <!-- Payment Channel Breakdown & Detail Table -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <!-- Channel Breakdown (Sidebar) -->
+        <div class="lg:col-span-1">
+            <div class="bg-slate-900 rounded-[2.5rem] shadow-2xl shadow-slate-900/20 overflow-hidden text-white sticky top-10">
+                <div class="p-10 pb-6 border-b border-slate-800">
+                    <h3 class="text-xl font-display font-black uppercase tracking-tight">Payment Channels</h3>
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Revenue Breakdown</p>
+                </div>
+                <%
+                const cashTotal = summary.cash_total || 0;
+                const transferTotal = summary.transfer_total || 0;
+                const gatewayTotal = summary.gateway_total || 0;
+                const totalPayments = cashTotal + transferTotal + gatewayTotal;
+                const cashPercent = totalPayments > 0 ? ((cashTotal / totalPayments) * 100).toFixed(1) : 0;
+                const transferPercent = totalPayments > 0 ? ((transferTotal / totalPayments) * 100).toFixed(1) : 0;
+                const gatewayPercent = totalPayments > 0 ? ((gatewayTotal / totalPayments) * 100).toFixed(1) : 0;
+                %>
+                <div class="p-8 space-y-5">
+                    <% if (totalPayments > 0) { %>
+                        <% if (cashTotal > 0) { %>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-3 h-3 bg-emerald-400 rounded-full"></div>
+                                    <span class="text-xs font-black text-slate-300 uppercase tracking-widest">Tunai</span>
+                                </div>
+                                <span class="text-xs font-black text-emerald-400"><%= cashPercent %>%</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full" style="width: <%= cashPercent %>%"></div>
+                            </div>
+                            <p class="font-display font-black text-white text-lg">Rp <%= new Intl.NumberFormat('id-ID').format(cashTotal) %></p>
+                        </div>
+                        <% } %>
+                        <% if (transferTotal > 0) { %>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-3 h-3 bg-indigo-400 rounded-full"></div>
+                                    <span class="text-xs font-black text-slate-300 uppercase tracking-widest">Transfer</span>
+                                </div>
+                                <span class="text-xs font-black text-indigo-400"><%= transferPercent %>%</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full" style="width: <%= transferPercent %>%"></div>
+                            </div>
+                            <p class="font-display font-black text-white text-lg">Rp <%= new Intl.NumberFormat('id-ID').format(transferTotal) %></p>
+                        </div>
+                        <% } %>
+                        <% if (gatewayTotal > 0) { %>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-3 h-3 bg-violet-400 rounded-full"></div>
+                                    <span class="text-xs font-black text-slate-300 uppercase tracking-widest">Gateway</span>
+                                </div>
+                                <span class="text-xs font-black text-violet-400"><%= gatewayPercent %>%</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-violet-400 to-violet-500 rounded-full" style="width: <%= gatewayPercent %>%"></div>
+                            </div>
+                            <p class="font-display font-black text-white text-lg">Rp <%= new Intl.NumberFormat('id-ID').format(gatewayTotal) %></p>
+                        </div>
+                        <% } %>
+                    <% } else { %>
+                        <div class="flex flex-col items-center justify-center py-16 opacity-30">
+                            <i class="fas fa-chart-pie text-5xl mb-4 text-slate-600"></i>
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">No data available</p>
+                        </div>
+                    <% } %>
+                </div>
+
+                <!-- Period Info -->
+                <div class="p-8 border-t border-slate-800 bg-slate-800/30">
+                    <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Reporting Period</p>
+                    <p class="text-xs font-black text-slate-300">
+                        <%= reports && reports.startDate ? new Date(reports.startDate).toLocaleDateString('id-ID') : '-' %> 
+                        <span class="text-slate-600 mx-1">→</span> 
+                        <%= reports && reports.endDate ? new Date(reports.endDate).toLocaleDateString('id-ID') : '-' %>
+                    </p>
+                    <p class="text-[10px] font-black text-indigo-400 mt-2"><%= daysCount %> DAYS SPAN</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Data Table (Main) -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-10 border-b border-slate-50">
+                    <h3 class="text-xl font-display font-black text-slate-900 uppercase tracking-tight">Daily Breakdown</h3>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Granular Revenue Per Day</p>
+                </div>
+
+                <% if (reports && reports.details && reports.details.length > 0) { %>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                <th class="px-10 py-5">Date</th>
+                                <th class="px-6 py-5 text-center">TRX</th>
+                                <th class="px-6 py-5 text-right">Cash</th>
+                                <th class="px-6 py-5 text-right">Transfer</th>
+                                <th class="px-10 py-5 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            <% reports.details.forEach(function(detail) {
+                                const detailDate = new Date(detail.date);
+                                const dateStr = detailDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+                            %>
+                            <tr class="hover:bg-slate-50/80 transition-all group">
+                                <td class="px-10 py-5">
+                                    <p class="font-black text-sm text-slate-900"><%= dateStr %></p>
+                                </td>
+                                <td class="px-6 py-5 text-center">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black"><%= detail.transactions %></span>
+                                </td>
+                                <td class="px-6 py-5 text-right">
+                                    <span class="font-mono text-xs font-bold text-slate-500">Rp <%= new Intl.NumberFormat('id-ID').format(detail.cash || 0) %></span>
+                                </td>
+                                <td class="px-6 py-5 text-right">
+                                    <span class="font-mono text-xs font-bold text-slate-500">Rp <%= new Intl.NumberFormat('id-ID').format(detail.transfer || 0) %></span>
+                                </td>
+                                <td class="px-10 py-5 text-right">
+                                    <span class="font-display font-black text-slate-900">Rp <%= new Intl.NumberFormat('id-ID').format(detail.revenue || 0) %></span>
+                                </td>
+                            </tr>
+                            <% }); %>
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-slate-900 text-white">
+                                <td class="px-10 py-5 font-black text-xs uppercase tracking-widest rounded-bl-3xl">GRAND TOTAL</td>
+                                <td class="px-6 py-5 text-center">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-indigo-500/20 text-indigo-300 rounded-lg text-[10px] font-black"><%= totalTransactions %></span>
+                                </td>
+                                <td class="px-6 py-5 text-right font-mono text-xs font-bold text-slate-400">Rp <%= new Intl.NumberFormat('id-ID').format(cashTotal) %></td>
+                                <td class="px-6 py-5 text-right font-mono text-xs font-bold text-slate-400">Rp <%= new Intl.NumberFormat('id-ID').format(transferTotal) %></td>
+                                <td class="px-10 py-5 text-right font-display font-black text-emerald-400 text-lg rounded-br-3xl">Rp <%= new Intl.NumberFormat('id-ID').format(totalRevenue) %></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <% } else { %>
+                    <div class="flex flex-col items-center justify-center py-24 grayscale opacity-40">
+                        <i class="fas fa-folder-open text-6xl mb-4 text-slate-200"></i>
+                        <p class="font-black text-slate-400 uppercase tracking-widest text-xs">No Data for Selected Period</p>
+                        <p class="text-[10px] font-bold text-slate-300 mt-2">Try adjusting the date filters above</p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportReport() {
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get('type') || 'daily';
+    const startDate = params.get('startDate') || '';
+    const endDate = params.get('endDate') || '';
+    
+    let url = '/kasir/reports/export?type=' + type;
+    if (startDate) url += '&startDate=' + startDate;
+    if (endDate) url += '&endDate=' + endDate;
+    
+    window.location.href = url;
+}
+</script>

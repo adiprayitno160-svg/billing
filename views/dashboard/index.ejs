@@ -1,0 +1,1273 @@
+﻿<div class="space-y-6">
+	<!-- Recent Monitoring Alerts (NEW) -->
+	<% if (typeof recentAlerts !=='undefined' && recentAlerts.length> 0) { %>
+		<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-md animate-pulse">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+					</div>
+					<div class="ml-3">
+						<p class="text-sm font-bold text-red-800">
+							Gangguan Baru Terdeteksi! (<%= recentAlerts.length %> Perangkat Offline)
+						</p>
+						<div class="text-xs text-red-700 mt-1">
+							<% recentAlerts.slice(0, 3).forEach(alert=> { %>
+								<span class="font-semibold">
+									<%= alert.customer_name || alert.device_name %>
+								</span> (<%= alert.device_type %>)
+									sejak <%= new Date(alert.timestamp).toLocaleTimeString('id-ID') %>;
+										<% }) %>
+											<% if (recentAlerts.length> 3) { %> ...dan <%= recentAlerts.length - 3 %>
+													lainnya <% } %>
+						</div>
+					</div>
+				</div>
+				<div>
+					<a href="/monitoring/trouble"
+						class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-700 transition">Detail</a>
+				</div>
+			</div>
+		</div>
+		<% } %>
+
+			<!-- Offline PPPoE Customers Alert -->
+			<div id="offlineCustomersAlert"
+				class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-md">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center">
+						<div class="flex-shrink-0">
+							<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+						</div>
+						<div class="ml-3">
+							<p class="text-sm font-bold text-red-800">
+								Pelanggan PPPoE Offline! (<span id="offlineCount">0</span> Pelanggan)
+							</p>
+							<div class="text-xs text-red-700 mt-1" id="offlineCustomerList">
+								Memuat data...
+							</div>
+						</div>
+					</div>
+					<div>
+						<a href="/monitoring/pppoe"
+							class="relative z-10 bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-700 transition shadow-sm pointer-events-auto">
+							Lihat Monitor
+						</a>
+					</div>
+				</div>
+			</div>
+
+			<script>
+				// Fetch offline customers on page load
+				document.addEventListener('DOMContentLoaded', function () {
+					fetch('/api/dashboard/offline-customers')
+						.then(response => response.json())
+						.then(data => {
+							if (data.success && data.customers && data.customers.length > 0) {
+								document.getElementById('offlineCount').textContent = data.customers.length;
+
+								const customerList = document.getElementById('offlineCustomerList');
+								const customersHtml = data.customers.slice(0, 3).map(customer =>
+									`<span class="font-semibold">${customer.name}</span> (${customer.customer_code || '-'})`
+								).join('; ');
+
+								customerList.innerHTML = customersHtml +
+									(data.customers.length > 3 ? `; ...dan ${data.customers.length - 3} lainnya` : '');
+
+								document.getElementById('offlineCustomersAlert').classList.remove('hidden');
+							}
+						})
+						.catch(error => {
+							console.error('Error fetching offline customers:', error);
+						});
+				});
+			</script>
+
+			<!-- KPI Cards - Premium Glass Design -->
+			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 md:gap-5">
+				<!-- Total Pelanggan -->
+				<div
+					class="glass-panel rounded-3xl p-5 shadow-lg border border-white/40 hover:scale-105 transition-all duration-500 group overflow-hidden relative">
+					<div
+						class="absolute -right-4 -top-4 w-16 h-16 bg-blue-500/10 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+					<div
+						class="flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 mb-4 mx-auto group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
+						<i class="fas fa-users text-lg"></i>
+					</div>
+					<div class="text-3xl font-black text-gray-900 mb-1 tracking-tight">
+						<%= stats.totalCustomers %>
+					</div>
+					<div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total Konsumen</div>
+				</div>
+
+				<!-- Pelanggan Aktif -->
+				<div
+					class="glass-panel rounded-3xl p-5 shadow-lg border border-white/40 hover:scale-105 transition-all duration-500 group overflow-hidden relative">
+					<div
+						class="absolute -right-4 -top-4 w-16 h-16 bg-emerald-500/10 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+					<div
+						class="flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mb-4 mx-auto group-hover:bg-emerald-600 group-hover:text-white transition-all duration-500">
+						<i class="fas fa-user-check text-lg"></i>
+					</div>
+					<div class="text-3xl font-black text-gray-900 mb-1 tracking-tight">
+						<%= stats.activeCustomers %>
+					</div>
+					<div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Aktivasi</div>
+				</div>
+
+				<!-- PPPoE -->
+				<div
+					class="glass-panel rounded-3xl p-5 shadow-lg border border-white/40 hover:scale-105 transition-all duration-500 group overflow-hidden relative">
+					<div
+						class="absolute -right-4 -top-4 w-16 h-16 bg-indigo-500/10 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+					<div
+						class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 mb-4 mx-auto group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500">
+						<i class="fas fa-network-wired text-lg"></i>
+					</div>
+					<div class="text-3xl font-black text-gray-900 mb-1 tracking-tight">
+						<%= stats.pppoeCustomers %>
+					</div>
+					<div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">PPPoE Session</div>
+				</div>
+
+				<!-- IP Static -->
+				<div
+					class="glass-panel rounded-3xl p-5 shadow-lg border border-white/40 hover:scale-105 transition-all duration-500 group overflow-hidden relative">
+					<div
+						class="absolute -right-4 -top-4 w-16 h-16 bg-rose-500/10 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+					<div
+						class="flex items-center justify-center w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 mb-4 mx-auto group-hover:bg-rose-600 group-hover:text-white transition-all duration-500">
+						<i class="fas fa-server text-lg"></i>
+					</div>
+					<div class="text-3xl font-black text-gray-900 mb-1 tracking-tight">
+						<%= stats.staticIpCustomers %>
+					</div>
+					<div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Static IP</div>
+				</div>
+
+				<!-- Isolir -->
+				<div
+					class="glass-panel rounded-3xl p-5 shadow-lg border border-white/40 hover:scale-105 transition-all duration-500 group overflow-hidden relative">
+					<div
+						class="absolute -right-4 -top-4 w-16 h-16 bg-amber-500/10 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+					<div
+						class="flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 mb-4 mx-auto group-hover:bg-amber-600 group-hover:text-white transition-all duration-500">
+						<i class="fas fa-user-slash text-lg"></i>
+					</div>
+					<div class="text-3xl font-black text-gray-900 mb-1 tracking-tight">
+						<%= stats.suspendedCustomers %>
+					</div>
+					<div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Isolir</div>
+				</div>
+
+				<!-- Nonaktif -->
+				<div
+					class="glass-panel rounded-3xl p-5 shadow-lg border border-white/40 hover:scale-105 transition-all duration-500 group overflow-hidden relative">
+					<div
+						class="absolute -right-4 -top-4 w-16 h-16 bg-slate-500/10 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+					<div
+						class="flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 mb-4 mx-auto group-hover:bg-slate-600 group-hover:text-white transition-all duration-500">
+						<i class="fas fa-door-closed text-lg"></i>
+					</div>
+					<div class="text-3xl font-black text-gray-900 mb-1 tracking-tight">
+						<%= stats.inactiveCustomers %>
+					</div>
+					<div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Nonaktif</div>
+				</div>
+
+				<!-- Pending Verification -->
+				<div
+					class="glass-panel rounded-3xl p-5 shadow-lg border border-white/40 hover:scale-105 transition-all duration-500 group overflow-hidden relative">
+					<div
+						class="absolute -right-4 -top-4 w-16 h-16 bg-purple-500/10 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+					<div
+						class="flex items-center justify-center w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 mb-4 mx-auto group-hover:bg-purple-600 group-hover:text-white transition-all duration-500">
+						<i class="fas fa-history text-lg"></i>
+					</div>
+					<div class="text-3xl font-black text-gray-900 mb-1 tracking-tight">
+						<%= stats.pendingPaymentVerifications || 0 %>
+					</div>
+					<div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Verif Bayar</div>
+				</div>
+			</div>
+
+
+			<!-- Quick Actions Section -->
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+				<a href="/pppoe/activation"
+					class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+					<div
+						class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+						<i class="fas fa-bolt text-xl"></i>
+					</div>
+					<div>
+						<div class="text-sm font-bold text-gray-900">Aktivasi PPPoE</div>
+						<div class="text-xs text-gray-500">Buka isolir & aktivasi akun</div>
+					</div>
+				</a>
+
+				<a href="/billing/invoices"
+					class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+					<div
+						class="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+						<i class="fas fa-file-invoice-dollar text-xl"></i>
+					</div>
+					<div>
+						<div class="text-sm font-bold text-gray-900">Tagihan</div>
+						<div class="text-xs text-gray-500">Kelola invoice pelanggan</div>
+					</div>
+				</a>
+
+				<a href="/kasir/dashboard"
+					class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+					<div
+						class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+						<i class="fas fa-cash-register text-xl"></i>
+					</div>
+					<div>
+						<div class="text-sm font-bold text-gray-900">Portal Kasir</div>
+						<div class="text-xs text-gray-500">Terima pembayaran tunai</div>
+					</div>
+				</a>
+
+				<a href="/monitoring/trouble"
+					class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group">
+					<div
+						class="w-12 h-12 bg-gradient-to-br from-rose-400 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+						<i class="fas fa-exclamation-triangle text-xl"></i>
+					</div>
+					<div>
+						<div class="text-sm font-bold text-gray-900">Troubleshooting</div>
+						<div class="text-xs text-gray-500">Perbaikan & log gangguan</div>
+					</div>
+				</a>
+			</div>
+
+
+</div>
+
+
+
+
+<!-- MikroTik Status, Server Monitoring & Interface Speed -->
+<div class="grid gap-6 grid-cols-1 lg:grid-cols-3">
+	<!-- Status MikroTik (Kiri) -->
+	<% if (typeof settings !=='undefined' && settings) { %>
+		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+			style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-lg font-semibold text-gray-900">Status MikroTik</h2>
+				<span id="mt-connection-status"
+					class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-800">
+					<span class="h-2 w-2 rounded-full bg-gray-400 mr-2 animate-pulse"></span>
+					Connecting...
+				</span>
+			</div>
+			<div class="grid grid-cols-2 gap-3" id="mt-info-grid">
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Identity</div>
+					<div class="text-sm font-bold text-gray-900 truncate" id="mt-identity">-</div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Version</div>
+					<div class="text-sm font-bold text-gray-900" id="mt-version">-</div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Uptime</div>
+					<div class="text-sm font-bold text-gray-900" id="mt-uptime">-</div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">CPU Load</div>
+					<div class="text-sm font-bold text-gray-900" id="mt-cpu-load">-</div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">Board</div>
+					<div class="text-sm font-bold text-gray-900" id="mt-board">-</div>
+				</div>
+				<div class="bg-gray-50 rounded-lg p-3">
+					<div class="text-xs text-gray-600 font-medium">CPU</div>
+					<div class="text-sm font-bold text-gray-900" id="mt-cpu">-</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			document.addEventListener('DOMContentLoaded', function () {
+				const statusEl = document.getElementById('mt-connection-status');
+
+				fetch('/api/mikrotik/info')
+					.then(response => response.json())
+					.then(data => {
+						if (data.ok && data.info) {
+							// Update Status Badge
+							statusEl.className = 'inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800';
+							statusEl.innerHTML = '<span class="h-2 w-2 rounded-full bg-green-400 mr-2"></span>Terhubung';
+
+							// Update Fields
+							document.getElementById('mt-identity').textContent = data.info.identity || '-';
+							document.getElementById('mt-version').textContent = data.info.version || '-';
+							document.getElementById('mt-uptime').textContent = data.info.uptime || '-';
+							document.getElementById('mt-cpu-load').textContent = (data.info.cpuLoad || '-') + '%';
+							document.getElementById('mt-board').textContent = data.info['board-name'] || '-';
+							document.getElementById('mt-cpu').textContent = data.info.cpu || '-';
+						} else {
+							throw new Error(data.error || 'Failed to connect');
+						}
+					})
+					.catch(err => {
+						console.error('Mikrotik Info Error:', err);
+						statusEl.className = 'inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800';
+						statusEl.innerHTML = '<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>Terputus';
+					});
+			});
+		</script>
+		<% } else { %>
+			<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl"
+				style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+				<h2 class="text-lg font-semibold text-gray-900 mb-4">Status MikroTik</h2>
+				<div class="text-center py-8">
+					<p class="text-gray-500 mb-3">MikroTik belum dikonfigurasi</p>
+					<a href="/settings/mikrotik"
+						class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium shadow-md hover:shadow-lg">Konfigurasi
+						Sekarang</a>
+				</div>
+			</div>
+			<% } %>
+
+				<!-- Server Monitoring (Tengah) -->
+				<% if (typeof serverMonitoring !=='undefined' && serverMonitoring) { %>
+					<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
+						style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+						<div class="flex items-center justify-between mb-4">
+							<h2 class="text-lg font-semibold text-gray-900">Monitoring Server</h2>
+							<% if (serverMonitoring.server.status==='online' ) { %>
+								<span
+									class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+									<span class="h-2 w-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
+									Online
+								</span>
+								<% } else { %>
+									<span
+										class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+										<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
+										Offline
+									</span>
+									<% } %>
+						</div>
+						<div class="grid grid-cols-2 gap-3">
+							<div class="bg-gray-50 rounded-lg p-3">
+								<div class="text-xs text-gray-600 font-medium">CPU Load (1m)</div>
+								<div class="text-sm font-bold text-gray-900">
+									<% const cpuLoadPercent=serverMonitoring.server.cpu.loadPercent || 0; const
+										cpuColor=cpuLoadPercent> 80 ? 'text-red-600' : cpuLoadPercent
+										> 60 ?
+										'text-yellow-600' : 'text-green-600';
+										%>
+										<span class="<%= cpuColor %>">
+											<%= cpuLoadPercent.toFixed(1) %>%
+										</span>
+								</div>
+							</div>
+							<div class="bg-gray-50 rounded-lg p-3">
+								<div class="text-xs text-gray-600 font-medium">CPU Cores</div>
+								<div class="text-sm font-bold text-gray-900">
+									<%= serverMonitoring.server.cpu.cores %>
+								</div>
+							</div>
+							<div class="bg-gray-50 rounded-lg p-3">
+								<div class="text-xs text-gray-600 font-medium">Memory Usage</div>
+								<div class="text-sm font-bold text-gray-900">
+									<% const memPercent=serverMonitoring.server.memory.usagePercent.toFixed(1); const
+										memColor=memPercent> 80 ? 'text-red-600' : memPercent > 60 ?
+										'text-yellow-600' : 'text-green-600';
+										%>
+										<span class="<%= memColor %>">
+											<%= memPercent %>%
+										</span>
+								</div>
+							</div>
+							<div class="bg-gray-50 rounded-lg p-3">
+								<div class="text-xs text-gray-600 font-medium">Memory Used</div>
+								<div class="text-sm font-bold text-gray-900">
+									<% const memUsedGB=(serverMonitoring.server.memory.used / (1024 * 1024 *
+										1024)).toFixed(2); const memTotalGB=(serverMonitoring.server.memory.total /
+										(1024 * 1024 * 1024)).toFixed(2); %>
+										<%= memUsedGB %> / <%= memTotalGB %> GB
+								</div>
+							</div>
+							<div class="bg-gray-50 rounded-lg p-3">
+								<div class="text-xs text-gray-600 font-medium">Server Uptime</div>
+								<div class="text-sm font-bold text-gray-900">
+									<%= serverMonitoring.server.uptime %>
+								</div>
+							</div>
+							<div class="bg-gray-50 rounded-lg p-3">
+								<div class="text-xs text-gray-600 font-medium">Database</div>
+								<div
+									class="text-sm font-bold <%= serverMonitoring.database.connected ? 'text-green-600' : 'text-red-600' %>">
+									<%= serverMonitoring.database.connected ? 'Connected' : 'Disconnected' %>
+								</div>
+							</div>
+						</div>
+						<div class="mt-4 pt-4 border-t border-gray-200">
+							<div class="flex items-center justify-between text-xs">
+								<div class="text-gray-600">
+									<span class="font-medium">Platform:</span>
+									<%= serverMonitoring.server.platform %>
+								</div>
+								<div class="text-gray-600">
+									<span class="font-medium">Node:</span>
+									<%= serverMonitoring.server.nodeVersion %>
+								</div>
+							</div>
+							<div class="mt-2 flex items-center justify-between text-xs">
+								<div class="text-gray-600">
+									<span class="font-medium">System Health:</span>
+									<% if (serverMonitoring.systemHealth.overall_status==='healthy' ) { %>
+										<span class="text-green-600 font-semibold">Healthy</span>
+										<% } else if (serverMonitoring.systemHealth.overall_status==='warning' ) { %>
+											<span class="text-yellow-600 font-semibold">Warning</span>
+											<% } else { %>
+												<span class="text-red-600 font-semibold">Unhealthy</span>
+												<% } %>
+								</div>
+								<div class="text-gray-500">
+									Last check: <%= new Date(serverMonitoring.lastCheck).toLocaleTimeString('id-ID') %>
+								</div>
+							</div>
+						</div>
+					</div>
+					<% } else { %>
+						<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl"
+							style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+							<h2 class="text-lg font-semibold text-gray-900 mb-4">Monitoring Server</h2>
+							<div class="text-center py-8">
+								<p class="text-gray-500 mb-3">Data monitoring tidak tersedia</p>
+							</div>
+						</div>
+						<% } %>
+
+							<!-- Interface Traffic Realtime (New & Improved) -->
+							<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 lg:col-span-1"
+								style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+
+								<div class="flex items-center justify-between mb-2">
+									<h2 class="text-lg font-semibold text-gray-900">Live Traffic</h2>
+									<% if (typeof interfaces !=='undefined' && interfaces && interfaces.length> 0) {
+										%>
+										<div class="flex flex-col items-end gap-1">
+											<!-- Toggle Switch -->
+											<div class="flex items-center gap-2" title="Enable/Disable Live Traffic">
+												<span class="text-xs text-gray-500 font-medium">Live
+													Update</span>
+												<label for="liveTrafficToggle"
+													class="flex items-center cursor-pointer relative mb-0">
+													<input type="checkbox" id="liveTrafficToggle" class="sr-only">
+													<div
+														class="toggle-bg bg-gray-200 border-2 border-gray-200 h-4 w-8 rounded-full transition-colors duration-200 ease-in-out">
+													</div>
+													<div
+														class="toggle-dot absolute left-0.5 top-0.5 bg-white border border-gray-300 h-3 w-3 rounded-full shadow transition-transform duration-200 ease-in-out">
+													</div>
+												</label>
+											</div>
+
+											<style>
+												#liveTrafficToggle:checked+.toggle-bg {
+													background-color: #10b981;
+													border-color: #10b981;
+												}
+
+												#liveTrafficToggle:checked+.toggle-bg+.toggle-dot {
+													transform: translateX(100%);
+													border-color: white;
+												}
+
+												#liveTrafficToggle:not(:checked)+.toggle-bg {
+													background-color: #e5e7eb;
+													border-color: #d1d5db;
+												}
+
+												/* Adjust translate for small size */
+												#liveTrafficToggle:checked+.toggle-bg+.toggle-dot {
+													transform: translateX(100%);
+												}
+											</style>
+
+											<select id="interfaceSelect"
+												class="text-xs border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-28 truncate cursor-pointer py-1">
+												<% interfaces.forEach(function(iface) { %>
+													<option value="<%= iface.name %>">
+														<%= iface.name %>
+													</option>
+													<% }); %>
+											</select>
+										</div>
+										<% } %>
+								</div>
+
+								<hr class="mb-4 border-gray-100">
+
+								<% if (typeof interfaces !=='undefined' && interfaces && interfaces.length>
+									0) { %>
+									<div class="relative h-56 w-full">
+										<canvas id="trafficChart"></canvas>
+										<div id="trafficLoading"
+											class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10">
+											<div class="text-center text-gray-500 text-sm">
+												<svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-2"
+													xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+													<circle class="opacity-25" cx="12" cy="12" r="10"
+														stroke="currentColor" stroke-width="4"></circle>
+													<path class="opacity-75" fill="currentColor"
+														d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+													</path>
+												</svg>
+												Memuat data...
+											</div>
+										</div>
+									</div>
+
+									<div class="grid grid-cols-2 gap-4 mt-4 text-center">
+										<div class="bg-blue-50 rounded-lg p-2 border border-blue-100">
+											<div class="text-xs text-blue-600 font-medium uppercase tracking-wider">
+												Download (RX)</div>
+											<div id="rxSpeed" class="text-lg font-bold text-blue-700">0 bps
+											</div>
+										</div>
+										<div class="bg-green-50 rounded-lg p-2 border border-green-100">
+											<div class="text-xs text-green-600 font-medium uppercase tracking-wider">
+												Upload (TX)</div>
+											<div id="txSpeed" class="text-lg font-bold text-green-700">0 bps
+											</div>
+										</div>
+									</div>
+
+									<script
+										src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+									<script>
+										document.addEventListener('DOMContentLoaded', function () {
+											const ctx = document.getElementById('trafficChart').getContext('2d');
+											const select = document.getElementById('interfaceSelect');
+											const loading = document.getElementById('trafficLoading');
+											const rxDisplay = document.getElementById('rxSpeed');
+											const txDisplay = document.getElementById('txSpeed');
+
+											let chart;
+											let pollInterval;
+											let previousData = { rx: 0, tx: 0 };
+											let lastTime = Date.now();
+
+											// Smoothing variables (Exponential Moving Average)
+											const EMA_ALPHA = 0.3; // Smoothing factor (0.1 = very smooth, 0.5 = responsive)
+											let smoothedRx = 0;
+											let smoothedTx = 0;
+											let isFirstReading = true;
+											let isPaused = false;
+
+											// Toggle Checkbox
+											const toggleCheckbox = document.getElementById('liveTrafficToggle');
+
+											if (toggleCheckbox) {
+												// 1. Read from LocalStorage
+												const savedState = localStorage.getItem('dashboardLiveTrafficEnabled');
+
+												// 2. Set initial state (default to false if null)
+												if (savedState === 'true') {
+													toggleCheckbox.checked = true;
+												} else {
+													toggleCheckbox.checked = false;
+												}
+
+												// 3. Sync internal variable immediately
+												isPaused = !toggleCheckbox.checked;
+
+												// 4. Update on change
+												toggleCheckbox.addEventListener('change', function () {
+													isPaused = !this.checked;
+													localStorage.setItem('dashboardLiveTrafficEnabled', this.checked);
+												});
+											}
+
+											function formatSpeed(bits) {
+												if (bits >= 1000000000) return (bits / 1000000000).toFixed(2) + ' Gbps';
+												if (bits >= 1000000) return (bits / 1000000).toFixed(2) + ' Mbps';
+												if (bits >= 1000) return (bits / 1000).toFixed(2) + ' Kbps';
+												return bits.toFixed(0) + ' bps';
+											}
+
+											function initChart() {
+												chart = new Chart(ctx, {
+													type: 'line',
+													data: {
+														labels: Array(20).fill(''),
+														datasets: [
+															{
+																label: 'Download (RX)',
+																data: Array(20).fill(0),
+																borderColor: '#2563eb', // Blue-600
+																backgroundColor: 'rgba(37, 99, 235, 0.1)',
+																borderWidth: 2,
+																fill: true,
+																tension: 0.4,
+																pointRadius: 0
+															},
+															{
+																label: 'Upload (TX)',
+																data: Array(20).fill(0),
+																borderColor: '#16a34a', // Green-600
+																backgroundColor: 'rgba(22, 163, 74, 0.05)',
+																borderWidth: 2,
+																borderDash: [5, 5],
+																fill: true,
+																tension: 0.4,
+																pointRadius: 0
+															}
+														]
+													},
+													options: {
+														responsive: true,
+														maintainAspectRatio: false,
+														animation: {
+															duration: 750, // Smooth animation
+															easing: 'easeOutQuart'
+														},
+														interaction: {
+															mode: 'index',
+															intersect: false,
+														},
+														plugins: {
+															legend: { display: false },
+															tooltip: {
+																callbacks: {
+																	label: function (context) {
+																		return context.dataset.label + ': ' + formatSpeed(context.parsed.y);
+																	}
+																}
+															}
+														},
+														scales: {
+															y: {
+																beginAtZero: true,
+																ticks: {
+																	callback: function (value) {
+																		return formatSpeed(value);
+																	}
+																},
+																grid: {
+																	color: 'rgba(0, 0, 0, 0.05)'
+																}
+															},
+															x: {
+																display: false
+															}
+														}
+													}
+												});
+											}
+
+											async function updateTraffic() {
+												if (!select || isPaused) return;
+												const ifaceName = select.value;
+
+												try {
+													const response = await fetch('/api/interface-stats');
+													if (!response.ok) throw new Error('Network error');
+													const data = await response.json();
+
+													const iface = data.find(i => i.name === ifaceName);
+													if (!iface) return;
+
+													const currentTime = Date.now();
+													const timeDiff = (currentTime - lastTime) / 1000; // seconds
+													if (timeDiff <= 0) return;
+
+													// Ensure numeric values
+													const currentRx = parseInt(iface['rx-byte'] || iface.rxByte || 0);
+													const currentTx = parseInt(iface['tx-byte'] || iface.txByte || 0);
+
+													// Calculate speed (bits per second)
+													// (Current Bytes - Previous Bytes) * 8 / Time Difference
+													// Handle counter wrap or initial run where pervious is 0
+													let rawRxSpeed = 0;
+													let rawTxSpeed = 0;
+
+													if (previousData.rx > 0 && currentRx >= previousData.rx) {
+														rawRxSpeed = ((currentRx - previousData.rx) * 8) / timeDiff;
+													}
+													if (previousData.tx > 0 && currentTx >= previousData.tx) {
+														rawTxSpeed = ((currentTx - previousData.tx) * 8) / timeDiff;
+													}
+
+													// Apply Exponential Moving Average for smoothing
+													if (isFirstReading && (rawRxSpeed > 0 || rawTxSpeed > 0)) {
+														smoothedRx = rawRxSpeed;
+														smoothedTx = rawTxSpeed;
+														isFirstReading = false;
+													} else {
+														// EMA formula: smoothed = alpha * current + (1 - alpha) * previous
+														smoothedRx = EMA_ALPHA * rawRxSpeed + (1 - EMA_ALPHA) * smoothedRx;
+														smoothedTx = EMA_ALPHA * rawTxSpeed + (1 - EMA_ALPHA) * smoothedTx;
+													}
+
+													// Update Display with smoothed values
+													rxDisplay.textContent = formatSpeed(smoothedRx);
+													txDisplay.textContent = formatSpeed(smoothedTx);
+
+													// Update Chart
+													if (chart) {
+														// Shift old data
+														chart.data.labels.shift();
+														chart.data.labels.push('');
+
+														chart.data.datasets[0].data.shift();
+														chart.data.datasets[0].data.push(smoothedRx);
+
+														chart.data.datasets[1].data.shift();
+														chart.data.datasets[1].data.push(smoothedTx);
+
+														chart.update(); // Use default animation
+													}
+
+													// Store current as previous
+													previousData.rx = currentRx;
+													previousData.tx = currentTx;
+													lastTime = currentTime;
+
+													// Hide loading once we have data
+													if (loading) loading.style.display = 'none';
+
+												} catch (e) {
+													console.error('Traffic update error:', e);
+												}
+											}
+
+											// Initialize
+											if (typeof Chart !== 'undefined') {
+												initChart();
+												// Initial data fetch immediately, then interval
+												updateTraffic();
+												pollInterval = setInterval(updateTraffic, 3000);
+											} else {
+												console.error('Chart.js not loaded');
+												if (loading) loading.innerHTML = '<span class="text-red-500">Gagal memuat library grafik</span>';
+											}
+
+											// Reset chart data when interface changes
+											select.addEventListener('change', function () {
+												if (loading) loading.style.display = 'flex';
+												previousData = { rx: 0, tx: 0 }; // Reset counter baseline
+												smoothedRx = 0;
+												smoothedTx = 0;
+												isFirstReading = true;
+												if (chart) {
+													chart.data.datasets[0].data = Array(20).fill(0);
+													chart.data.datasets[1].data = Array(20).fill(0);
+													chart.update();
+												}
+											});
+										});
+									</script>
+									<% } else { %>
+										<div class="h-40 flex flex-col items-center justify-center text-gray-400">
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-2" fill="none"
+												viewBox="0 0 24 24" stroke="currentColor">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+													d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+											</svg>
+											<span class="text-sm">Data interface tidak tersedia</span>
+										</div>
+										<% } %>
+							</div>
+</div>
+
+<!-- Verification Widgets Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+	<!-- Technician Jobs Verification -->
+	<% if (typeof verifyingJobs !=='undefined' && verifyingJobs && verifyingJobs.length> 0) { %>
+		<div class="glass-panel rounded-[2rem] p-6 border border-white/40 shadow-xl overflow-hidden relative group">
+			<div
+				class="absolute -right-10 -top-10 w-32 h-32 bg-amber-500/5 rounded-full group-hover:scale-150 transition-transform duration-700">
+			</div>
+
+			<div class="relative flex items-center justify-between mb-6">
+				<div class="flex items-center gap-3">
+					<div
+						class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
+						<i class="fas fa-tools text-xl"></i>
+					</div>
+					<div>
+						<h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Verifikasi Tiket</h2>
+						<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Butuh persetujuan
+							admin (<%= verifyingJobs.length %>)</p>
+					</div>
+				</div>
+				<a href="/technician/jobs"
+					class="text-[10px] font-black text-amber-600 uppercase tracking-widest hover:underline">Semua
+					Tiket</a>
+			</div>
+
+			<div class="space-y-3 relative">
+				<% verifyingJobs.slice(0, 3).forEach(function(job) { %>
+					<div
+						class="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-white/60 flex items-center justify-between group/item hover:bg-white transition-all">
+						<div class="flex-1 min-w-0">
+							<div class="flex items-center gap-2 mb-1">
+								<span
+									class="text-[9px] font-black px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 uppercase tracking-tighter">
+									<%= job.ticket_number %>
+								</span>
+								<span class="text-sm font-bold text-slate-800 truncate">
+									<%= job.customer_name %>
+								</span>
+							</div>
+							<p class="text-xs text-slate-500 line-clamp-1">
+								<%= job.description ? job.description.split('\n')[1] || job.description : '-' %>
+							</p>
+						</div>
+						<button onclick="verifyTicket('<%= job.id %>')"
+							class="ml-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-200 active:scale-95">
+							Approve
+						</button>
+					</div>
+					<% }); %>
+			</div>
+		</div>
+		<% } %>
+
+			<!-- Payment Verification -->
+			<% if (typeof pendingPaymentVerifications !=='undefined' && pendingPaymentVerifications &&
+				pendingPaymentVerifications.length> 0) { %>
+				<div
+					class="glass-panel rounded-[2rem] p-6 border border-white/40 shadow-xl overflow-hidden relative group">
+					<div
+						class="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/5 rounded-full group-hover:scale-150 transition-transform duration-700">
+					</div>
+
+					<div class="relative flex items-center justify-between mb-6">
+						<div class="flex items-center gap-3">
+							<div
+								class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
+								<i class="fas fa-file-invoice-dollar text-xl"></i>
+							</div>
+							<div>
+								<h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Verifikasi Bayar
+								</h2>
+								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bukti transfer
+									masuk (<%= pendingPaymentVerifications.length %>
+										<%= pendingPaymentVerifications.length>= 5 ? '+' : '' %>)</p>
+							</div>
+						</div>
+						<a href="/billing/verification"
+							class="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Detail</a>
+					</div>
+
+					<div class="space-y-3 relative">
+						<% pendingPaymentVerifications.slice(0, 3).forEach(function(v) { %>
+							<div
+								class="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-white/60 flex items-center justify-between group/item hover:bg-white transition-all">
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2 mb-1">
+										<span class="text-sm font-bold text-slate-800 truncate">
+											<%= v.customer_name || 'Pelanggan #' + v.customer_id %>
+										</span>
+										<span
+											class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">
+											Rp <%= new Intl.NumberFormat('id-ID').format(v.extracted_amount ||
+												v.expected_amount) %>
+										</span>
+									</div>
+									<div
+										class="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+										<i class="far fa-clock"></i>
+										<%= new Date(v.created_at).toLocaleString('id-ID') %>
+									</div>
+								</div>
+								<a href="/billing/verification"
+									class="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-blue-200 active:scale-95">
+									Detail
+								</a>
+							</div>
+							<% }); %>
+					</div>
+				</div>
+				<% } %>
+</div>
+
+<script>
+	async function verifyTicket(id) {
+		Swal.fire({
+			title: 'Approve Tiket?',
+			text: "Tiket akan disebarkan ke teknisi yang bertugas.",
+			icon: 'question',
+			showCancelButton: true,
+			confirmButtonColor: '#059669',
+			cancelButtonColor: '#6b7280',
+			confirmButtonText: 'Ya, Approve!',
+			cancelButtonText: 'Batal'
+		}).then(async (result) => {
+			if (result.isConfirmed) {
+				try {
+					const res = await fetch(`/technician/jobs/${id}/verify`, { method: 'POST' });
+					const data = await res.json();
+					if (data.success) {
+						Swal.fire('Berhasil!', 'Tiket telah diverifikasi.', 'success').then(() => location.reload());
+					} else {
+						Swal.fire('Gagal!', data.message || 'Terjadi kesalahan.', 'error');
+					}
+				} catch (e) {
+					Swal.fire('Error!', 'Gagal menghubungi server.', 'error');
+				}
+			}
+		});
+	}
+</script>
+
+<!-- Monitor Status Koneksi (Live) -->
+<div class="bg-white border-2 border-slate-200 rounded-3xl p-8 shadow-2xl hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 overflow-hidden relative group"
+	id="monitor-status-container">
+	<div class="absolute inset-0 bg-gradient-to-br from-slate-50/50 to-white pointer-events-none"></div>
+
+	<div class="relative flex items-center justify-between mb-8">
+		<div class="flex items-center gap-4">
+			<div class="p-3 bg-red-50 rounded-2xl group-hover:scale-110 transition-transform duration-500">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24"
+					stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+						d="M13 10V3L4 14h7v7l9-11h-7z" />
+				</svg>
+			</div>
+			<div>
+				<h2 class="text-xl font-bold text-slate-900 tracking-tight">Monitor Status Koneksi (Live)</h2>
+				<p class="text-sm text-slate-500 font-medium flex items-center gap-2">
+					<span class="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+					Update otomatis setiap 30 detik
+				</p>
+			</div>
+		</div>
+		<div class="flex items-center gap-3">
+			<button onclick="refreshTroubleTable()"
+				class="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+				title="Refresh Sekarang">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+					stroke="currentColor" id="refresh-icon">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+						d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+				</svg>
+			</button>
+			<a href="/monitoring/trouble"
+				class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
+				Detail Lengkap
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+					stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+				</svg>
+			</a>
+		</div>
+	</div>
+
+	<div class="relative overflow-x-auto rounded-2xl border border-slate-100 bg-white/50 backdrop-blur-sm">
+		<table class="min-w-full divide-y divide-slate-100" id="trouble-table">
+			<thead>
+				<tr class="bg-slate-50/50">
+					<th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+						Pelanggan</th>
+					<th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+						Koneksi</th>
+					<th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+						Status Live</th>
+					<th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+						Maintenance</th>
+					<th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+						Durasi Trouble</th>
+					<th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
+						Aksi</th>
+				</tr>
+			</thead>
+			<tbody class="divide-y divide-slate-50 bg-white" id="trouble-tbody">
+				<% if (typeof troubleCustomers !=='undefined' && troubleCustomers && troubleCustomers.length> 0)
+					{ %>
+					<% troubleCustomers.forEach(function(customer) { %>
+						<tr class="hover:bg-slate-50/80 transition-colors group/row">
+							<td class="px-6 py-5">
+								<div class="flex flex-col">
+									<span
+										class="text-sm font-bold text-slate-900 group-hover/row:text-blue-600 transition-colors">
+										<%= customer.name %>
+									</span>
+									<span class="text-xs font-medium text-slate-500 mt-0.5">
+										<%= customer.customer_code || '-' %> • <%= customer.pppoe_username || '-' %>
+									</span>
+								</div>
+							</td>
+							<td class="px-6 py-5">
+								<% if (customer.connection_type==='pppoe' ) { %>
+									<span
+										class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100">PPPoE</span>
+									<% } else { %>
+										<span
+											class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">Static
+											IP</span>
+										<% } %>
+							</td>
+							<td class="px-6 py-5">
+								<% if (customer.device_status==='online' ) { %>
+									<span
+										class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-green-50 text-green-700 border border-green-200">
+										<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+										ONLINE
+									</span>
+									<% } else if (customer.device_status==='offline' ) { %>
+										<span
+											class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-red-50 text-red-700 border border-red-200 animate-pulse">
+											<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+											OFFLINE
+										</span>
+										<% } else if (customer.device_status==='degraded' ) { %>
+											<span
+												class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200">
+												<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+												DEGRADED
+											</span>
+											<% } else if (customer.device_status==='isolated' ) { %>
+												<span
+													class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-slate-50 text-slate-700 border border-slate-200">
+													<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+													ISOLIR
+												</span>
+												<% } else { %>
+													<span
+														class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+														<%= customer.issue_type || '-' %>
+													</span>
+													<% } %>
+							</td>
+							<td class="px-6 py-5">
+								<% if (customer.maintenance_status==='in_progress' ) { %>
+									<span
+										class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🛠️
+										DIPROSES</span>
+									<% } else if (customer.maintenance_status==='scheduled' ) { %>
+										<span
+											class="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">TERJADWAL</span>
+										<% } else { %>
+											<span class="text-xs text-slate-400 font-medium">-</span>
+											<% } %>
+							</td>
+							<td class="px-6 py-5">
+								<div class="flex flex-col">
+									<span class="text-sm font-black text-slate-700 trouble-duration"
+										data-since="<%= customer.trouble_since %>">Calculating...</span>
+									<span
+										class="text-[10px] text-slate-400 font-semibold uppercase mt-0.5 tracking-wider">Sejak
+										<%= customer.trouble_since ? new
+											Date(customer.trouble_since).toLocaleString('id-ID', { hour: '2-digit' ,
+											minute: '2-digit' , day: '2-digit' , month: 'short' }) : '-' %>
+									</span>
+								</div>
+							</td>
+							<td class="px-6 py-5 text-right">
+								<button
+									onclick="window.open('https://wa.me/<%= customer.phone %>?text=Halo <%= customer.name %>, kami mendeteksi adanya gangguan pada koneksi internet Anda.', '_blank')"
+									class="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all duration-300 shadow-sm border border-green-100">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor"
+										viewBox="0 0 24 24">
+										<path
+											d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.103 2.202-.546c.942.512 1.97.781 3.104.781 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.767-5.766zm3.303 8.303c-.113.193-.652.332-.897.354-.245.022-.501.033-.746.033s-.486-.011-.73-.033c-.244-.022-.784-.161-.897-.354-.424-.725-.85-1.45-1.274-2.174-.113-.193-.113-.448 0-.642.424-.725.85-1.45 1.274-2.174.113-.193.368-.193.481 0l1.274 2.174c.113.193.113.448 0 .642l-1.274 2.174z" />
+									</svg>
+								</button>
+							</td>
+						</tr>
+						<% }); %>
+							<% } else { %>
+								<tr>
+									<td class="px-6 py-20 text-center" colspan="6">
+										<div class="flex flex-col items-center justify-center opacity-40">
+											<div
+												class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-400"
+													fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+												</svg>
+											</div>
+											<p class="text-xl font-black text-slate-800 tracking-tight">Semua
+												Koneksi Normal</p>
+											<p class="text-sm font-medium text-slate-500 mt-1">Tidak ada
+												pelanggan yang mengalami gangguan saat ini.</p>
+										</div>
+									</td>
+								</tr>
+								<% } %>
+			</tbody>
+		</table>
+	</div>
+</div>
+
+<script>
+	// Function to calculate duration
+	function calculateDuration() {
+		const elements = document.querySelectorAll('.trouble-duration');
+		elements.forEach(el => {
+			const since = el.getAttribute('data-since');
+			if (!since || since === 'null' || since === 'undefined') {
+				el.innerText = '-';
+				return;
+			}
+
+			const start = new Date(since).getTime();
+			if (isNaN(start)) {
+				el.innerText = '-';
+				return;
+			}
+
+			const now = new Date().getTime();
+			const diff = now - start;
+
+			if (diff < 0) {
+				el.innerText = 'Baru saja';
+				return;
+			}
+
+			const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+			const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+			const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+			let text = '';
+			if (days > 0) text += days + 'h ';
+			if (hours > 0) text += hours + 'j ';
+			text += mins + 'm';
+
+			el.innerText = text;
+			if (days > 0 || hours >= 1) {
+				el.classList.remove('text-slate-700', 'text-amber-600');
+				el.classList.add('text-red-600');
+			} else {
+				el.classList.remove('text-slate-700', 'text-red-600');
+				el.classList.add('text-amber-600');
+			}
+		});
+	}
+
+	async function refreshTroubleTable() {
+		const icon = document.getElementById('refresh-icon');
+		const tbody = document.getElementById('trouble-tbody');
+		if (icon) icon.classList.add('animate-spin');
+
+		try {
+			const response = await fetch('/api/dashboard/trouble-customers');
+			const data = await response.json();
+
+			if (data.success && data.customers) {
+				if (data.customers.length === 0) {
+					tbody.innerHTML = `
+								<tr>
+									<td class="px-6 py-20 text-center" colspan="6">
+										<div class="flex flex-col items-center justify-center opacity-40">
+											<div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+												</svg>
+											</div>
+											<p class="text-xl font-black text-slate-800 tracking-tight">Semua Koneksi Normal</p>
+											<p class="text-sm font-medium text-slate-500 mt-1">Tidak ada pelanggan yang mengalami gangguan saat ini.</p>
+										</div>
+									</td>
+								</tr>
+							`;
+				} else {
+					let html = '';
+					data.customers.forEach(customer => {
+						const troubleSinceRaw = customer.trouble_since;
+						const troubleSinceFormatted = troubleSinceRaw ? new Date(troubleSinceRaw).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : '-';
+
+						html += `
+									<tr class="hover:bg-slate-50/80 transition-colors group/row">
+										<td class="px-6 py-5">
+											<div class="flex flex-col">
+												<span class="text-sm font-bold text-slate-900 group-hover/row:text-blue-600 transition-colors">${customer.name}</span>
+												<span class="text-xs font-medium text-slate-500 mt-0.5">${customer.customer_code || '-'} • ${customer.pppoe_username || '-'}</span>
+											</div>
+										</td>
+										<td class="px-6 py-5">
+											<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${customer.connection_type === 'pppoe' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}">
+												${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}
+											</span>
+										</td>
+										<td class="px-6 py-5">
+											${customer.device_status === 'online' ?
+								`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-green-50 text-green-700 border border-green-200"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>ONLINE</span>` :
+								(customer.device_status === 'offline' ?
+									`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-red-50 text-red-700 border border-red-200 animate-pulse"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>OFFLINE</span>` :
+									(customer.device_status === 'degraded' ?
+										`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>DEGRADED</span>` :
+										(customer.device_status === 'isolated' ?
+											`<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-slate-50 text-slate-700 border border-slate-200"><span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>ISOLIR</span>` :
+											`<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">${customer.issue_type || '-'}</span>`
+										)
+									)
+								)
+							}
+										</td>
+										<td class="px-6 py-5">
+											${customer.maintenance_status === 'in_progress' ?
+								'<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🛠️ DIPROSES</span>' :
+								(customer.maintenance_status === 'scheduled' ? '<span class="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">TERJADWAL</span>' : '<span class="text-xs text-slate-400 font-medium">-</span>')
+							}
+										</td>
+										<td class="px-6 py-5">
+											<div class="flex flex-col">
+												<span class="text-sm font-black text-slate-700 trouble-duration" data-since="${troubleSinceRaw}">Calculating...</span>
+												<span class="text-[10px] text-slate-400 font-semibold uppercase mt-0.5 tracking-wider">Sejak ${troubleSinceFormatted}</span>
+											</div>
+										</td>
+										<td class="px-6 py-5 text-right">
+											<button onclick="window.open('https://wa.me/${customer.phone}?text=Halo ${customer.name}, kami mendeteksi adanya gangguan pada koneksi internet Anda.', '_blank')" 
+													class="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all duration-300 shadow-sm border border-green-100">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+													<path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.103 2.202-.546c.942.512 1.97.781 3.104.781 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.767-5.766zm3.303 8.303c-.113.193-.652.332-.897.354-.245.022-.501.033-.746.033s-.486-.011-.73-.033c-.244-.022-.784-.161-.897-.354-.424-.725-.85-1.45-1.274-2.174-.113-.193-.113-.448 0-.642.424-.725.85-1.45 1.274-2.174.113-.193.368-.193.481 0l1.274 2.174c.113.193.113.448 0 .642l-1.274 2.174z"/>
+												</svg>
+											</button>
+										</td>
+									</tr>
+								`;
+					});
+					tbody.innerHTML = html;
+				}
+				calculateDuration();
+			}
+		} catch (err) {
+			console.error('Refresh Failed:', err);
+		} finally {
+			setTimeout(() => { if (icon) icon.classList.remove('animate-spin'); }, 500);
+		}
+	}
+
+	document.addEventListener('DOMContentLoaded', () => {
+		calculateDuration();
+		setInterval(calculateDuration, 10000);
+		setInterval(refreshTroubleTable, 30000);
+	});
+</script>
+<% if (typeof stats !=='undefined' ) { %>
+	<script>
+		// Any additional stats logic if needed
+	</script>
+	<% } %>
+
+		<script>
+			// Dashboard scripts

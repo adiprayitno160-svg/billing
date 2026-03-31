@@ -1,0 +1,191 @@
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                Tambah ONT Baru
+            </h1>
+            <p class="text-slate-500 mt-1">Registrasi perangkat ONT ke dalam sistem</p>
+        </div>
+        <a href="/ftth/ont"
+            class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm flex items-center gap-2 font-medium">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Kembali
+        </a>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800">Detail Perangkat</h3>
+                <p class="text-xs text-slate-500">Isi informasi lengkap perangkat ONT</p>
+            </div>
+        </div>
+
+        <!-- Alert -->
+        <%- include('../../partials/flash') %>
+
+            <form action="/ftth/ont" method="POST" class="p-6 space-y-8">
+
+                <!-- Section: Device Info -->
+                <div class="space-y-4">
+                    <h4
+                        class="text-sm font-semibold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+                        Informasi Fisik</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Serial Number -->
+                        <div class="space-y-2">
+                            <label for="serial_number" class="block text-sm font-medium text-slate-700">Serial Number
+                                <span class="text-red-500">*</span></label>
+                            <input type="text" name="serial_number" id="serial_number" required
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
+                                placeholder="Contoh: ALCLB12345">
+                        </div>
+
+                        <!-- MAC Address -->
+                        <div class="space-y-2">
+                            <label for="mac_address" class="block text-sm font-medium text-slate-700">MAC
+                                Address</label>
+                            <input type="text" name="mac_address" id="mac_address"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
+                                placeholder="AA:BB:CC:DD:EE:FF">
+                        </div>
+
+                        <!-- Model -->
+                        <div class="space-y-2">
+                            <label for="model" class="block text-sm font-medium text-slate-700">Model Perangkat</label>
+                            <input type="text" name="model" id="model"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                placeholder="Contoh: Huawei HG8245H">
+                        </div>
+
+                        <!-- Status -->
+                        <div class="space-y-2">
+                            <label for="status" class="block text-sm font-medium text-slate-700">Status</label>
+                            <select name="status" id="status"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                                <option value="offline" selected>Offline</option>
+                                <option value="online">Online</option>
+                                <option value="warning">Warning</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Assignment -->
+                <div class="space-y-4">
+                    <h4
+                        class="text-sm font-semibold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+                        Penugasan & Lokasi</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                        <!-- Customer -->
+                        <div class="div md:col-span-2 space-y-2">
+                            <label for="customer_id" class="block text-sm font-medium text-slate-700">Pelanggan</label>
+                            <select name="customer_id" id="customer_id"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                                <option value="">-- Pilih Pelanggan (Opsional) --</option>
+                                <% customers.forEach(c=> { %>
+                                    <option value="<%= c.id %>">
+                                        <%= c.name %> (<%= c.customer_code %>)
+                                    </option>
+                                    <% }); %>
+                            </select>
+                        </div>
+
+                        <!-- OLT -->
+                        <div class="space-y-2">
+                            <label for="olt_id" class="block text-sm font-medium text-slate-700">Terhubung ke
+                                OLT</label>
+                            <select name="olt_id" id="olt_id"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                                <option value="">-- Tidak Terhubung --</option>
+                                <% olts.forEach(olt=> { %>
+                                    <option value="<%= olt.id %>">
+                                        <%= olt.name %>
+                                    </option>
+                                    <% }); %>
+                            </select>
+                        </div>
+
+                        <!-- OLT Port -->
+                        <div class="space-y-2">
+                            <label for="olt_port" class="block text-sm font-medium text-slate-700">Port OLT</label>
+                            <input type="text" name="olt_port" id="olt_port"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                placeholder="Contoh: 1/1/1">
+                        </div>
+
+                        <!-- ODC -->
+                        <div class="space-y-2">
+                            <label for="odc_id" class="block text-sm font-medium text-slate-700">Via ODC</label>
+                            <select name="odc_id" id="odc_id"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                                <option value="">-- Tidak Ada --</option>
+                                <% odcs.forEach(odc=> { %>
+                                    <option value="<%= odc.id %>">
+                                        <%= odc.name %>
+                                    </option>
+                                    <% }); %>
+                            </select>
+                        </div>
+
+                        <!-- ODP -->
+                        <div class="space-y-2">
+                            <label for="odp_id" class="block text-sm font-medium text-slate-700">Via ODP</label>
+                            <select name="odp_id" id="odp_id"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                                <option value="">-- Tidak Ada --</option>
+                                <% odps.forEach(odp=> { %>
+                                    <option value="<%= odp.id %>">
+                                        <%= odp.name %>
+                                    </option>
+                                    <% }); %>
+                            </select>
+                        </div>
+
+                        <!-- Location Address -->
+                        <div class="md:col-span-2 space-y-2">
+                            <label for="location" class="block text-sm font-medium text-slate-700">Alamat
+                                Pemasangan</label>
+                            <input type="text" name="location" id="location"
+                                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                placeholder="Alamat lengkap pemasangan...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="space-y-2">
+                    <label for="notes" class="block text-sm font-medium text-slate-700">Catatan Tambahan</label>
+                    <textarea name="notes" id="notes" rows="3"
+                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                        placeholder="Catatan teknis atau keterangan lain..."></textarea>
+                </div>
+
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-6 border-t border-slate-100 mt-6">
+                    <button type="submit"
+                        class="flex-1 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg shadow-blue-500/30">
+                        Simpan ONT
+                    </button>
+                    <a href="/ftth/ont"
+                        class="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium transition-all">
+                        Batal
+                    </a>
+                </div>
+            </form>
+    </div>
+</div>
