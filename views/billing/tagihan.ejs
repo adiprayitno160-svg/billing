@@ -266,6 +266,7 @@
                     <option value="partial" <%=filters.status==='partial' ? 'selected' : '' %>>PARTIAL</option>
                     <option value="paid" <%=filters.status==='paid' ? 'selected' : '' %>>LUNAS</option>
                     <option value="overdue" <%=filters.status==='overdue' ? 'selected' : '' %>>JATUH TEMPO</option>
+                    <option value="hutang" <%=filters.status==='hutang' ? 'selected' : '' %>>HUTANG (ARSIP)</option>
                     <option value="cancelled" <%=filters.status==='cancelled' ? 'selected' : '' %>>DIBATALKAN</option>
                 </select>
             </div>
@@ -405,9 +406,11 @@
                                             (invoice.status==='sent' ) { sClass='bg-blue-50 text-blue-600' ;
                                             sLabel='TERKIRIM' ; } else if (invoice.status==='partial' ) {
                                             sClass='bg-amber-50 text-amber-600' ; sLabel='PARTIAL' ; } else if
-                                            (invoice.status==='draft' ) { sClass='bg-slate-100 text-slate-500' ;
-                                            sLabel='DRAFT' ; } else if (invoice.status==='cancelled' ) {
-                                            sClass='bg-slate-200 text-slate-400 line-through' ; sLabel='BATAL' ; } %>
+                                            (invoice.status==='hutang' ) { sClass='bg-purple-50 text-purple-600' ;
+                                            sLabel='HUTANG' ; } else if (invoice.status==='draft' ) {
+                                            sClass='bg-slate-100 text-slate-500' ; sLabel='DRAFT' ; } else if
+                                            (invoice.status==='cancelled' ) { sClass='bg-slate-200 text-slate-400 line-through' ;
+                                            sLabel='BATAL' ; } %>
                                             <span class="badge-status <%= sClass %>">
                                                 <%= sLabel %>
                                             </span>
@@ -535,11 +538,13 @@
                                     (invoice.status==='paid' ) { mClass='bg-emerald-500 text-white' ; mLabel='LUNAS' ; }
                                     else if (invoice.status==='overdue' ) { mClass='bg-rose-500 text-white' ;
                                     mLabel='JATUH TEMPO' ; } else if (invoice.status==='sent' ) {
-                                    mClass='bg-blue-500 text-white' ; mLabel='TERKIRIM' ; } else if
-                                    (invoice.status==='partial' ) { mClass='bg-amber-500 text-white' ; mLabel='PARTIAL'
-                                    ; } else if (invoice.status==='draft' ) { mClass='bg-slate-400 text-white' ;
-                                    mLabel='DRAFT' ; } else if (invoice.status==='cancelled' ) {
-                                    mClass='bg-slate-300 text-slate-500 line-through' ; mLabel='BATAL' ; } %>
+                                    mLabel='TERKIRIM' ; } else if (invoice.status==='partial' ) {
+                                    mClass='bg-amber-500 text-white' ; mLabel='PARTIAL' ; } else if
+                                    (invoice.status==='hutang' ) { mClass='bg-purple-500 text-white' ;
+                                    mLabel='HUTANG' ; } else if (invoice.status==='draft' ) {
+                                    mClass='bg-slate-400 text-white' ; mLabel='DRAFT' ; } else if
+                                    (invoice.status==='cancelled' ) { mClass='bg-slate-300 text-slate-500 line-through' ;
+                                    mLabel='BATAL' ; } %>
                                     <span class="text-[9px] font-black px-3 py-1 rounded-full <%= mClass %> uppercase">
                                         <%= mLabel %>
                                     </span>

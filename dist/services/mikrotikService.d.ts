@@ -139,4 +139,5 @@ export declare function updateIpAddress(cfg: MikroTikConfig, id: string, data: {
 export declare function findQueueTreeIdByName(cfg: MikroTikConfig, name: string): Promise<string | null>;
 export declare function findMangleIdByComment(cfg: MikroTikConfig, comment: string): Promise<string | null>;
 export declare function findQueueTreeIdByPacketMark(cfg: MikroTikConfig, packetMark: string): Promise<string | null>;
+export declare function removeActivePppConnection(cfg: MikroTikConfig, name: string): Promise<void>;
 //# sourceMappingURL=mikrotikService.d.ts.map

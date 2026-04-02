@@ -281,13 +281,26 @@ class IsolationService {
             }
             if (isNewConnection)
                 await connection.commit();
-            // Broadcast to Admins/Operators for Un-Isolation
+            // Broadcast to Admins/Operators for Both Isolate & Restore
             if (isolationData.action === 'restore') {
                 try {
-                    await UnifiedNotificationService_1.UnifiedNotificationService.broadcastToAdmins(`✅ *INFO UN-ISOLIR KONEKSI*\n\nPelanggan: ${customer.name} (${customer.customer_code})\nTelah aktif kembali / un-isolir.\nAlasan: ${isolationData.reason}\nOleh: ${isolationData.performed_by}`);
+                    await UnifiedNotificationService_1.UnifiedNotificationService.broadcastToAdmins(`✅ *INFO UN-ISOLIR KONEKSI*\n\nPelanggan: *${customer.name}* (${customer.customer_code})\nTelah aktif kembali / un-isolir.\nAlasan: ${isolationData.reason}\nOleh: ${isolationData.performed_by}`);
                 }
                 catch (e) {
                     console.error('Failed to broadcast unisolir to admins', e);
+                }
+            }
+            else if (isolationData.action === 'isolate') {
+                try {
+                    const unpaidText = isolationData.unpaid_periods ? `\n📆 *Tunggakan Bulan:* ${isolationData.unpaid_periods}` : '';
+                    await UnifiedNotificationService_1.UnifiedNotificationService.broadcastToAdmins(`⛔ *INFO ISOLIR KONEKSI*\n\n` +
+                        `Pelanggan: *${customer.name}* (${customer.customer_code})\n` +
+                        `Telah diisolir / diblokir akses internetnya.\n` +
+                        `Alasan: ${isolationData.reason}${unpaidText}\n` +
+                        `Oleh: ${isolationData.performed_by === 'system' ? 'Asisten AI/Sistem Otomatis' : isolationData.performed_by}`);
+                }
+                catch (e) {
+                    console.error('Failed to broadcast isolir to admins', e);
                 }
             }
             // Notification (with duplicate protection to prevent spam)
@@ -577,6 +590,7 @@ class IsolationService {
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.status NOT IN ('paid', 'partial', 'cancelled')
+            AND i.period <= '2026-03'
             AND i.due_date < DATE_SUB(CURDATE(), INTERVAL ${GRACE_PERIOD_DAYS} DAY)
             AND c.is_isolated = FALSE
             AND c.is_deferred = FALSE

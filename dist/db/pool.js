@@ -575,7 +575,7 @@ async function ensureInitialSchema() {
 			total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
 			paid_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
 			remaining_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
-			status ENUM('draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled') DEFAULT 'draft',
+			status ENUM('draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled', 'hutang') DEFAULT 'draft',
 			partial_payment_allowed TINYINT(1) DEFAULT 0,
 			debt_tracking_enabled TINYINT(1) DEFAULT 0,
 			last_payment_date DATE NULL,

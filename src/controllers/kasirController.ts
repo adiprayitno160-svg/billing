@@ -136,14 +136,23 @@ export class KasirController {
     // Dashboard kasir
     public async dashboard(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
+            const { month } = req.query;
+            const currentMonth = month === 'current';
+            const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+
             // Ambil data statistik untuk dashboard kasir
-            const stats = await this.getKasirStats();
+            const stats = await this.getKasirStats(currentMonth ? period : undefined);
+
+            // Fetch recent transactions for shift intel
+            const recentTransactionsData = await this.getTransactions(1, 10, '', '');
 
             res.render('kasir/dashboard', {
                 title: 'Dashboard Kasir',
                 currentPath: '/kasir/dashboard',
                 user: req.user,
                 stats: stats,
+                recentTransactions: recentTransactionsData.data,
+                currentMonth: currentMonth,
                 layout: 'layouts/kasir'
             });
         } catch (error) {
@@ -212,13 +221,13 @@ export class KasirController {
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue')) as pending_count,
+                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_count,
                         (SELECT GROUP_CONCAT(period SEPARATOR ', ') FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue')) as pending_periods,
+                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_periods,
                         (SELECT SUM(total_amount - paid_amount) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue')) as total_pending,
+                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as total_pending,
                         (SELECT COUNT(*) FROM payment_verifications pv
                          WHERE pv.customer_id = c.id 
                          AND pv.status = 'approved' 
@@ -227,7 +236,7 @@ export class KasirController {
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     WHERE (SELECT COUNT(*) FROM invoices 
                            WHERE customer_id = c.id 
-                           AND status IN ('sent', 'partial', 'overdue')
+                           AND status IN ('sent', 'partial', 'overdue', 'hutang')
                 `;
 
                 const queryParams: any[] = [];
@@ -287,10 +296,10 @@ export class KasirController {
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue')) as pending_count,
+                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_count,
                         (SELECT GROUP_CONCAT(period SEPARATOR ', ') FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue')) as pending_periods
+                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_periods
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     WHERE (c.customer_code LIKE ? 
@@ -299,7 +308,7 @@ export class KasirController {
                        OR c.pppoe_username LIKE ?)
                        AND (SELECT COUNT(*) FROM invoices 
                             WHERE customer_id = c.id 
-                            AND status IN ('sent', 'partial', 'overdue')) > 0
+                            AND status IN ('sent', 'partial', 'overdue', 'hutang')) > 0
                     LIMIT 20
                 `, [`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`]);
 
@@ -332,7 +341,7 @@ export class KasirController {
                 } else if (status === 'all') {
                     // No filter
                 } else {
-                    query += " AND status IN ('sent', 'partial', 'overdue')";
+                    query += " AND status IN ('sent', 'partial', 'overdue', 'hutang')";
                 }
 
                 // Default to DESC (newest first) but support ASC (oldest first for payment selection)
@@ -1033,7 +1042,26 @@ export class KasirController {
             );
 
             if (paymentResult.success) {
-                // Redirect to print receipt page
+                // Trigger Notification to Customer (Non-blocking)
+                import('../services/notification/UnifiedNotificationService').then(({ UnifiedNotificationService }) => {
+                    const { paymentType, selectedInvoiceIds } = req.body;
+                    
+                    // If debt, notify specifically about debt (using first invoice as reference)
+                    if (paymentType === 'debt') {
+                        const invIds = selectedInvoiceIds ? (Array.isArray(selectedInvoiceIds) ? selectedInvoiceIds : [selectedInvoiceIds]) : [];
+                        if (invIds.length > 0) {
+                            UnifiedNotificationService.notifyPaymentDebt(parseInt(invIds[0])).catch(err => 
+                                console.error('[KasirController] Failed to send debt notification:', err)
+                            );
+                        }
+                    } else if (paymentResult.paymentId) {
+                        UnifiedNotificationService.notifyPaymentReceived(paymentResult.paymentId).catch(err => 
+                            console.error('[KasirController] Failed to send payment notification:', err)
+                        );
+                    }
+                }).catch(err => console.error('[KasirController] Failed to import NotificationService:', err));
+
+                // Redirect to handle print receipt popup in frontend
                 if (paymentResult.paymentId) {
                     return res.redirect(`/kasir/payments?success_payment_id=${paymentResult.paymentId}`);
                 }
@@ -1051,7 +1079,7 @@ export class KasirController {
     }
 
     // Helper methods
-    private async getKasirStats(): Promise<any> {
+    private async getKasirStats(monthPeriod?: string): Promise<any> {
         const conn = await databasePool.getConnection();
         try {
             // Get today's statistics
@@ -1063,13 +1091,19 @@ export class KasirController {
                 WHERE DATE(payment_date) = CURDATE()
             `);
 
-            // Get total statistics
-            const [totalStats] = await conn.query<RowDataPacket[]>(`
+            // Get total statistics (or filtered by month)
+            let totalQuery = `
                 SELECT 
                     COUNT(*) as totalTransactions,
                     COALESCE(SUM(amount), 0) as totalRevenue
                 FROM payments
-            `);
+            `;
+            const totalParams: any[] = [];
+            if (monthPeriod) {
+                totalQuery += ` WHERE DATE_FORMAT(payment_date, '%Y-%m') = ?`;
+                totalParams.push(monthPeriod);
+            }
+            const [totalStats] = await conn.query<RowDataPacket[]>(totalQuery, totalParams);
 
             // Get pending invoices count
             const [pendingStats] = await conn.query<RowDataPacket[]>(`
@@ -1089,13 +1123,24 @@ export class KasirController {
                 GROUP BY payment_method
             `);
 
+            // Get total loyalty bonus given
+            const [loyaltyStats] = await conn.query<RowDataPacket[]>(`
+                SELECT 
+                    COALESCE(SUM(amount), 0) as totalLoyalty
+                FROM payments
+                WHERE payment_method IN ('loyalty_bonus', 'loyalty_reward')
+                ${monthPeriod ? ' AND DATE_FORMAT(payment_date, "%Y-%m") = ?' : ''}
+            `, monthPeriod ? [monthPeriod] : []);
+
             return {
                 totalTransactions: totalStats[0]?.totalTransactions || 0,
                 totalRevenue: totalStats[0]?.totalRevenue || 0,
                 todayTransactions: todayStats[0]?.todayTransactions || 0,
                 todayRevenue: todayStats[0]?.todayRevenue || 0,
                 pendingPayments: pendingStats[0]?.pendingPayments || 0,
-                paymentMethods: methodStats || []
+                totalLoyalty: loyaltyStats[0]?.totalLoyalty || 0,
+                paymentMethods: methodStats || [],
+                filtered: !!monthPeriod
             };
         } catch (error) {
             console.error('Error getting kasir stats:', error);
@@ -1133,8 +1178,12 @@ export class KasirController {
             }
 
             if (status) {
-                whereClause += ` AND p.gateway_status = ?`;
-                params.push(status);
+                if (status === 'paid') {
+                    whereClause += ` AND (p.gateway_status IN ('completed', 'settlement', 'paid', 'success'))`;
+                } else {
+                    whereClause += ` AND p.gateway_status = ?`;
+                    params.push(status);
+                }
             }
 
             // Get transactions
@@ -1288,7 +1337,7 @@ export class KasirController {
             let invoiceQuery = `
                 SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices 
                 WHERE customer_id = ? 
-                AND status IN ('sent', 'partial', 'overdue')
+                AND status IN ('sent', 'partial', 'overdue', 'hutang')
             `;
             const queryParams: any[] = [customerId];
 
@@ -1323,7 +1372,7 @@ export class KasirController {
             for (const invoice of invoices) {
                 if (totalPaymentBuffer <= 0 && (!useBalance || currentBalance <= 0) && paymentType !== 'debt') break;
 
-                const invoiceRemaining = parseFloat(invoice.remaining_amount || invoice.total_amount);
+                let invoiceRemaining = parseFloat(invoice.remaining_amount || invoice.total_amount);
                 // --- Apply Loyalty Bonus (Discount) ---
                 const loyaltyDiscount = parseFloat(customer.loyalty_discount || 0);
                 if (loyaltyDiscount > 0 && invoiceRemaining > 0 && paymentType !== 'debt') {
@@ -1331,10 +1380,22 @@ export class KasirController {
                     console.log(`[KasirController] Applying loyalty bonus of ${discountToApply} to invoice ${invoice.invoice_number}`);
                     
                     // Insert 'discount' payment record
-                    await conn.query(`
-                        INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at)
-                        VALUES (?, 'loyalty_bonus', ?, NOW(), 'completed', ?, ?, NOW())
-                    `, [invoice.id, discountToApply, 'Bonus Loyalitas (Potongan Selamanya)', kasirId]);
+                    // Create payment record for discount
+                    const [discountPayment] = await conn.query<any>(
+                        `INSERT INTO payments (
+                            invoice_id, amount, payment_method, payment_date, 
+                            gateway_status, created_at, 
+                            notes, created_by
+                        ) VALUES (?, ?, 'loyalty_bonus', NOW(), 'completed', NOW(), ?, ?)`,
+                        [invoice.id, discountToApply, `Bonus Loyalitas: Rp ${discountToApply.toLocaleString('id-ID')}`, kasirId]
+                    );
+
+                    // Capture payment ID for printing
+                    if (discountPayment && discountPayment.insertId) {
+                        if (!firstPaymentId) {
+                            firstPaymentId = discountPayment.insertId;
+                        }
+                    }
                     
                     // Update invoice paid_amount and remaining_amount
                     await conn.query(`
@@ -1346,8 +1407,10 @@ export class KasirController {
                         WHERE id = ?
                     `, [discountToApply, discountToApply, discountToApply, invoice.id]);
                     
-                    // Recalculate remaining for subsequent payments (cash/balance)
-                    invoice.remaining_amount = invoiceRemaining - discountToApply;
+                    // Update invoiceRemaining and paid_amount for subsequent logic (balance, cash)
+                    invoiceRemaining -= discountToApply;
+                    invoice.remaining_amount = invoiceRemaining;
+                    invoice.paid_amount = (parseFloat(invoice.paid_amount || 0) + discountToApply).toString();
                 }
 
 
@@ -1388,11 +1451,31 @@ export class KasirController {
                     `, [invoice.id, paymentMethod, appliedFromCash, paymentStatus, notes || '', kasirId]);
 
                     if (!firstPaymentId) firstPaymentId = pResult.insertId;
+
+                    // --- AUTOMATIC LOYALTY REWARD (LOYALTY SYSTEM) ---
+                    // Give 1% cashback to balance for every successful payment > 0
+                    if (appliedFromCash > 0) {
+                        const cashbackAmount = Math.ceil(appliedFromCash * 0.01); 
+                        if (cashbackAmount > 0) {
+                            console.log(`[Loyalty System] Giving ${cashbackAmount} cashback to customer ${customerId}`);
+                            await conn.query('UPDATE customers SET balance = balance + ? WHERE id = ?', [cashbackAmount, customerId]);
+                            await conn.query(`
+                                INSERT INTO customer_balance_logs (customer_id, amount, type, description, reference_id, reference_type, created_by, created_at)
+                                VALUES (?, ?, 'credit', ?, ?, 'loyalty_bonus', ?, NOW())
+                            `, [customerId, cashbackAmount, `Bonus Loyalitas (Cashback 1% dari pembayaran ${invoice.invoice_number})`, invoice.id, kasirId]);
+                        }
+                    }
                 }
 
                 // Apply debt (no cash, but still marks as partial/overdue)
                 if (paymentType === 'debt' && (appliedFromBalance + appliedFromCash) < invoiceRemaining) {
-                    // Debt tracking is handled later if remaining > 0
+                    // Create a 0 amount payment record so it shows in history and triggers notifications
+                    const [pResult] = await conn.query<ResultSetHeader>(`
+                        INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at)
+                        VALUES (?, 'debt', 0, NOW(), 'completed', ?, ?, NOW())
+                    `, [invoice.id, notes || 'Dialihkan ke Hutang Kasir', kasirId]);
+                    
+                    if (!firstPaymentId) firstPaymentId = pResult.insertId;
                 }
 
                 const totalAppliedToInv = appliedFromBalance + appliedFromCash;
@@ -1503,6 +1586,18 @@ export class KasirController {
                 await UnifiedNotificationService.broadcastToAdmins(adminMsg);
             } catch (notifErr) {
                 console.error('[KasirController] Action Desk Notification Error:', notifErr);
+            }
+
+            // --- SEND PDF NOTIFICATION TO CUSTOMER (NEW FIX) ---
+            if (firstPaymentId) {
+                try {
+                    const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+                    // We send PDF receipts for the payment
+                    await UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true);
+                    console.log(`[KasirController] ✅ Payment receipt PDF sent to customer ${customerId}`);
+                } catch (pdfErr: any) {
+                    console.error('[KasirController] ❌ Failed to send PDF receipt:', pdfErr.message);
+                }
             }
 
             await conn.commit();

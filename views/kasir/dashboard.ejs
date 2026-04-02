@@ -8,7 +8,7 @@
         
         <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
             <div>
-                <p class="text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em] mb-3">CASHIER WORKSTATION</p>
+                <p class="text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em] mb-3">CASHIER WORKSTATION <%= currentMonth ? '• BULAN INI' : '' %></p>
                 <h1 class="text-4xl font-display font-black tracking-tight leading-tight">
                     Selamat Datang,<br>
                     <span class="text-indigo-300"><%= user.full_name %></span>
@@ -16,6 +16,10 @@
                 <p class="text-sm font-semibold text-slate-400 mt-3 uppercase tracking-widest" id="dashboardDate"></p>
             </div>
             <div class="flex items-center gap-4">
+                <div class="flex bg-slate-800/50 p-1.5 rounded-2xl gap-1 mr-4 border border-slate-700">
+                    <a href="/kasir/dashboard" class="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest <%= !currentMonth ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-white' %> transition-all">SEMUA</a>
+                    <a href="/kasir/dashboard?month=current" class="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest <%= currentMonth ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-white' %> transition-all">BULAN INI</a>
+                </div>
                 <a href="/kasir/payments" class="h-14 px-8 bg-indigo-500 hover:bg-indigo-600 active:scale-95 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center gap-3 transition-all shadow-xl shadow-indigo-500/20">
                     <i class="fas fa-bolt"></i>
                     Bayar Sekarang
@@ -96,10 +100,30 @@
                 <div class="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center text-violet-500 transition-transform group-hover:scale-110 group-hover:rotate-3">
                     <i class="fas fa-chart-bar text-2xl"></i>
                 </div>
-                <span class="px-3 py-1 bg-violet-50 text-violet-600 text-[9px] font-black tracking-widest rounded-full border border-violet-100">ALL TIME</span>
+                <span class="px-3 py-1 bg-violet-50 text-violet-600 text-[9px] font-black tracking-widest rounded-full border border-violet-100"><%= currentMonth ? 'BULAN INI' : 'ALL TIME' %></span>
             </div>
             <p class="text-4xl font-display font-black text-slate-900 leading-none"><%= stats.totalTransactions || 0 %></p>
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-3">Total Transaksi</p>
+        </div>
+    </div>
+
+    <!-- Loyalty Rewards Summary -->
+    <div class="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-[2.5rem] p-10 text-white shadow-xl shadow-emerald-100 border border-emerald-500 relative overflow-hidden group">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl transition-all group-hover:scale-150"></div>
+        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div class="flex items-center gap-6">
+                <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-[2rem] flex items-center justify-center text-emerald-300 border border-white/10 shadow-inner">
+                    <i class="fas fa-gift text-3xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-display font-black uppercase tracking-tight">Kompensasi Loyalitas</h3>
+                    <p class="text-emerald-100/60 text-xs font-bold uppercase tracking-[0.2em] mt-1">Total Bonus Diberikan <%= currentMonth ? '(Bulan Ini)' : '(Semua)' %></p>
+                </div>
+            </div>
+            <div class="text-center md:text-right">
+                <p class="text-4xl font-display font-black">Rp <%= (stats.totalLoyalty || 0).toLocaleString('id-ID') %></p>
+                <p class="text-[10px] font-black text-emerald-300 uppercase tracking-[0.3em] mt-2">Loyalty Rewards Dispatched</p>
+            </div>
         </div>
     </div>
 

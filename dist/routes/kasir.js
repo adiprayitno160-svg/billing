@@ -86,6 +86,7 @@ router.get('/reports/export', kasirController.exportReports.bind(kasirController
 router.get('/debt', kasirController.debtList.bind(kasirController));
 // Action Desk: send payment notification
 router.post('/api/send-notification/:paymentId', kasirController.sendPaymentNotificationAction.bind(kasirController));
+router.post('/api/send-invoice-notification/:customerId', kasirController.sendInvoiceNotificationAction.bind(kasirController));
 // Print routes
 router.get('/print-group', kasirController.printGroup.bind(kasirController));
 router.get('/print-checklist/:odc_id', kasirController.printChecklist.bind(kasirController));

@@ -349,14 +349,28 @@ export class IsolationService {
 
             if (isNewConnection) await (connection as PoolConnection).commit();
 
-            // Broadcast to Admins/Operators for Un-Isolation
+            // Broadcast to Admins/Operators for Both Isolate & Restore
             if (isolationData.action === 'restore') {
                 try {
-                    await UnifiedNotificationService.broadcastToAdmins(`✅ *INFO UN-ISOLIR KONEKSI*\n\nPelanggan: ${customer.name} (${customer.customer_code})\nTelah aktif kembali / un-isolir.\nAlasan: ${isolationData.reason}\nOleh: ${isolationData.performed_by}`);
+                    await UnifiedNotificationService.broadcastToAdmins(`✅ *INFO UN-ISOLIR KONEKSI*\n\nPelanggan: *${customer.name}* (${customer.customer_code})\nTelah aktif kembali / un-isolir.\nAlasan: ${isolationData.reason}\nOleh: ${isolationData.performed_by}`);
                 } catch (e) {
                     console.error('Failed to broadcast unisolir to admins', e);
                 }
+            } else if (isolationData.action === 'isolate') {
+                try {
+                    const unpaidText = isolationData.unpaid_periods ? `\n📆 *Tunggakan Bulan:* ${isolationData.unpaid_periods}` : '';
+                    await UnifiedNotificationService.broadcastToAdmins(
+                        `⛔ *INFO ISOLIR KONEKSI*\n\n` +
+                        `Pelanggan: *${customer.name}* (${customer.customer_code})\n` +
+                        `Telah diisolir / diblokir akses internetnya.\n` +
+                        `Alasan: ${isolationData.reason}${unpaidText}\n` +
+                        `Oleh: ${isolationData.performed_by === 'system' ? 'Asisten AI/Sistem Otomatis' : isolationData.performed_by}`
+                    );
+                } catch (e) {
+                    console.error('Failed to broadcast isolir to admins', e);
+                }
             }
+
 
             // Notification (with duplicate protection to prevent spam)
             if (customer.phone && !isolationData.skipNotification) {

@@ -115,36 +115,33 @@ class SchedulerService {
             console.error('Failed to apply Overdue Notification schedule, fallback enabling at 10:00 daily:', err);
             this.scheduleOverdueNotifications(true);
         });
-        // processAutoBlocking at 01:00 AM daily (Requested by User)
-        cron.schedule('0 1 * * *', async () => {
+        // processAutoBlocking at 01:00 AM daily (DISABLED BY USER REQUEST - MANUAL MODE)
+        /* cron.schedule('0 1 * * *', async () => {
             console.log('[Scheduler] Running 01:00 AM auto blocking check...');
             try {
-                const { pppoeActivationService } = await Promise.resolve().then(() => __importStar(require('./pppoe/pppoeActivationService')));
+                const { pppoeActivationService } = await import('./pppoe/pppoeActivationService');
                 await pppoeActivationService.processAutoBlocking();
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('[Scheduler] Error in 01:00 AM auto blocking:', error);
             }
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
-        });
-        // SPECIAL ONE-TIME MASS ISOLATION (April 1st, 01:00 AM)
-        // Targeted for period 2026-03 only.
-        cron.schedule('0 1 1 4 *', async () => {
+        }); */
+        // SPECIAL ONE-TIME MASS ISOLATION (DISABLED BY USER REQUEST - MANUAL MODE)
+        /* cron.schedule('0 1 1 4 *', async () => {
             console.log('[Scheduler] 🚨 Running ONE-TIME mass isolation for period 2026-03...');
             try {
-                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const { IsolationService } = await import('./billing/isolationService');
                 const result = await IsolationService.massIsolateSpecificPeriod('2026-03');
                 console.log(`[Scheduler] Mass isolation completed: ${result.isolated} isolated, ${result.failed} failed`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('[Scheduler] Error in mass isolation job:', error);
             }
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
-        });
+        }); */
         // Auto-Lunas Admin at 01:30 AM daily
         cron.schedule('30 1 * * *', async () => {
             console.log('[Scheduler] Running 01:30 AM Auto-Lunas Admin check...');
@@ -252,21 +249,20 @@ class SchedulerService {
             scheduled: true,
             timezone: "Asia/Jakarta"
         });
-        // Auto isolate overdue (>= 2 unpaid invoices) - daily at 02:00
-        cron.schedule('0 2 * * *', async () => {
+        // Auto isolate overdue (>= 2 unpaid invoices) - (DISABLED BY USER REQUEST - MANUAL MODE)
+        /* cron.schedule('0 2 * * *', async () => {
             console.log('Running auto isolate overdue customers (>= 2 unpaid)...');
             try {
-                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const { IsolationService } = await import('./billing/isolationService');
                 const result = await IsolationService.autoIsolateOverdueCustomers();
                 console.log(`Auto isolate overdue: ${result.isolated} isolated, ${result.failed} failed`);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error('Error running auto isolate overdue:', error);
             }
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
-        });
+        }); */
         // Auto delete blocked customers (> 7 days) - daily at 03:00
         cron.schedule('0 3 * * *', async () => {
             console.log('Running auto delete blocked customers (> 7 days)...');

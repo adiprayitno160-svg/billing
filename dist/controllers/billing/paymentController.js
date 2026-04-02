@@ -1174,6 +1174,18 @@ class PaymentController {
                 manualDiscountValue: parseFloat(manual_discount_value || '0'),
                 manualDiscountType: manual_discount_type
             });
+            // Trigger WA Notification (Non-blocking)
+            if (result.success) {
+                Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService'))).then(({ UnifiedNotificationService }) => {
+                    if (payment_type === 'debt') {
+                        // If debt, notify specifically about debt (using first invoice as reference)
+                        UnifiedNotificationService.notifyPaymentDebt(invoiceIds[0]).catch(err => console.error('[AdminPayment] Notification failed (Debt):', err));
+                    }
+                    else if (result.paymentId) {
+                        UnifiedNotificationService.notifyPaymentReceived(result.paymentId).catch(err => console.error('[AdminPayment] Notification failed:', err));
+                    }
+                }).catch(err => console.error('[AdminPayment] Import error:', err));
+            }
             res.json(result);
         }
         catch (error) {
@@ -1225,10 +1237,10 @@ class PaymentController {
                 // Determine how much cash to apply
                 const invPayment = Math.min(invRemaining, remainingPool);
                 remainingPool -= invPayment;
-                if (invPayment > 0 || invDiscount > 0) {
-                    // Record payment if cash was spent
-                    if (invPayment > 0) {
-                        const [pResult] = await conn.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, kasir_name, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())', [invId, paymentMethod, invPayment, paymentDateStr, notes || 'Pembayaran Terpusat', kasirName]);
+                if (invPayment > 0 || invDiscount > 0 || paymentType === 'debt') {
+                    // Record payment if cash was spent OR if it's a debt to ensure history is updated
+                    if (invPayment > 0 || paymentType === 'debt') {
+                        const [pResult] = await conn.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, kasir_name, created_at) VALUES (?, ?, ?, ?, "completed", ?, ?, NOW())', [invId, paymentType === 'debt' && invPayment === 0 ? 'debt' : paymentMethod, invPayment, paymentDateStr, notes || 'Dialihkan ke Hutang', kasirName]);
                         if (!firstPaymentId)
                             firstPaymentId = pResult.insertId;
                     }
@@ -1268,15 +1280,21 @@ class PaymentController {
             }
             await conn.commit();
             // 4. Notifications (Non-blocking)
-            if (paymentType === 'debt') {
+            if (firstPaymentId) {
                 Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService'))).then(({ UnifiedNotificationService }) => {
-                    UnifiedNotificationService.broadcastToAdmins(`📌 *INFORMASI HUTANG BARU (ADMIN)*\n\n` +
-                        `👤 *Nama:* Pelanggan (ID: ${customerId})\n` +
-                        `🧾 *Invoice IDs:* ${selectedInvoiceIds.join(', ')}\n` +
-                        `💰 *Total Hutang:* Rp ${amount.toLocaleString('id-ID')}\n` +
-                        `📝 *Keterangan:* Pembayaran ditunda via Admin Panel.\n\n` +
-                        `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`).catch(notifErr => console.error('Failed to notify admins about debt (Admin):', notifErr));
-                }).catch(err => console.error('Error importing notification service:', err));
+                    // Send PDF receipt to customer
+                    UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true)
+                        .catch(err => console.error('[AdminPayment] Failed to send customer receipt:', err));
+                    // Send debt notification to admins if applicable
+                    if (paymentType === 'debt') {
+                        UnifiedNotificationService.broadcastToAdmins(`📌 *INFORMASI HUTANG BARU (ADMIN)*\n\n` +
+                            `👤 *Pelanggan ID:* ${customerId}\n` +
+                            `🧾 *Invoices:* ${selectedInvoiceIds.join(', ')}\n` +
+                            `💰 *Total:* Rp ${amount.toLocaleString('id-ID')}\n` +
+                            `📝 *Keterangan:* Pembayaran ditunda via Admin Panel.\n\n` +
+                            `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`).catch(notifErr => console.error('[AdminPayment] Failed to notify admins about debt:', notifErr));
+                    }
+                }).catch(err => console.error('[AdminPayment] Error importing notification service:', err));
             }
             // 5. Auto-restore trigger (Non-blocking)
             // Release connection first, then run restore check in background with a new connection

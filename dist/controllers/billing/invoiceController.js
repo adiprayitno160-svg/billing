@@ -132,6 +132,7 @@ class InvoiceController {
                     SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count,
                     SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) as partial_count,
                     SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue_count,
+                    SUM(CASE WHEN status = 'hutang' THEN 1 ELSE 0 END) as hutang_count,
                     SUM(total_amount) as total_amount,
                     SUM(paid_amount) as total_paid,
                     SUM(remaining_amount) as total_remaining

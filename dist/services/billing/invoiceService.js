@@ -289,12 +289,11 @@ class InvoiceService {
                        c.name as customer_name, c.email, c.phone, COALESCE(s.activation_date, s.start_date) as start_date,
                        DAY(COALESCE(s.activation_date, s.start_date)) as billing_day, c.account_balance, c.use_device_rental, c.is_taxable,
                        c.customer_code, c.rental_mode, c.rental_cost,
-                       c.custom_payment_deadline, c.custom_isolate_days_after_deadline
+                       c.custom_payment_deadline, c.custom_isolate_days_after_deadline, c.loyalty_discount
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
                 AND c.status = 'active'
-                AND c.is_isolated = FALSE
             `;
             const queryParams = [];
             if (!forceAll && !customerIds) {
@@ -302,7 +301,7 @@ class InvoiceService {
                 // And filter out technically expired end_dates only for auto-scheduler
                 subscriptionQuery += ` 
                     AND (s.end_date IS NULL OR s.end_date >= CURDATE())
-                    AND DAY(s.start_date) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) 
+                    AND DAY(COALESCE(s.activation_date, s.start_date)) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) 
                 `;
             }
             if (customerIds) {
@@ -386,11 +385,20 @@ class InvoiceService {
                     if (ppnEnabled && ppnRate > 0 && subscription.is_taxable) {
                         ppnAmount = Math.round(Math.max(0, baseSubtotal + deviceFee - totalDiscount) * (ppnRate / 100));
                     }
-                    const totalAmount = Math.max(0, baseSubtotal + deviceFee + ppnAmount + carryOverAmount - totalDiscount);
+                    const loyaltyDiscountTotal = parseFloat(subscription.loyalty_discount || 0);
+                    const totalAmount = Math.max(0, baseSubtotal + deviceFee + ppnAmount + carryOverAmount - totalDiscount - loyaltyDiscountTotal);
                     const amountFromBalance = Math.min(parseFloat(subscription.account_balance || 0), totalAmount);
                     const items = [
                         { description: `Paket ${subscription.package_name || 'Internet'} - ${period}`, quantity: 1, unit_price: baseSubtotal, total_price: baseSubtotal }
                     ];
+                    if (loyaltyDiscountTotal > 0) {
+                        items.push({
+                            description: `Bonus Loyalitas (Potongan Selamanya)`,
+                            quantity: 1,
+                            unit_price: -loyaltyDiscountTotal,
+                            total_price: -loyaltyDiscountTotal
+                        });
+                    }
                     if (deviceFee > 0)
                         items.push({ description: `Sewa Perangkat - ${period}`, quantity: 1, unit_price: deviceFee, total_price: deviceFee });
                     if (carryOverAmount > 0)
@@ -415,9 +423,13 @@ class InvoiceService {
                         device_fee: deviceFee,
                         total_amount: totalAmount,
                         paid_amount: amountFromBalance,
-                        discount_amount: totalDiscount,
-                        notes: carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')}` : undefined
+                        discount_amount: totalDiscount + loyaltyDiscountTotal,
+                        notes: (carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')}` : 'Tagihan Bulanan') +
+                            (loyaltyDiscountTotal > 0 ? ` + Loyalty: Rp ${loyaltyDiscountTotal.toLocaleString('id-ID')}` : '')
                     }, items, connection);
+                    if (loyaltyDiscountTotal > 0) {
+                        await connection.query('INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, created_at) VALUES (?, "loyalty", ?, "Potongan Loyalitas Selamanya", NOW())', [invoiceId, loyaltyDiscountTotal]);
+                    }
                     invoiceIds.push(invoiceId);
                     // Update related records
                     if (compRows.length > 0) {
@@ -454,7 +466,7 @@ class InvoiceService {
             }
             // 2. Fallback customers (without active subscriptions)
             let customerQuery = `
-                SELECT c.id as customer_id, c.name as customer_name, c.email, c.phone, c.account_balance, 
+                SELECT c.id as customer_id, c.loyalty_discount, c.name as customer_name, c.email, c.phone, c.account_balance, 
                        c.use_device_rental, c.is_taxable, c.rental_mode, c.rental_cost, c.created_at,
                        c.connection_type, c.custom_payment_deadline,
                        sp.name as static_pkg_name, sp.price as static_pkg_price,
@@ -551,7 +563,8 @@ class InvoiceService {
                             total_price: remAmt
                         });
                     }
-                    const totalAmount = subtotal + deviceFee + ppnAmount + carryOverAmount;
+                    const loyaltyDiscountFallback = parseFloat(customer.loyalty_discount || 0);
+                    const totalAmount = Math.max(0, subtotal + deviceFee + ppnAmount + carryOverAmount - loyaltyDiscountFallback);
                     const customerBalance = parseFloat(customer.account_balance || 0);
                     const amountFromBalance = Math.min(customerBalance, totalAmount);
                     const items = [{

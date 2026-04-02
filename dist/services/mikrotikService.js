@@ -71,6 +71,7 @@ exports.updateIpAddress = updateIpAddress;
 exports.findQueueTreeIdByName = findQueueTreeIdByName;
 exports.findMangleIdByComment = findMangleIdByComment;
 exports.findQueueTreeIdByPacketMark = findQueueTreeIdByPacketMark;
+exports.removeActivePppConnection = removeActivePppConnection;
 const MikroTikConnectionPool_1 = require("./MikroTikConnectionPool");
 async function testMikrotikConnection(cfg) {
     try {
@@ -726,6 +727,20 @@ async function findQueueTreeIdByPacketMark(cfg, packetMark) {
     }
     catch {
         return null;
+    }
+}
+async function removeActivePppConnection(cfg, name) {
+    try {
+        const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/print', [`?name=${name}`], `active_chk:${name}`, 1000);
+        if (res && res.length > 0) {
+            for (const r of res) {
+                await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/remove', [`.id=${r['.id']}`]);
+            }
+            console.log(`[MikroTik] Removed active connection for: ${name}`);
+        }
+    }
+    catch (err) {
+        console.error(`[MikroTik] Failed to remove active connection for ${name}:`, err.message);
     }
 }
 //# sourceMappingURL=mikrotikService.js.map

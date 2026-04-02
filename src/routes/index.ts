@@ -2115,9 +2115,8 @@ router.get('/customers/new-pppoe', async (req, res) => {
         console.log('Starting new-pppoe route...');
 
         let packages = await listPppoePackages();
-        // Tampilkan semua paket aktif dengan informasi kapasitas
-        packages = packages.filter((p: any) => p.status === 'active'); // Hanya tampilkan paket aktif
-        console.log('Packages loaded (filtered for active only):', packages.length);
+        // Tampilkan semua paket PPPoE
+        console.log('Packages loaded:', packages.length);
 
         const profiles = await listPppoeProfiles();
         console.log('Profiles loaded:', profiles.length);

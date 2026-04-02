@@ -29,6 +29,7 @@ export declare class UnifiedNotificationService {
      * the message is sent immediately and we wait for the result.
      */
     static sendNotificationById(notificationId: number): Promise<boolean>;
+    private static delay;
     /**
      * Process pending notifications
      */
@@ -73,6 +74,10 @@ export declare class UnifiedNotificationService {
      * Send payment received notification
      */
     static notifyPaymentReceived(paymentId: number, sendImmediately?: boolean): Promise<number[]>;
+    /**
+     * Send notification for payment marked as debt (Tunggakan/Hutang)
+     */
+    static notifyPaymentDebt(invoiceId: number, sendImmediately?: boolean): Promise<number[]>;
     /**
      * Get notification statistics
      */

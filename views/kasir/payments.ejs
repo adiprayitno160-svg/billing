@@ -557,7 +557,7 @@
 
                 return `
                 <div class="div-invoice-card p-6 bg-slate-50 border border-slate-100 rounded-3xl group hover:border-indigo-200 transition-all cursor-pointer relative overflow-hidden" 
-                     data-invoice-id="${inv.id}" data-amount="${parseFloat(inv.remaining_amount) || parseFloat(inv.total_amount)}">
+                     data-invoice-id="${inv.id}" data-amount="${(parseFloat(inv.remaining_amount) || parseFloat(inv.total_amount) || 0)}">
                     
                     <div class="flex items-start gap-4 mb-4">
                         <div class="checkbox-container pt-1">
@@ -581,7 +581,7 @@
 
                     <div class="pt-4 border-t border-slate-200 flex justify-between items-end">
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount Due</span>
-                        <span class="text-xl font-display font-black text-slate-900">Rp ${(parseFloat(inv.remaining_amount) || parseFloat(inv.total_amount)).toLocaleString('id-ID')}</span>
+                        <span class="text-xl font-display font-black text-slate-900">Rp ${(parseFloat(inv.remaining_amount) || parseFloat(inv.total_amount) || 0).toLocaleString('id-ID')}</span>
                     </div>
                 </div>
             `}).join('');
@@ -615,7 +615,8 @@
 
         document.querySelectorAll('.invoice-checkbox:checked').forEach(cb => {
             const card = cb.closest('.div-invoice-card');
-            totalDueAmount += parseFloat(card.dataset.amount);
+            const amt = parseFloat(card.dataset.amount) || 0;
+            totalDueAmount += amt;
             selectedIds.push(cb.dataset.invoiceId);
             
             const input = document.createElement('input');

@@ -1114,8 +1114,85 @@ export class UnifiedNotificationService {
     }
   }
 
+  /**
+   * Send notification for payment marked as debt (Tunggakan/Hutang)
+   */
+  static async notifyPaymentDebt(invoiceId: number, sendImmediately: boolean = true): Promise<number[]> {
+    console.log(`[UnifiedNotification] 🔔 notifyPaymentDebt called for invoiceId: ${invoiceId}, sendImmediately: ${sendImmediately}`);
+    const connection = await databasePool.getConnection();
 
+    try {
+      const { getBillingMonth } = await import('../../utils/periodHelper');
 
+      const [invoiceRows] = await connection.query<RowDataPacket[]>(
+        `SELECT i.*, c.name as customer_name, c.customer_code, c.phone
+         FROM invoices i
+         JOIN customers c ON i.customer_id = c.id
+         WHERE i.id = ?`,
+        [invoiceId]
+      );
+
+      if (invoiceRows.length === 0) {
+        return [];
+      }
+
+      const invoice = invoiceRows[0]!;
+      
+      // Generate PDF for the invoice
+      let attachmentPath = undefined;
+      try {
+        attachmentPath = await this.generateInvoicePdf(invoiceId);
+        console.log(`[UnifiedNotification] 📄 Generated PDF for debt notification ${invoiceId}: ${attachmentPath}`);
+      } catch (pdfError) {
+        console.error(`[UnifiedNotification] ❌ Failed to generate PDF for debt:`, pdfError);
+      }
+
+      // Format billing month
+      const billingMonth = getBillingMonth(invoice.period, new Date(), invoice.due_date);
+
+      try {
+        const ids = await this.queueNotification({
+          customer_id: invoice.customer_id,
+          invoice_id: invoiceId,
+          notification_type: 'payment_debt',
+          attachment_path: attachmentPath,
+          variables: {
+            customer_name: invoice.customer_name,
+            customer_code: invoice.customer_code,
+            invoice_number: invoice.invoice_number,
+            billing_month: billingMonth,
+            total_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.total_amount)),
+            remaining_amount: NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+            due_date: invoice.due_date ? NotificationTemplateService.formatDate(new Date(invoice.due_date)) : '-',
+            notes: invoice.notes || ''
+          },
+          send_immediately: sendImmediately
+        });
+
+        // NOTIFIKASI ADMIN: Nina & Diki
+        try {
+          const adminSummary = `📌 *INFORMASI HUTANG BARU (SISTEM)*\n\n` +
+            `👤 *Pelanggan:* ${invoice.customer_name}\n` +
+            `🆔 *Kode:* ${invoice.customer_code}\n` +
+            `🧾 *No:* ${invoice.invoice_number}\n` +
+            `💰 *Hutang:* Rp ${NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount))}\n` +
+            `📅 *Bulan:* ${billingMonth}\n\n` +
+            `Tagihan telah dipindahkan ke daftar hutang. Mohon pimpinan (Nina / Diki) untuk memantau.`;
+          
+          await this.broadcastToAdmins(adminSummary);
+        } catch (adminErr) {
+          console.error('[UnifiedNotification] Admin debt broadcast failed:', adminErr);
+        }
+
+        return ids;
+      } catch (queueError) {
+        console.error(`[UnifiedNotification] ❌ Failed to queue debt notification for invoice ${invoiceId}:`, queueError);
+        return [];
+      }
+    } finally {
+      connection.release();
+    }
+  }
 
   /**
    * Get notification statistics

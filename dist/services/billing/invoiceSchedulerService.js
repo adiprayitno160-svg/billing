@@ -115,20 +115,24 @@ class InvoiceSchedulerService {
         try {
             const today = new Date();
             const currentDay = today.getDate();
-            // USER REQUIREMENT: Do not send any invoice delivery or reminders before the 20th.
+            /*
+            REMOVED: The Day 20 restriction that prevented early customers from getting reminders.
+            Now reminders run based on individual invoice due_dates.
+            */
+            /*
             if (currentDay < 20) {
                 console.log(`⏸️ Skipping invoice reminders because today (${currentDay}) is before the 20th.`);
                 return;
             }
+            */
             const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
             const { whatsappService } = await Promise.resolve().then(() => __importStar(require('../whatsapp/WhatsAppService')));
             today.setHours(0, 0, 0, 0);
-            // =========================================================================
-            // 1. AUTO-SEND DRAFT INVOICES (Repeats every 3 days starting from 20th)
-            //    - Runs on: 20, 23, 26, 29
-            // =========================================================================
-            if (currentDay >= 20 && (currentDay - 20) % 3 === 0) {
-                console.log(`📡 [AUTO-SEND] Starting auto-delivery for unpaid invoices (Day ${currentDay})...`);
+            // 1. AUTO-SEND DRAFT INVOICES (Sent if not already sent, regardless of day)
+            // Or only on specific intervals? 
+            // Better: Auto-send if due_date is within next 7 days and still in 'draft'
+            if (currentDay >= 1) { // Enabled daily check 
+                console.log(`📡 [AUTO-SEND] Starting check for draft invoices (Day ${currentDay})...`);
                 const [draftInvoices] = await pool_1.databasePool.query(`SELECT i.*, c.name, c.phone 
                      FROM invoices i 
                      JOIN customers c ON i.customer_id = c.id 
@@ -151,10 +155,9 @@ class InvoiceSchedulerService {
                 }
             }
             // =========================================================================
-            // 2. EXISTING REMINDER LOGIC (STRICTLY EVERY 3 DAYS STARTING FROM 20TH)
-            //    - Runs on day 20, 23, 26, 29, 31 (for those end of month cases)
+            // 2. EXISTING REMINDER LOGIC (DAILY CHECK FOR DUE/OVERDUE PROXIMITY)
             // =========================================================================
-            if (currentDay >= 20 && ((currentDay - 20) % 3 === 0 || currentDay === 31)) {
+            if (currentDay >= 1) {
                 const [invoices] = await pool_1.databasePool.query(`SELECT i.*, c.name, c.phone 
                      FROM invoices i 
                      JOIN customers c ON i.customer_id = c.id 

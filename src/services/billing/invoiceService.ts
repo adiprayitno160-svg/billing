@@ -331,7 +331,6 @@ export class InvoiceService {
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
                 AND c.status = 'active'
-                AND c.is_isolated = FALSE
             `;
 
             const queryParams: any[] = [];
@@ -340,7 +339,7 @@ export class InvoiceService {
                 // And filter out technically expired end_dates only for auto-scheduler
                 subscriptionQuery += ` 
                     AND (s.end_date IS NULL OR s.end_date >= CURDATE())
-                    AND DAY(s.start_date) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) 
+                    AND DAY(COALESCE(s.activation_date, s.start_date)) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) 
                 `;
             }
 
@@ -443,13 +442,23 @@ export class InvoiceService {
                         ppnAmount = Math.round(Math.max(0, baseSubtotal + deviceFee - totalDiscount) * (ppnRate / 100));
                     }
 
-                    const loyaltyDiscount = parseFloat(subscription.loyalty_discount || 0);
-                    const totalAmount = Math.max(0, baseSubtotal + deviceFee + ppnAmount + carryOverAmount - totalDiscount - loyaltyDiscount);
+                    const loyaltyDiscountTotal = parseFloat(subscription.loyalty_discount || 0);
+                    const totalAmount = Math.max(0, baseSubtotal + deviceFee + ppnAmount + carryOverAmount - totalDiscount - loyaltyDiscountTotal);
                     const amountFromBalance = Math.min(parseFloat(subscription.account_balance || 0), totalAmount);
 
                     const items: InvoiceItem[] = [
                         { description: `Paket ${subscription.package_name || 'Internet'} - ${period}`, quantity: 1, unit_price: baseSubtotal, total_price: baseSubtotal }
                     ];
+
+                    if (loyaltyDiscountTotal > 0) {
+                        items.push({ 
+                            description: `Bonus Loyalitas (Potongan Selamanya)`, 
+                            quantity: 1, 
+                            unit_price: -loyaltyDiscountTotal, 
+                            total_price: -loyaltyDiscountTotal 
+                        });
+                    }
+
                     if (deviceFee > 0) items.push({ description: `Sewa Perangkat - ${period}`, quantity: 1, unit_price: deviceFee, total_price: deviceFee });
                     if (carryOverAmount > 0) items.push(...carryOverItems);
                     if (slaRebateAmount > 0) items.push({ description: slaReason || `SLA Rebate - ${prevPeriod}`, quantity: 1, unit_price: -slaRebateAmount, total_price: -slaRebateAmount });
@@ -473,12 +482,19 @@ export class InvoiceService {
                         device_fee: deviceFee,
                         total_amount: totalAmount,
                         paid_amount: amountFromBalance,
-                        discount_amount: totalDiscount,
-                        notes: carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')}` : undefined
+                        discount_amount: totalDiscount + loyaltyDiscountTotal,
+                        notes: (carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')}` : 'Tagihan Bulanan') + 
+                               (loyaltyDiscountTotal > 0 ? ` + Loyalty: Rp ${loyaltyDiscountTotal.toLocaleString('id-ID')}` : '')
                     }, items, connection);
 
-                    invoiceIds.push(invoiceId);
+                    if (loyaltyDiscountTotal > 0) {
+                        await connection.query(
+                            'INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, created_at) VALUES (?, "loyalty", ?, "Potongan Loyalitas Selamanya", NOW())',
+                            [invoiceId, loyaltyDiscountTotal]
+                        );
+                    }
 
+                    invoiceIds.push(invoiceId);
                     // Update related records
                     if (compRows.length > 0) {
                         await connection.query(`UPDATE customer_compensations SET status = 'applied', applied_invoice_id = ?, applied_at = NOW() WHERE id IN (?)`, [invoiceId, compRows.map(c => c.id)]);

@@ -645,10 +645,12 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         let staticIpPackages: any[] = [];
         try {
             const allPppoePackages = await listPppoePackages();
-            pppoePackages = allPppoePackages.filter((p: any) => !p.is_full || p.id === customer.package_id || p.id === customer.pppoe_package_id);
+            // Show all packages, but we'll mark them as full in the view if needed.
+            // Removing the strict filter that hides full packages from the list entirely.
+            pppoePackages = allPppoePackages;
 
             const allStaticIpPackages = await listStaticIpPackages();
-            staticIpPackages = allStaticIpPackages.filter(p => !p.is_full || p.id === customer.static_ip_package_id || p.id === customer.package_id);
+            staticIpPackages = allStaticIpPackages;
 
             console.log(`[CustomerEdit] Loaded ${pppoePackages.length} PPPoE packages and ${staticIpPackages.length} Static IP packages`);
         } catch (packageError) {
@@ -856,14 +858,19 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateFields.push('grace_period = ?');
                 updateValues.push(parseInt(req.body.grace_period) || 0);
             }
-            if (loyalty_discount !== undefined) {
+            // Handle Loyalty Discount (FIXED: Check both names just in case)
+            const finalLoyaltyVal = req.body.loyalty_discount !== undefined ? req.body.loyalty_discount : req.body.bonus_loyalitas;
+            if (finalLoyaltyVal !== undefined) {
+                const numericLoyalty = parseFloat(String(finalLoyaltyVal).replace(/[^0-9.]/g, '')) || 0;
                 updateFields.push('loyalty_discount = ?');
-                updateValues.push(Number(loyalty_discount) || 0);
+                updateValues.push(numericLoyalty);
             }
+            
             if (connection_type !== undefined) {
                 updateFields.push('connection_type = ?');
                 updateValues.push(connection_type);
             }
+
             if (req.body.ip_address !== undefined) {
                 // Save IP to main table as well (for SelfHealingService)
                 updateFields.push('ip_address = ?');
@@ -899,40 +906,39 @@ export const updateCustomer = async (req: Request, res: Response) => {
             // Handle PPN Taxable flag
             // Checkbox behavior: sent as '1' if checked, missing if unchecked
             // We only update if billing_mode is also present (implying a form submission or full update)
-            if (req.body.billing_mode !== undefined) {
+            // Handle Billing Flags (NEW FIX: Save on every form submit)
+            // Checkbox behavior: if it's a customer edit page submission, 
+            // the fields are either '1' (checked) or undefined/0 (unchecked).
+            
+            // 1. Is Taxable (PPN)
+            if (req.body.is_taxable !== undefined) {
                 updateFields.push('is_taxable = ?');
-                updateValues.push(req.body.is_taxable ? 1 : 0);
-            } else if (req.body.is_taxable !== undefined) {
-                // Partial update explicitly targeting this field
-                updateFields.push('is_taxable = ?');
-                updateValues.push(req.body.is_taxable === '1' || req.body.is_taxable === true ? 1 : 0);
+                updateValues.push(req.body.is_taxable === '1' || req.body.is_taxable === 'on' ? 1 : 0);
             }
 
+            // 2. Exclude from Print (Sembunyikan dari Cetakan)
             if (req.body.exclude_from_print !== undefined) {
                 updateFields.push('exclude_from_print = ?');
-                updateValues.push(req.body.exclude_from_print ? 1 : 0);
-            } else if (req.body.billing_mode !== undefined) { // Checkbox logic: unchecked on full post
-                updateFields.push('exclude_from_print = ?');
-                updateValues.push(0);
+                updateValues.push(req.body.exclude_from_print === '1' || req.body.exclude_from_print === 'on' ? 1 : 0);
             }
 
+            // 3. Auto-Pay (Auto-Lunas Admin)
             if (req.body.auto_pay_enabled !== undefined) {
                 updateFields.push('auto_pay_enabled = ?');
-                updateValues.push(req.body.auto_pay_enabled ? 1 : 0);
-            } else if (req.body.billing_mode !== undefined) {
-                updateFields.push('auto_pay_enabled = ?');
-                updateValues.push(0);
+                updateValues.push(req.body.auto_pay_enabled === '1' || req.body.auto_pay_enabled === 'on' ? 1 : 0);
             }
 
+            // 4. Auto-Pay Date
             if (req.body.auto_pay_date !== undefined && req.body.auto_pay_date !== '') {
                 const autoDate = parseInt(req.body.auto_pay_date);
-                if (autoDate >= 1 && autoDate <= 31) {
+                if (!isNaN(autoDate) && autoDate >= 1 && autoDate <= 31) {
                     updateFields.push('auto_pay_date = ?');
                     updateValues.push(autoDate);
                 } else {
                     updateFields.push('auto_pay_date = NULL');
                 }
-            } else if (req.body.billing_mode !== undefined) {
+            } else if (req.body.billing_mode !== undefined || req.body.auto_pay_date === '') {
+                // If billing mode is set or date explicitly cleared, reset to NULL
                 updateFields.push('auto_pay_date = NULL');
             }
 
@@ -1043,22 +1049,46 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 }
             }
 
-
+            // Handle connection type specific updates before executing the main query
+            if ((connection_type === 'pppoe' || oldCustomer.connection_type === 'pppoe') && req.body.pppoe_username) {
+                updateFields.push('pppoe_username = ?');
+                updateValues.push(req.body.pppoe_username);
+            }
+            if (connection_type === 'pppoe' || oldCustomer.connection_type === 'pppoe') {
+                const profileIdNum = parseInt(req.body.pppoe_profile_id || req.body.pppoe_package);
+                if (!isNaN(profileIdNum) && profileIdNum > 0) {
+                    updateFields.push('pppoe_profile_id = ?');
+                    updateValues.push(profileIdNum);
+                }
+                // Update password if provided
+                if (req.body.pppoe_password) {
+                    updateFields.push('pppoe_password = ?');
+                    updateValues.push(req.body.pppoe_password);
+                }
+            }
 
             if (updateFields.length > 0) {
                 updateValues.push(customerId);
                 const query = `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`;
-                console.log('[updateCustomer] Main Update Query:', query);
-                console.log('[updateCustomer] Main Update Values:', updateValues);
-
-                const [result] = await conn.query(query, updateValues);
-                console.log('[updateCustomer] Main Update Executed. Affected Rows:', (result as any).affectedRows);
-                console.log('[updateCustomer] Main Update Info:', (result as any).info);
-            } else {
-                console.log('[updateCustomer] No main fields to update');
+                
+                try {
+                    await conn.query(query, updateValues);
+                } catch (updateError: any) {
+                    if (updateError.code === 'ER_BAD_FIELD_ERROR' || updateError.message.includes('Unknown column')) {
+                        const fixQueries = [
+                            'ALTER TABLE customers ADD COLUMN loyalty_discount int DEFAULT 0',
+                            'ALTER TABLE customers ADD COLUMN exclude_from_print tinyint(1) DEFAULT 0',
+                            'ALTER TABLE customers ADD COLUMN auto_pay_enabled tinyint(1) DEFAULT 0',
+                            'ALTER TABLE customers ADD COLUMN auto_pay_date int NULL'
+                        ];
+                        for (const fq of fixQueries) { try { await conn.query(fq); } catch (e) {} }
+                        await conn.query(query, updateValues);
+                    } else { throw updateError; }
+                }
             }
 
-            // ========== SYNC ACTIVATION DATE TO SUBSCRIPTIONS ==========
+
+            // Sync activation date if changed
             if (req.body.activation_date) {
                 console.log(`[updateCustomer] Syncing activation_date ${req.body.activation_date} to subscriptions for customer ${customerId}`);
                 const nextBlock = new Date(req.body.activation_date);
@@ -1117,30 +1147,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 })();
             }
 
-            // Handle connection type specific updates (basic fields only, password will be handled after MikroTik sync)
-            if (connection_type === 'pppoe' && req.body.pppoe_username) {
-                updateFields.length = 0;
-                updateValues.length = 0;
-                updateFields.push('pppoe_username = ?');
-                updateValues.push(req.body.pppoe_username);
-                if (req.body.pppoe_profile_id) {
-                    const profileIdNum = parseInt(req.body.pppoe_profile_id);
-                    if (!isNaN(profileIdNum) && profileIdNum > 0) {
-                        updateFields.push('pppoe_profile_id = ?');
-                        updateValues.push(profileIdNum);
-                    }
-                }
-                // Update password if provided
-                if (req.body.pppoe_password) {
-                    updateFields.push('pppoe_password = ?');
-                    updateValues.push(req.body.pppoe_password);
-                }
-                updateValues.push(customerId);
-                await conn.query(
-                    `UPDATE customers SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
-                    updateValues
-                );
-            }
+            // Connection type specific updates are now unified with the main update query.
 
             // USER REQUEST: If expiry date is set, automatically enable billing
             const forceEnableBilling = (req.body.expiry_date && req.body.expiry_date !== '') || (enable_billing === '1' || enable_billing === 'on');
@@ -1202,7 +1209,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             }
 
                             // Update the remaining (latest) subscription
-                            const targetSubStatus = forceEnableBilling ? 'active' : 'inactive';
+                            const targetSubStatus = (forceEnableBilling || (newStatus || oldCustomer.status) !== 'inactive') ? 'active' : 'inactive';
                             await conn.query(
                                 `UPDATE subscriptions 
                                  SET package_id = ?, package_name = ?, price = ?, status = ?, updated_at = NOW() 
@@ -1300,7 +1307,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                             [customerId]
                         );
 
-                        const targetSubStatus = forceEnableBilling ? 'active' : 'inactive';
+                        const targetSubStatus = (forceEnableBilling || (newStatus || oldCustomer.status) !== 'inactive') ? 'active' : 'inactive';
 
                         if (existingSubs && existingSubs.length > 0) {
                             // CLEANUP: If there are duplicate subscriptions, delete all except the latest one

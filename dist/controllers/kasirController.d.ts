@@ -12,6 +12,7 @@ export declare class KasirController {
     searchCustomer(req: AuthenticatedRequest, res: Response): Promise<void>;
     getCustomerInvoices(req: AuthenticatedRequest, res: Response): Promise<void>;
     getPaymentDetail(req: AuthenticatedRequest, res: Response): Promise<void>;
+    sendInvoiceNotificationAction(req: AuthenticatedRequest, res: Response): Promise<void>;
     customerDetail(req: AuthenticatedRequest, res: Response): Promise<void>;
     printIndividual(req: AuthenticatedRequest, res: Response): Promise<void>;
     printGroup(req: AuthenticatedRequest, res: Response): Promise<void>;

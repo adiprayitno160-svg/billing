@@ -79,8 +79,9 @@ class NotificationScheduler {
             console.log('Notification scheduler already initialized');
             return;
         }
-        // Run every 10 seconds to process pending notifications
-        this.cronJob = cron.schedule('*/10 * * * * *', async () => {
+        // Run every 1 minute to process pending notifications
+        // User requested 5 messages per minute max with 12s interval
+        this.cronJob = cron.schedule('0 * * * * *', async () => {
             if (this.isRunning) {
                 // If running for more than 5 minutes, force reset (zombie check)
                 const diff = Date.now() - (this.lastRunTime || 0);
@@ -99,8 +100,8 @@ class NotificationScheduler {
             this.isRunning = true;
             this.lastRunTime = Date.now();
             try {
-                // Reduced batch size from 100 to 10 for smoother delivery
-                const result = await UnifiedNotificationService_1.UnifiedNotificationService.sendPendingNotifications(10);
+                // Limit 5 messages per minute as requested
+                const result = await UnifiedNotificationService_1.UnifiedNotificationService.sendPendingNotifications(5);
                 if (result.sent > 0 || result.failed > 0) {
                     this.totalSentInCycle += result.sent;
                     console.log(`[NotificationScheduler] 📨 Processed: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped (cycle total: ${this.totalSentInCycle})`);
