@@ -330,7 +330,7 @@
         if (!document.getElementById('quick-map')) return;
 
         map = L.map('quick-map').setView([-7.0, 110.0], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
     }
@@ -539,7 +539,7 @@
         }
 
         jobMap = L.map('jobMapContainer').setView([-7.0, 110.0], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(jobMap);
 

@@ -453,56 +453,47 @@
 						</div>
 
 						<div class="flex items-center justify-between pt-2">
-							<div class="flex items-center gap-2">
+							<div class="flex flex-col gap-1 w-1/2">
 								<span
-									class="px-3 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-wider <%= customer.connection_type === 'pppoe' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-amber-500 text-white shadow-lg shadow-amber-200' %>">
+									class="inline-block self-start px-2 py-1 rounded font-black text-[9px] uppercase tracking-wider <%= customer.connection_type === 'pppoe' ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200' : 'bg-amber-500 text-white shadow-sm shadow-amber-200' %>">
 									<%= customer.connection_type==='static_ip' ? 'Static IP' : 'PPPoE' %>
 								</span>
-								<span class="text-[10px] font-black text-slate-400 uppercase truncate max-w-[80px]">
+								<span class="text-[10px] font-black text-slate-400 uppercase truncate">
 									<%= customer.pppoe_username || customer.local_ip || '' %>
 								</span>
 							</div>
-							<div class="flex items-center gap-3">
+							<div class="flex items-center justify-end gap-2 flex-wrap w-1/2">
 								<!-- Mobile Migration -->
 								<% if (customer.billing_mode==='postpaid' || !customer.billing_mode) { %>
 									<button
-										class="migrateToPrepaidBtn text-[10px] font-black text-purple-600 uppercase underline decoration-purple-200"
+										class="migrateToPrepaidBtn text-[9px] font-black text-purple-600 uppercase bg-purple-50 px-2 py-1 rounded"
 										data-id="<%= customer.id %>"
 										data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
-										Prepaid
+										→ Prepaid
 									</button>
 									<% } else { %>
 										<button
-											class="migrateToPostpaidBtn text-[10px] font-black text-orange-600 uppercase underline decoration-orange-200"
+											class="migrateToPostpaidBtn text-[9px] font-black text-orange-600 uppercase bg-orange-50 px-2 py-1 rounded"
 											data-id="<%= customer.id %>"
 											data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
-											Postpaid
+											→ Postpaid
+										</button>
 										<% } %>
 										
-											<a href="/customers/<%= customer.id %>"
-												class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 border border-blue-100"
-												title="Detail">
-												<i class="fas fa-eye"></i>
-											</a>
-											<a href="/customers/<%= customer.id %>/edit"
-												class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 border border-emerald-100"
-												title="Edit">
-												<i class="fas fa-edit"></i>
-											</a>
-
-											<label class="relative inline-flex items-center cursor-pointer">
+											<label class="relative inline-flex items-center cursor-pointer ml-1">
 												<input type="checkbox" class="sr-only peer status-toggle"
 													<%=customer.status==='active' ? 'checked' : '' %>
 												onchange="toggleCustomerStatus('<%= customer.id %>', this)">
 													<div
-														class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
+														class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600">
 													</div>
 											</label>
+											
 											<button
-												class="deleteCustomerBtn w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 active:bg-rose-600 active:text-white transition-all"
+												class="deleteCustomerBtn w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 active:bg-rose-600 active:text-white transition-all ml-1"
 												data-id="<%= customer.id %>"
 												data-name="<%= (customer.name || '').replace(/'/g, "\'") %>">
-												<i class="fas fa-trash-alt"></i>
+												<i class="fas fa-trash-alt text-[10px]"></i>
 											</button>
 							</div>
 						</div>

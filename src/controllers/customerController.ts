@@ -909,23 +909,31 @@ export const updateCustomer = async (req: Request, res: Response) => {
             // Handle Billing Flags (NEW FIX: Save on every form submit)
             // Checkbox behavior: if it's a customer edit page submission, 
             // the fields are either '1' (checked) or undefined/0 (unchecked).
-            
+            // We use name or connection_type as an indicator of a full form submit.
+            const isFullFormSubmit = req.body.name !== undefined || req.body.connection_type !== undefined;
+
             // 1. Is Taxable (PPN)
             if (req.body.is_taxable !== undefined) {
                 updateFields.push('is_taxable = ?');
-                updateValues.push(req.body.is_taxable === '1' || req.body.is_taxable === 'on' ? 1 : 0);
+                updateValues.push(req.body.is_taxable === '1' || req.body.is_taxable === 'on' || req.body.is_taxable === true ? 1 : 0);
+            } else if (isFullFormSubmit) {
+                updateFields.push('is_taxable = 0');
             }
 
             // 2. Exclude from Print (Sembunyikan dari Cetakan)
             if (req.body.exclude_from_print !== undefined) {
                 updateFields.push('exclude_from_print = ?');
-                updateValues.push(req.body.exclude_from_print === '1' || req.body.exclude_from_print === 'on' ? 1 : 0);
+                updateValues.push(req.body.exclude_from_print === '1' || req.body.exclude_from_print === 'on' || req.body.exclude_from_print === true ? 1 : 0);
+            } else if (isFullFormSubmit) {
+                updateFields.push('exclude_from_print = 0');
             }
 
             // 3. Auto-Pay (Auto-Lunas Admin)
             if (req.body.auto_pay_enabled !== undefined) {
                 updateFields.push('auto_pay_enabled = ?');
-                updateValues.push(req.body.auto_pay_enabled === '1' || req.body.auto_pay_enabled === 'on' ? 1 : 0);
+                updateValues.push(req.body.auto_pay_enabled === '1' || req.body.auto_pay_enabled === 'on' || req.body.auto_pay_enabled === true ? 1 : 0);
+            } else if (isFullFormSubmit) {
+                updateFields.push('auto_pay_enabled = 0');
             }
 
             // 4. Auto-Pay Date
@@ -1619,16 +1627,34 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             await conn.query('DELETE FROM loyalty_transactions WHERE customer_id = ?', [customerId]);
             await conn.query('DELETE FROM customer_balance_logs WHERE customer_id = ?', [customerId]);
 
+            // Handle tickets and technician jobs
+            await conn.query('DELETE FROM tickets WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM technician_jobs WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM customer_offline_tracking WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM customer_locations WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM isolation_logs WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM activation_logs WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM customer_notification_events WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM customer_compensations WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM wifi_devices WHERE customer_id = ?', [customerId]).catch(()=>{});
+
             // Handle subscriptions and IP clients
-            await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
-            await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+            await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]).catch(()=>{});
 
             // Handle invoices and payments
             const [customerInvoices] = await conn.query<RowDataPacket[]>('SELECT id FROM invoices WHERE customer_id = ?', [customerId]);
+            
+            // Delete discounts, debt_tracking, carry_over_invoices before invoices
+            await conn.query('DELETE FROM discounts WHERE invoice_id IN (SELECT id FROM invoices WHERE customer_id = ?)', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM debt_tracking WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM carry_over_invoices WHERE customer_id = ?', [customerId]).catch(()=>{});
+
             if (customerInvoices.length > 0) {
                 const invoiceIds = customerInvoices.map(inv => inv.id);
                 await conn.query('DELETE FROM payments WHERE invoice_id IN (?)', [invoiceIds]);
                 await conn.query('DELETE FROM invoice_items WHERE invoice_id IN (?)', [invoiceIds]);
+                await conn.query('DELETE FROM debt_tracking WHERE invoice_id IN (?)', [invoiceIds]).catch(()=>{});
                 await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
             }
 
@@ -2001,16 +2027,33 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                     await conn.query('DELETE FROM loyalty_transactions WHERE customer_id = ?', [customerId]);
                     await conn.query('DELETE FROM customer_balance_logs WHERE customer_id = ?', [customerId]);
 
-                    // 7. Subscriptions
-                    await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]);
-                    await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+                    // 7. Subscriptions & extra tables
+                    await conn.query('DELETE FROM tickets WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM technician_jobs WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM customer_offline_tracking WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM customer_locations WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM isolation_logs WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM activation_logs WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM customer_notification_events WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM customer_compensations WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM wifi_devices WHERE customer_id = ?', [customerId]).catch(()=>{});
+
+                    await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]).catch(()=>{});
 
                     // 8. Invoices
                     const [customerInvoices] = await conn.query<RowDataPacket[]>('SELECT id FROM invoices WHERE customer_id = ?', [customerId]);
+                    
+                    // Delete discounts, debt_tracking, carry_over_invoices before invoices
+                    await conn.query('DELETE FROM discounts WHERE invoice_id IN (SELECT id FROM invoices WHERE customer_id = ?)', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM debt_tracking WHERE customer_id = ?', [customerId]).catch(()=>{});
+                    await conn.query('DELETE FROM carry_over_invoices WHERE customer_id = ?', [customerId]).catch(()=>{});
+
                     if (customerInvoices.length > 0) {
                         const invoiceIds = customerInvoices.map(inv => inv.id);
                         await conn.query('DELETE FROM payments WHERE invoice_id IN (?)', [invoiceIds]);
                         await conn.query('DELETE FROM invoice_items WHERE invoice_id IN (?)', [invoiceIds]);
+                        await conn.query('DELETE FROM debt_tracking WHERE invoice_id IN (?)', [invoiceIds]).catch(()=>{});
                         await conn.query('DELETE FROM invoices WHERE customer_id = ?', [customerId]);
                     }
 
@@ -2656,9 +2699,17 @@ export const sendWelcomeNotificationManual = async (req: Request, res: Response)
             return res.status(400).json({ success: false, error: 'ID Pelanggan tidak valid' });
         }
 
-        // Get current customer data
+        // Get current customer data with package info
         const [rows] = await databasePool.query<RowDataPacket[]>(
-            'SELECT * FROM customers WHERE id = ?',
+            `SELECT c.*, 
+                    pp.name as pppoe_package_name,
+                    sp.name as static_ip_package_name
+             FROM customers c
+             LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
+             LEFT JOIN pppoe_packages pp ON s.package_id = pp.id AND c.connection_type = 'pppoe'
+             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND c.connection_type = 'static_ip'
+             LEFT JOIN static_ip_packages sp ON sic.package_id = sp.id
+             WHERE c.id = ? LIMIT 1`,
             [customerId]
         );
 
@@ -2667,6 +2718,11 @@ export const sendWelcomeNotificationManual = async (req: Request, res: Response)
         }
 
         const customer = rows[0];
+        const packageName = customer.connection_type === 'pppoe'
+            ? (customer.pppoe_package_name || customer.pppoe_username || '-')
+            : (customer.static_ip_package_name || '-');
+
+        console.log(`[ManualWelcome] Customer: ${customer.name}, Package: ${packageName}, Phone: ${phone || customer.phone}`);
 
         // Import service dynamically
         const { default: CustomerNotificationService } = await import('../services/customer/CustomerNotificationService');
@@ -2679,8 +2735,10 @@ export const sendWelcomeNotificationManual = async (req: Request, res: Response)
             phone: phone || customer.phone,
             connectionType: customer.connection_type,
             address: address || customer.address,
-            packageName: customer.connection_type === 'pppoe' ? customer.pppoe_username : (customer.ip_address || '')
+            packageName: packageName
         });
+
+        console.log(`[ManualWelcome] Result:`, result);
 
         if (result.success) {
             res.json({

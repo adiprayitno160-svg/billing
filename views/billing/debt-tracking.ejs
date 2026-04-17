@@ -222,12 +222,15 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                ${debt.status === 'unpaid' ? `
-                                    <button onclick="showResolveModal(${debt.id})" class="text-green-600 hover:text-green-900 mr-2">
-                                        <i class="fas fa-check"></i>
+                                ${debt.status !== 'resolved' ? `
+                                    <button onclick="showResolveModal(${debt.id})" class="text-green-600 hover:text-green-900 mr-2" title="Lunasi">
+                                        <i class="fas fa-check-circle"></i>
+                                    </button>
+                                    <button onclick="sendWhatsappReminder(${debt.invoice_id})" class="text-emerald-500 hover:text-emerald-700 mr-2" title="Kirim WA">
+                                        <i class="fab fa-whatsapp"></i>
                                     </button>
                                 ` : ''}
-                                <a href="/billing/debts/${debt.id}" class="text-blue-600 hover:text-blue-900">
+                                <a href="/billing/tagihan/${debt.invoice_id}" class="text-blue-600 hover:text-blue-900" title="Detail Invoice">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </td>
@@ -288,6 +291,33 @@
 
     function exportDebts() {
         window.location.href = '/billing/debts/export';
+    }
+
+    async function sendWhatsappReminder(invoiceId) {
+        if (!invoiceId) {
+            Swal.fire('Error', 'ID Tagihan tidak ditemukan', 'error');
+            return;
+        }
+        const ok = await Swal.fire({ 
+            title: 'Kirim Notifikasi WA?', 
+            text: "Kirim informasi tagihan (hutang) via WA?", 
+            icon: 'question', 
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Kirim',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#10b981'
+        });
+        
+        if (ok.isConfirmed) {
+            Swal.fire({ title: 'Mengirim...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const res = await fetch(`/billing/tagihan/${invoiceId}/send-whatsapp`, { method: 'POST' });
+                const data = await res.json();
+                Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
+            } catch (err) {
+                Swal.fire('Error', 'Gagal menghubungi server', 'error');
+            }
+        }
     }
 
     // Load data on page load

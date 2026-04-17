@@ -1,4 +1,4 @@
-﻿<style>
+<style>
     .gradient-bg {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
@@ -328,7 +328,7 @@
                                     </div>
                                     <div class="text-sm text-gray-700 mt-1">
                                         <strong>Isolir semua yang belum bayar pada tanggal tertentu</strong><br>
-                                        Contoh: Tanggal 1 → Isolir semua yang belum bayar tagihan bulan lalu
+                                        Contoh: Tanggal 1 ? Isolir semua yang belum bayar tagihan bulan lalu
                                     </div>
                                 </div>
                             </label>
@@ -546,8 +546,8 @@
                                     <h3 class="font-bold text-green-900">${result.message}</h3>
                                     ${result.created_count !== undefined ? `
                                         <div class="mt-2 text-sm text-green-800 space-y-1">
-                                            <div>✓ Tagihan dibuat: <strong>${result.created_count}</strong></div>
-                                            ${result.error_count > 0 ? `<div>✗ Error: <strong>${result.error_count}</strong></div>` : ''}
+                                            <div>? Tagihan dibuat: <strong>${result.created_count}</strong></div>
+                                            ${result.error_count > 0 ? `<div>? Error: <strong>${result.error_count}</strong></div>` : ''}
                                         </div>
                                     ` : ''}
                                 </div>

@@ -1,4 +1,4 @@
-﻿<div class="space-y-6">
+<div class="space-y-6">
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
         <div class="flex items-center gap-3">
@@ -69,7 +69,7 @@
                         <div class="flex items-center gap-3 mb-3">
                             <div
                                 class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm">
-                                ℹ️</div>
+                                ??</div>
                             <h3 class="font-bold text-blue-900 text-sm uppercase tracking-wide">Informasi Paket Saat Ini
                             </h3>
                         </div>
@@ -105,11 +105,11 @@
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
 
                             <!-- LEFT COLUMN (7): Identity & Configuration -->
-                            <div class="lg:col-span-7 space-y-6">
+                            <div class="lg:col-span-7 space-y-6 relative z-50">
 
                                 <!-- Card: Identity -->
                                 <div
-                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md relative z-40 transition-shadow">
                                     <div
                                         class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                         <div class="flex items-center gap-3">
@@ -164,7 +164,7 @@
 
                                 <!-- Card: Technical Config -->
                                 <div
-                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md relative z-40 transition-shadow">
                                     <div
                                         class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                         <div class="flex items-center gap-3">
@@ -189,10 +189,23 @@
                                                 <label
                                                     class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">IP
                                                     Address <span class="text-red-500">*</span></label>
-                                                <input name="ip_address" value="<%= client.ip_address %>" required
-                                                    placeholder="192.168.x.x/xx"
+                                                <input name="ip_address" id="ip_address_input" value="<%= client.ip_address %>" required
+                                                    placeholder="192.168.x.x"
                                                     class="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-mono font-bold text-blue-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none" />
                                             </div>
+                                            <div>
+                                                <label
+                                                    class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Gateway
+                                                    MikroTik
+                                                    <span class="text-green-500 text-[9px]">(Otomatis)</span></label>
+                                                <input name="gateway_ip" id="gateway_ip_input" readonly
+                                                    placeholder="Otomatis dihitung..."
+                                                    class="w-full rounded-2xl border-slate-200 bg-slate-50 px-5 py-3 text-sm font-mono text-green-600 font-bold cursor-not-allowed" />
+                                                <p class="text-[10px] text-slate-400 mt-1 ml-1">Gateway otomatis akan
+                                                    ditambahkan ke MikroTik IP Address</p>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
                                             <div>
                                                 <label
                                                     class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Interface
@@ -241,7 +254,7 @@
 
                                 <!-- Card: Infrastructure (Moved here but logic remains) -->
                                 <div
-                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md relative z-40 transition-shadow">
                                     <div
                                         class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                         <div class="flex items-center gap-3">
@@ -287,7 +300,7 @@
                                                     <input type="hidden" name="odc_id" id="odc_id"
                                                         value="<%= client.odc_id || '' %>">
                                                     <button type="button" id="reset_odc_btn"
-                                                        class="px-4 py-2 border border-slate-200 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors">✕</button>
+                                                        class="px-4 py-2 border border-slate-200 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors">?</button>
 
                                                     <div id="odc_search_results"
                                                         class="absolute top-full left-0 z-20 w-full mt-2 bg-white border border-slate-200 shadow-xl rounded-2xl max-h-48 overflow-y-auto hidden">
@@ -313,7 +326,7 @@
                                                 </div>
                                                 <% if(client.odp_id) { %>
                                                     <p class="text-[10px] text-green-600 font-bold mt-1 ml-1"
-                                                        id="selected_odp_info">✓ ODP Terpilih: <%= client.odp_name %>
+                                                        id="selected_odp_info">? ODP Terpilih: <%= client.odp_name %>
                                                     </p>
                                                     <% } else { %>
                                                         <p class="text-[10px] text-slate-400 font-bold mt-1 ml-1"
@@ -326,7 +339,7 @@
 
                                 <!-- ONT / Device Info -->
                                 <div
-                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md relative z-40 transition-shadow">
                                     <div
                                         class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                         <div class="flex items-center gap-3">
@@ -390,7 +403,7 @@
 
                                     <!-- Map Card -->
                                     <div
-                                        class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full">
+                                        class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md relative z-40 transition-shadow flex flex-col h-full">
                                         <div
                                             class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                             <div class="flex items-center gap-3">
@@ -459,7 +472,7 @@
                                     <div class="p-6 bg-slate-100 rounded-3xl border border-slate-200 shadow-inner">
                                         <button type="submit"
                                             class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:from-blue-700 hover:to-indigo-800 shadow-xl shadow-blue-200 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2">
-                                            <span>💾</span> Simpan Perubahan
+                                            <span>??</span> Simpan Perubahan
                                         </button>
                                         <a href="/packages/static-ip/clients"
                                             class="block w-full text-center mt-4 text-xs font-bold text-slate-500 hover:text-red-500 uppercase tracking-widest">Batalkan</a>
@@ -629,7 +642,7 @@
                                     if (item) {
                                         odpSearch.value = item.dataset.name;
                                         odpIdInput.value = item.dataset.id;
-                                        if (odpInfo) odpInfo.textContent = `✓ ODP: ${item.dataset.name}`;
+                                        if (odpInfo) odpInfo.textContent = `? ODP: ${item.dataset.name}`;
                                         odpResults.classList.add('hidden');
                                     }
                                 });
@@ -658,7 +671,7 @@
                                         }
 
                                         const map = L.map('map').setView([defaultLat, defaultLng], initialZoom);
-                                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+                                        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
                                         let marker;
                                         function setMarker(lat, lng) {
@@ -684,7 +697,7 @@
                                             const addressInput = document.querySelector('textarea[name="address"]') || document.getElementById('address');
                                             if (addressInput) {
                                                 addressInput.placeholder = 'Mengambil alamat...';
-                                                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                                                fetch(`/api/proxy/reverse-geocode?lat=${lat}&lon=${lng}`)
                                                     .then(r => r.json())
                                                     .then(data => {
                                                         if (data && data.display_name) {
@@ -713,7 +726,7 @@
                                                     const q = searchInput.value.trim();
                                                     if (q.length > 2) {
                                                         searchInput.classList.add('opacity-50');
-                                                        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                                        fetch(`/api/proxy/geocode?q=${encodeURIComponent(q)}`)
                                                             .then(r => r.json())
                                                             .then(data => {
                                                                 if (data && data.length > 0) {
@@ -766,7 +779,7 @@
                                                             lngInput.value = data.lon;
                                                             setMarker(data.lat, data.lon, 13);
                                                             btnGetLocation.textContent = 'IP OK';
-                                                            alert('⚠️ Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
+                                                            alert('?? Info: GPS Akurat gagal (Permisssion/HTTP).\nLokasi diperkirakan berdasarkan Public IP Internet Gateway (' + (data.city || 'Unknown') + ').\n\nSilakan geser pin ke lokasi tepat pemasangan.');
                                                         } else {
                                                             console.error('IP-API response invalid:', data);
                                                             throw new Error('IP API Data Invalid');
@@ -822,13 +835,44 @@
                                 if (!ipInput || !preview) return;
                                 const v = (ipInput.value || '').trim();
                                 const [ip, prefStr] = v.split('/');
-                                if (!ip || !prefStr) { preview.value = ''; return; }
+                                if (!ip) { preview.value = ''; return; }
 
                                 // Simple mockup logic based on previous file
                                 preview.value = `UP-${ip} | DOWN-${ip}`;
                             }
                             if (ipInput) ipInput.addEventListener('input', updatePreview);
                             updatePreview();
+
+                            // === Auto-calculate Gateway from Customer IP ===
+                            const gatewayInput = document.getElementById('gateway_ip_input');
+                            if (ipInput && gatewayInput) {
+                                const calculateGateway = () => {
+                                    let ip = ipInput.value.trim();
+                                    if (ip.includes('/')) {
+                                        ip = ip.split('/')[0];
+                                        ipInput.value = ip;
+                                    }
+                                    const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+                                    const match = ip.match(ipRegex);
+                                    if (!match) { gatewayInput.value = ''; return; }
+                                    const parts = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
+                                    if (parts.some(p => p < 0 || p > 255)) { gatewayInput.value = ''; return; }
+                                    const ipInt = (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
+                                    const mask30 = 0xFFFFFFFC;
+                                    const networkInt = ipInt & mask30;
+                                    const firstHost = networkInt + 1;
+                                    const secondHost = networkInt + 2;
+                                    let gatewayInt;
+                                    if (ipInt === firstHost) gatewayInt = secondHost;
+                                    else if (ipInt === secondHost) gatewayInt = firstHost;
+                                    else { gatewayInput.value = 'IP tidak valid untuk /30'; return; }
+                                    const gatewayIp = [(gatewayInt >>> 24) & 255, (gatewayInt >>> 16) & 255, (gatewayInt >>> 8) & 255, gatewayInt & 255].join('.');
+                                    gatewayInput.value = gatewayIp + '/30';
+                                };
+                                ipInput.addEventListener('input', calculateGateway);
+                                ipInput.addEventListener('blur', calculateGateway);
+                                if (ipInput.value) calculateGateway();
+                            }
                         });
                     </script>
 </div>

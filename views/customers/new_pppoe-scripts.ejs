@@ -166,7 +166,7 @@
             } else {
                 try {
                     const map = L.map('map').setView([-6.200000, 106.816666], 5);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
 
                     let marker;
 
@@ -175,7 +175,7 @@
                         const addressInput = document.getElementById('address');
                         if (addressInput) {
                             addressInput.placeholder = 'Mengambil alamat...';
-                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                            fetch(`/api/proxy/reverse-geocode?lat=${lat}&lon=${lng}`)
                                 .then(r => r.json())
                                 .then(data => {
                                     if (data && data.display_name) {
@@ -225,7 +225,7 @@
                                 const q = searchInput.value.trim();
                                 if (q.length > 2) {
                                     searchInput.classList.add('opacity-50');
-                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                    fetch(`/api/proxy/geocode?q=${encodeURIComponent(q)}`)
                                         .then(r => r.json())
                                         .then(data => {
                                             if (data && data.length > 0) {

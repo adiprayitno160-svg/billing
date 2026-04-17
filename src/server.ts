@@ -14,6 +14,13 @@ import { errorHandler } from './middlewares/errorHandler';
 import { SchedulerService } from './services/scheduler';
 import { InvoiceSchedulerService } from './services/billing/invoiceSchedulerService';
 
+// Security check to instantly kill the rogue background zombie process running as root 
+// which was previously holding onto port 3001 and duplicate WhatsApp queuing
+if (process.getuid && process.getuid() === 0) {
+    console.error('🔥 [SECURITY] Pembunuhan Proses Root: Menghindari instance maling / zombie yang menduplikasi pekerjaan (seperti WhatsApp).');
+    process.exit(1);
+}
+
 // WhatsApp Service Import Removed
 import { createServer } from 'http';
 import { db } from './db/pool';
@@ -36,8 +43,8 @@ import { pppoeStatsMiddleware } from './middlewares/pppoeStatsMiddleware';
 dotenv.config({ override: false });
 
 const app = express();
-const rawPort = process.env.PORT ? String(process.env.PORT).trim() : '3001';
-const port = !isNaN(Number(rawPort)) && Number(rawPort) > 0 ? Number(rawPort) : 3001;
+const rawPort = process.env.PORT ? String(process.env.PORT).trim() : '3002';
+const port = !isNaN(Number(rawPort)) && Number(rawPort) > 0 ? Number(rawPort) : 3002;
 
 // CommonJS build: __dirname is available from TS transpilation
 
@@ -223,6 +230,36 @@ app.get('/api/proxy/ip-location', async (req, res) => {
 // General API routes
 import apiRoutes from './routes/api';
 app.use('/api', apiRoutes);
+
+// Reverse Geocode Proxy (Bypasses Nominatim restrictions)
+app.get('/api/proxy/reverse-geocode', async (req, res) => {
+	try {
+		const { lat, lon } = req.query;
+		if (!lat || !lon) return res.status(400).json({});
+		const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`, {
+			headers: { 'User-Agent': 'BillingSystem/2.4 (Contact: admin@local.test)' }
+		});
+		res.json(response.data);
+	} catch (error: any) {
+		console.error('Reverse Geocode error:', error.message);
+		res.status(500).json({});
+	}
+});
+
+// Geocode Proxy
+app.get('/api/proxy/geocode', async (req, res) => {
+	try {
+		const { q } = req.query;
+		if (!q) return res.status(400).json([]);
+		const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(String(q))}`, {
+			headers: { 'User-Agent': 'BillingSystem/2.4 (Contact: admin@local.test)' }
+		});
+		res.json(response.data);
+	} catch (error: any) {
+		console.error('Geocode error:', error.message);
+		res.status(500).json([]);
+	}
+});
 
 // 404 handler
 app.use((req, res, next) => {

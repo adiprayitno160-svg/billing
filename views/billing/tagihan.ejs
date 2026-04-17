@@ -259,7 +259,7 @@
                     Pembayaran</label>
                 <select name="status"
                     class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-bold text-slate-700 appearance-none">
-                    <option value="">AKTIF (BELUM LUNAS)</option>
+                    <option value="">TAGIHAN AKTIF</option>
                     <option value="all" <%=filters.status==='all' ? 'selected' : '' %>>SEMUA DATA</option>
                     <option value="draft" <%=filters.status==='draft' ? 'selected' : '' %>>DRAFT</option>
                     <option value="sent" <%=filters.status==='sent' ? 'selected' : '' %>>TERKIRIM</option>
@@ -270,6 +270,8 @@
                     <option value="cancelled" <%=filters.status==='cancelled' ? 'selected' : '' %>>DIBATALKAN</option>
                 </select>
             </div>
+            <!-- PERSISTENT SEARCH HIDDEN INPUT -->
+            <input type="hidden" name="search" value="<%= filters.search %>">
             <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Area
                     ODC</label>
@@ -315,6 +317,11 @@
                 <i class="fas fa-search text-slate-300"></i>
             </div>
             <form action="/billing/tagihan" method="GET">
+                <!-- PERSISTENT FILTERS HIDDEN INPUTS -->
+                <input type="hidden" name="period" value="<%= filters.period %>">
+                <input type="hidden" name="status" value="<%= filters.status %>">
+                <input type="hidden" name="odc_id" value="<%= filters.odc_id %>">
+                <input type="hidden" name="hide_isolated" value="<%= filters.hide_isolated %>">
                 <input type="text" name="search" value="<%= filters.search %>"
                     placeholder="Cari nama, invoice, atau telepon..."
                     class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-700 shadow-sm">
@@ -328,6 +335,52 @@
             <div class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
                 <span>Page: <%= pagination.currentPage %>/<%= pagination.totalPages %></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Stats Bar -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center font-bold">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Invoice</p>
+                <p class="text-lg font-black text-slate-700 tracking-tight"><%= stats.total_invoices %></p>
+            </div>
+        </div>
+        <div class="bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center font-bold">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Jatuh Tempo</p>
+                <p class="text-lg font-black text-rose-600 tracking-tight"><%= stats.overdue_count %></p>
+            </div>
+        </div>
+        <div class="bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white/30 shadow-sm flex items-center gap-4 group cursor-pointer hover:bg-white/80 transition-all transition-colors" onclick="location.href='/billing/debts/view'">
+            <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center font-bold ring-4 ring-purple-50/50 group-hover:scale-110 transition-transform">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                    Hutang (Arsip)
+                    <i class="fas fa-arrow-right text-[7px] opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                </p>
+                <div class="flex items-center gap-1">
+                    <p class="text-lg font-black text-purple-600 tracking-tight"><%= stats.hutang_count %></p>
+                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 uppercase tracking-tighter">Manage</span>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center font-bold">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Lunas</p>
+                <p class="text-lg font-black text-emerald-600 tracking-tight"><%= stats.paid_count %></p>
             </div>
         </div>
     </div>
@@ -405,9 +458,10 @@
                                             sClass='bg-rose-50 text-rose-600' ; sLabel='JATUH TEMPO' ; } else if
                                             (invoice.status==='sent' ) { sClass='bg-blue-50 text-blue-600' ;
                                             sLabel='TERKIRIM' ; } else if (invoice.status==='partial' ) {
-                                            sClass='bg-amber-50 text-amber-600' ; sLabel='PARTIAL' ; } else if
+                                            sClass='bg-amber-50 text-amber-600' ; sLabel='CICILAN' ; } else if
                                             (invoice.status==='hutang' ) { sClass='bg-purple-50 text-purple-600' ;
-                                            sLabel='HUTANG' ; } else if (invoice.status==='draft' ) {
+                                            sLabel='TUNGGAKAN' ; } else if (invoice.status==='janji_bayar' ) { sClass='bg-cyan-50 text-cyan-600' ;
+                                            sLabel='JANJI BAYAR' ; } else if (invoice.status==='draft' ) {
                                             sClass='bg-slate-100 text-slate-500' ; sLabel='DRAFT' ; } else if
                                             (invoice.status==='cancelled' ) { sClass='bg-slate-200 text-slate-400 line-through' ;
                                             sLabel='BATAL' ; } %>
@@ -539,9 +593,10 @@
                                     else if (invoice.status==='overdue' ) { mClass='bg-rose-500 text-white' ;
                                     mLabel='JATUH TEMPO' ; } else if (invoice.status==='sent' ) {
                                     mLabel='TERKIRIM' ; } else if (invoice.status==='partial' ) {
-                                    mClass='bg-amber-500 text-white' ; mLabel='PARTIAL' ; } else if
+                                    mClass='bg-amber-500 text-white' ; mLabel='CICILAN' ; } else if
                                     (invoice.status==='hutang' ) { mClass='bg-purple-500 text-white' ;
-                                    mLabel='HUTANG' ; } else if (invoice.status==='draft' ) {
+                                    mLabel='TUNGGAKAN' ; } else if (invoice.status==='janji_bayar' ) { mClass='bg-cyan-500 text-white' ;
+                                    mLabel='JANJI BAYAR' ; } else if (invoice.status==='draft' ) {
                                     mClass='bg-slate-400 text-white' ; mLabel='DRAFT' ; } else if
                                     (invoice.status==='cancelled' ) { mClass='bg-slate-300 text-slate-500 line-through' ;
                                     mLabel='BATAL' ; } %>
@@ -966,10 +1021,10 @@
 
         switch (action) {
             case 'detail':
-                location.href = `/billing/tagihan/${id}`;
+                location.href = `/billing/tagihan/${id}${window.location.search}`;
                 break;
             case 'pay':
-                location.href = `/billing/tagihan/${id}/pay`;
+                location.href = `/billing/tagihan/${id}/pay${window.location.search}`;
                 break;
             case 'print':
                 // Direct opening for mobile to avoid popup blocker
@@ -1272,8 +1327,8 @@
         switch (action) {
             case 'generate-invoice': openModal('generateInvoiceModal'); break;
             case 'open-odc-print': openModal('odcPrintModal'); break;
-            case 'detail': location.href = `/billing/tagihan/${id}`; break;
-            case 'pay': location.href = `/billing/tagihan/${id}/pay`; break;
+            case 'detail': location.href = `/billing/tagihan/${id}${window.location.search}`; break;
+            case 'pay': location.href = `/billing/tagihan/${id}/pay${window.location.search}`; break;
             case 'print': window.open(`/billing/tagihan/${id}/print?format=thermal`, '_blank'); break;
 
             case 'promise':
@@ -1284,13 +1339,27 @@
                 break;
 
             case 'send-wanew':
-                const ok = await Swal.fire({ title: 'Kirim WhatsApp?', text: "Kirim rincian tagihan via WA?", icon: 'question', showCancelButton: true });
+                const ok = await Swal.fire({ 
+                    title: 'Kirim WhatsApp?', 
+                    text: "Kirim rincian tagihan via WA?", 
+                    icon: 'question', 
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Kirim',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#10b981'
+                });
                 if (ok.isConfirmed) {
-                    btn.disabled = true;
-                    const res = await fetch(`/billing/tagihan/${id}/send-whatsapp`, { method: 'POST' });
-                    const data = await res.json();
-                    Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
-                    btn.disabled = false;
+                    if (btn) btn.disabled = true;
+                    Swal.fire({ title: 'Mengirim...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    try {
+                        const res = await fetch(`/billing/tagihan/${id}/send-whatsapp`, { method: 'POST' });
+                        const data = await res.json();
+                        Swal.fire(data.success ? 'Berhasil' : 'Gagal', data.message, data.success ? 'success' : 'error');
+                    } catch (err) {
+                        Swal.fire('Error', 'Gagal menghubungi server', 'error');
+                    } finally {
+                        if (btn) btn.disabled = false;
+                    }
                 }
                 break;
 

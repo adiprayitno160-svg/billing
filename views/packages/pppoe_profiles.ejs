@@ -1,20 +1,20 @@
-﻿<div class="rounded border border-slate-200 bg-white p-4">
+<div class="rounded border border-slate-200 bg-white p-4">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Daftar Profil PPPoE</h2>
         <div class="flex gap-2">
             <a href="/packages/pppoe/profiles/new"
                 class="px-3 py-1.5 rounded bg-green-600 text-white text-sm hover:bg-green-700">
-                ➕ Tambah Manual
+                ? Tambah Manual
             </a>
             <form method="post" action="/packages/pppoe/profiles/sync" class="inline">
                 <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
-                    🔄 Sync dari MikroTik
+                    ?? Sync dari MikroTik
                 </button>
             </form>
             <a href="/packages/pppoe/profiles/test-update-100"
                 class="px-3 py-1.5 rounded bg-orange-600 text-white text-sm hover:bg-orange-700"
                 onclick="return confirm('Update profil paket 100 ke 10M di MikroTik?')">
-                🚀 Test Update Paket 100 → 10M
+                ?? Test Update Paket 100 ? 10M
             </a>
         </div>
     </div>
@@ -39,10 +39,10 @@
                                     <th class="py-2 px-2">Local Address</th>
                                     <th class="py-2 px-2">Remote Pool</th>
                                     <th class="py-2 px-2">DNS Server</th>
-                                    <th class="py-2 px-2 bg-blue-50">📥 Rate RX</th>
-                                    <th class="py-2 px-2 bg-green-50">📤 Rate TX</th>
-                                    <th class="py-2 px-2 bg-purple-50" colspan="4">🚀 Burst Limiting RX (Download)</th>
-                                    <th class="py-2 px-2 bg-orange-50" colspan="4">🚀 Burst Limiting TX (Upload)</th>
+                                    <th class="py-2 px-2 bg-blue-50">?? Rate RX</th>
+                                    <th class="py-2 px-2 bg-green-50">?? Rate TX</th>
+                                    <th class="py-2 px-2 bg-purple-50" colspan="4">?? Burst Limiting RX (Download)</th>
+                                    <th class="py-2 px-2 bg-orange-50" colspan="4">?? Burst Limiting TX (Upload)</th>
                                     <th class="py-2 px-2">Comment</th>
                                     <th class="py-2 px-2 text-center sticky right-0 bg-slate-50 z-10">Aksi</th>
                                 </tr>
@@ -165,10 +165,10 @@
                     </div>
 
                     <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-                        <p class="font-semibold mb-2">💡 Info & Penjelasan Kolom:</p>
+                        <p class="font-semibold mb-2">?? Info & Penjelasan Kolom:</p>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                             <div>
-                                <p class="font-semibold mb-1">📥 Download (RX):</p>
+                                <p class="font-semibold mb-1">?? Download (RX):</p>
                                 <ul class="list-disc list-inside space-y-1">
                                     <li><strong>Rate Limit RX:</strong> Batas kecepatan download normal</li>
                                     <li><strong>Burst RX:</strong> Speed maksimal download saat burst</li>
@@ -177,7 +177,7 @@
                                 </ul>
                             </div>
                             <div>
-                                <p class="font-semibold mb-1">📤 Upload (TX):</p>
+                                <p class="font-semibold mb-1">?? Upload (TX):</p>
                                 <ul class="list-disc list-inside space-y-1">
                                     <li><strong>Rate Limit TX:</strong> Batas kecepatan upload normal</li>
                                     <li><strong>Burst TX:</strong> Speed maksimal upload saat burst</li>

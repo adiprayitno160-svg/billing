@@ -179,7 +179,7 @@
             const hasLoc = '<%= (item.latitude && item.longitude) ? "true" : "false" %>' === 'true';
 
             const map = L.map('mapOdc').setView([initialLat, initialLng], hasLoc ? 16 : 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(map);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: 'OSM' }).addTo(map);
 
             const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
 

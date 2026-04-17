@@ -1,4 +1,4 @@
-﻿<div class="space-y-6">
+<div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-8">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -37,15 +37,15 @@
                 <select name="ping_status"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                     <option value="">Semua Status</option>
-                    <option value="online" <%=filters.ping_status==='online' ? 'selected' : '' %>>🟢
+                    <option value="online" <%=filters.ping_status==='online' ? 'selected' : '' %>>??
                         Online</option>
                     <option value="offline" <%=filters.ping_status==='offline' ? 'selected' : '' %>
-                        >🔴 Offline</option>
-                    <option value="degraded" <%=filters.ping_status==='degraded' ? 'selected' : '' %>>🟡 Degraded
+                        >?? Offline</option>
+                    <option value="degraded" <%=filters.ping_status==='degraded' ? 'selected' : '' %>>?? Degraded
                     </option>
-                    <option value="isolated" <%=filters.ping_status==='isolated' ? 'selected' : '' %>>⛔ Isolir</option>
+                    <option value="isolated" <%=filters.ping_status==='isolated' ? 'selected' : '' %>>? Isolir</option>
                     <option value="unknown" <%=filters.ping_status==='unknown' ? 'selected' : '' %>
-                        >⚪ Unknown</option>
+                        >? Unknown</option>
                 </select>
             </div>
 
@@ -480,10 +480,10 @@
                 <div>
                     <h4 class="font-semibold text-blue-900 mb-1">Status Monitoring</h4>
                     <ul class="text-sm text-blue-800 space-y-1">
-                        <li>🟢 <strong>Online:</strong> Ping berhasil, response normal</li>
-                        <li>🔴 <strong>Offline:</strong> Ping gagal (bukan karena isolir)</li>
-                        <li>🟡 <strong>Degraded:</strong> Ping lambat (>200ms)</li>
-                        <li>⛔ <strong>Isolir:</strong> Pelanggan di-isolir dari sistem</li>
+                        <li>?? <strong>Online:</strong> Ping berhasil, response normal</li>
+                        <li>?? <strong>Offline:</strong> Ping gagal (bukan karena isolir)</li>
+                        <li>?? <strong>Degraded:</strong> Ping lambat (>200ms)</li>
+                        <li>? <strong>Isolir:</strong> Pelanggan di-isolir dari sistem</li>
                     </ul>
                 </div>
             </div>
@@ -633,11 +633,11 @@
                         }">
                                                         ${d.status}
                                                     </span>
-                                                    ${d.is_counted_in_sla ? '<span class="text-xs text-blue-600">✓ Counted in SLA</span>' : '<span class="text-xs text-gray-500">✗ Excluded</span>'}
+                                                    ${d.is_counted_in_sla ? '<span class="text-xs text-blue-600">? Counted in SLA</span>' : '<span class="text-xs text-gray-500">? Excluded</span>'}
                                                 </div>
                                                 <div class="text-sm text-gray-600 mt-1">
                                                     ${new Date(d.start_time).toLocaleString('id-ID')} 
-                                                    ${d.end_time ? '→ ' + new Date(d.end_time).toLocaleString('id-ID') : '(Ongoing)'}
+                                                    ${d.end_time ? '? ' + new Date(d.end_time).toLocaleString('id-ID') : '(Ongoing)'}
                                                 </div>
                                             </div>
                                             <div class="text-right">

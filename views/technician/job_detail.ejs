@@ -1,4 +1,4 @@
-﻿<div class="max-w-5xl mx-auto space-y-6">
+<div class="max-w-5xl mx-auto space-y-6">
     <!-- Header Navigation -->
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
@@ -257,7 +257,7 @@
 
                     const map = L.map('jobMap').setView([lat, lng], 15);
 
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                         attribution: '&copy; OpenStreetMap contributors'
                     }).addTo(map);
 

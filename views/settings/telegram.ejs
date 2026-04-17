@@ -1,4 +1,4 @@
-﻿<!-- Settings Telegram Page -->
+<!-- Settings Telegram Page -->
 <div class="max-w-4xl mx-auto">
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -200,14 +200,14 @@ document.getElementById('telegramSettingsForm').addEventListener('submit', async
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Pengaturan berhasil disimpan!\n\nServer akan restart untuk mengaktifkan bot.');
+            alert('? Pengaturan berhasil disimpan!\n\nServer akan restart untuk mengaktifkan bot.');
             setTimeout(() => window.location.reload(), 2000);
         } else {
-            alert('❌ Gagal menyimpan pengaturan:\n' + result.message);
+            alert('? Gagal menyimpan pengaturan:\n' + result.message);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('❌ Terjadi kesalahan saat menyimpan pengaturan');
+        alert('? Terjadi kesalahan saat menyimpan pengaturan');
     }
 });
 
@@ -216,7 +216,7 @@ async function testBotConnection() {
     const botToken = document.getElementById('botToken').value;
     
     if (!botToken) {
-        alert('⚠️ Masukkan bot token terlebih dahulu');
+        alert('?? Masukkan bot token terlebih dahulu');
         return;
     }
     
@@ -230,13 +230,13 @@ async function testBotConnection() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Koneksi berhasil!\n\nBot: @${result.data.username}\nNama: ${result.data.first_name}`);
+            alert(`? Koneksi berhasil!\n\nBot: @${result.data.username}\nNama: ${result.data.first_name}`);
         } else {
-            alert('❌ Koneksi gagal:\n' + result.message);
+            alert('? Koneksi gagal:\n' + result.message);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('❌ Terjadi kesalahan saat test koneksi');
+        alert('? Terjadi kesalahan saat test koneksi');
     }
 }
 
@@ -252,14 +252,14 @@ async function restartBot() {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Bot berhasil direstart');
+            alert('? Bot berhasil direstart');
             setTimeout(() => window.location.reload(), 1500);
         } else {
-            alert('❌ Gagal restart bot:\n' + result.message);
+            alert('? Gagal restart bot:\n' + result.message);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('❌ Terjadi kesalahan saat restart bot');
+        alert('? Terjadi kesalahan saat restart bot');
     }
 }
 </script>

@@ -442,17 +442,17 @@
                             </div>
                             <span class="text-sm">Verifikasi Pembayaran</span>
                         </a>
-                        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/billing/debts/view')) ? 'bg-white/15 text-white' : '' %>"
+                        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/billing/debts/view')) ? 'bg-white/15 text-white shadow-md' : '' %>"
                             href="/billing/debts/view">
                             <div
-                                class="w-6 h-6 bg-gradient-to-br from-red-400 to-rose-500 rounded-lg flex items-center justify-center">
-                                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="2.5"
+                                class="w-6 h-6 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg flex items-center justify-center shadow-sm">
+                                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="3"
                                     viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z">
                                     </path>
                                 </svg>
                             </div>
-                            <span class="text-sm">Pelacakan Hutang</span>
+                            <span class="text-sm font-medium">Pelacakan Hutang</span>
                         </a>
                         <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-white/15 hover:text-white transition-all duration-200 <%= (typeof currentPath !== 'undefined' && currentPath.startsWith('/billing/scheduler/settings')) ? 'bg-white/15 text-white' : '' %>"
                             href="/billing/scheduler/settings">

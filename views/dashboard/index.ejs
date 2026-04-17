@@ -1,4 +1,4 @@
-﻿<div class="space-y-6">
+<div class="space-y-6">
 	<!-- Recent Monitoring Alerts (NEW) -->
 	<% if (typeof recentAlerts !=='undefined' && recentAlerts.length> 0) { %>
 		<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-md animate-pulse">
@@ -1009,7 +1009,7 @@
 										<%= customer.name %>
 									</span>
 									<span class="text-xs font-medium text-slate-500 mt-0.5">
-										<%= customer.customer_code || '-' %> • <%= customer.pppoe_username || '-' %>
+										<%= customer.customer_code || '-' %> � <%= customer.pppoe_username || '-' %>
 									</span>
 								</div>
 							</td>
@@ -1058,7 +1058,7 @@
 							<td class="px-6 py-5">
 								<% if (customer.maintenance_status==='in_progress' ) { %>
 									<span
-										class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🛠️
+										class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">???
 										DIPROSES</span>
 									<% } else if (customer.maintenance_status==='scheduled' ) { %>
 										<span
@@ -1200,7 +1200,7 @@
 										<td class="px-6 py-5">
 											<div class="flex flex-col">
 												<span class="text-sm font-bold text-slate-900 group-hover/row:text-blue-600 transition-colors">${customer.name}</span>
-												<span class="text-xs font-medium text-slate-500 mt-0.5">${customer.customer_code || '-'} • ${customer.pppoe_username || '-'}</span>
+												<span class="text-xs font-medium text-slate-500 mt-0.5">${customer.customer_code || '-'} � ${customer.pppoe_username || '-'}</span>
 											</div>
 										</td>
 										<td class="px-6 py-5">
@@ -1225,7 +1225,7 @@
 										</td>
 										<td class="px-6 py-5">
 											${customer.maintenance_status === 'in_progress' ?
-								'<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🛠️ DIPROSES</span>' :
+								'<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">??? DIPROSES</span>' :
 								(customer.maintenance_status === 'scheduled' ? '<span class="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">TERJADWAL</span>' : '<span class="text-xs text-slate-400 font-medium">-</span>')
 							}
 										</td>

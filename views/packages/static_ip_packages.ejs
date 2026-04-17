@@ -1,4 +1,4 @@
-﻿<div class="space-y-6">
+<div class="space-y-6">
     <!-- Header Page -->
     <div
         class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/20 shadow-sm transition-all duration-300">
@@ -479,12 +479,12 @@
 
                     setTimeout(() => window.location.reload(), 800);
                 } else {
-                    alert('❌ Gagal: ' + result.message);
+                    alert('? Gagal: ' + result.message);
                     confirmBtn.disabled = false;
                     confirmBtn.innerHTML = originalContent;
                 }
             } catch (err) {
-                alert('❌ Terjadi kesalahan: ' + err.message);
+                alert('? Terjadi kesalahan: ' + err.message);
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = originalContent;
             }

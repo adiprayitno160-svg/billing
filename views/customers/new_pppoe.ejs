@@ -71,11 +71,11 @@
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
                             <!-- LEFT COLUMN: Identity & Settings (7) -->
-                            <div class="lg:col-span-7 space-y-6">
+                            <div class="lg:col-span-7 space-y-6 relative z-50">
 
                                 <!-- CARD 1: Identity -->
                                 <div
-                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
+                                    class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-visible relative z-40 group hover:shadow-md transition-shadow">
                                     <div
                                         class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
                                         <div
@@ -672,7 +672,7 @@
             } else {
                 try {
                     const map = L.map('map').setView([-6.200000, 106.816666], 5);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
 
                     let marker;
 
@@ -681,7 +681,7 @@
                         const addressInput = document.querySelector('textarea[name="address"]') || document.getElementById('address');
                         if (addressInput) {
                             addressInput.placeholder = 'Mengambil alamat...';
-                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                            fetch(`/api/proxy/reverse-geocode?lat=${lat}&lon=${lng}`)
                                 .then(r => r.json())
                                 .then(data => {
                                     if (data && data.display_name) {
@@ -752,7 +752,7 @@
                                 const q = searchInput.value.trim();
                                 if (q.length > 2) {
                                     searchInput.classList.add('opacity-50');
-                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                    fetch(`/api/proxy/geocode?q=${encodeURIComponent(q)}`)
                                         .then(r => r.json())
                                         .then(data => {
                                             if (data && data.length > 0) {

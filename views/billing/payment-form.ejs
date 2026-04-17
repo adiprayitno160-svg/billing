@@ -363,7 +363,7 @@
                     <div class="mb-12">
                         <label class="block text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Pilih
                             Opsi Pembayaran</label>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div class="payment-type-card relative group border-2 border-slate-100 rounded-2xl p-6 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all duration-300"
                                 data-type="full" onclick="selectPaymentType('full')">
                                 <input type="radio" name="payment_type" value="full" id="type-full" class="hidden">
@@ -405,12 +405,38 @@
                                         <i class="fas fa-file-invoice text-2xl"></i>
                                     </div>
                                     <h3 class="font-black text-slate-800 text-lg mb-1 tracking-tight">TUNGGAKAN</h3>
-                                    <p class="text-xs text-slate-400 font-medium mb-4">Tunda (Catat Tunggakan)</p>
+                                    <p class="text-xs text-slate-400 font-medium mb-4">Tunda (Tanpa Tanggal)</p>
                                     <span
                                         class="text-[9px] font-black uppercase tracking-widest py-1 px-2 rounded-md bg-amber-100 text-amber-700">Tanpa
                                         Bayar</span>
                                 </div>
                             </div>
+
+                            <div class="payment-type-card relative group border-2 border-slate-100 rounded-2xl p-6 cursor-pointer hover:border-violet-400 hover:bg-violet-50/30 transition-all duration-300"
+                                data-type="janji_bayar" onclick="selectPaymentType('janji_bayar')">
+                                <input type="radio" name="payment_type" value="janji_bayar" id="type-janji_bayar" class="hidden">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-4 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                        <i class="fas fa-handshake text-2xl"></i>
+                                    </div>
+                                    <h3 class="font-black text-slate-800 text-lg mb-1 tracking-tight">JANJI BAYAR</h3>
+                                    <p class="text-xs text-slate-400 font-medium mb-4">Ditunda dgn Komitmen Tanggal</p>
+                                    <span class="text-[9px] font-black uppercase tracking-widest py-1 px-2 rounded-md bg-violet-100 text-violet-700">Terjadwal</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step Dates for Janji Bayar -->
+                    <div id="janji-bayar-field" class="mb-12 hidden">
+                        <label class="block text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Pilih Tanggal Janji Bayar</label>
+                        <div class="bg-violet-50 border-2 border-violet-100 rounded-[2rem] p-8">
+                            <div class="max-w-md mx-auto relative">
+                                <i class="fas fa-calendar-check absolute left-5 top-1/2 -translate-y-1/2 text-violet-400 text-xl"></i>
+                                <input type="date" name="janji_bayar_date" id="janji_bayar_date"
+                                    class="w-full pl-14 pr-6 py-4 text-xl font-bold bg-white border border-violet-200 rounded-2xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-slate-700">
+                            </div>
+                            <p class="text-center text-xs font-bold text-violet-500 mt-4 uppercase tracking-wider"><i class="fas fa-info-circle mr-1"></i> Pelanggan akan otomatis diingatkan pada tanggal ini</p>
                         </div>
                     </div>
 
@@ -1044,7 +1070,7 @@
             currentDiscount = calculateDiscount();
 
             // Adjust calculation based on type
-            if (selectedType === 'full' || selectedType === 'debt') {
+            if (selectedType === 'full' || selectedType === 'debt' || selectedType === 'janji_bayar') {
                 finalAmount = Math.max(0, remainingAmount - currentDiscount);
             } else {
                 finalAmount = Math.max(0, subtotal - currentDiscount);
@@ -1073,11 +1099,11 @@
             } else {
                 if (calcOverpaymentRow) calcOverpaymentRow.classList.add('hidden');
 
-                if ((selectedType === 'partial' || selectedType === 'debt')) {
+                if ((selectedType === 'partial' || selectedType === 'debt' || selectedType === 'janji_bayar')) {
                     let remaining = 0;
                     if (selectedType === 'partial') {
                         remaining = Math.max(0, remainingAmount - finalAmount - currentDiscount);
-                    } else if (selectedType === 'debt') {
+                    } else if (selectedType === 'debt' || selectedType === 'janji_bayar') {
                         remaining = finalAmount;
                     }
                     if (calcRemaining) calcRemaining.textContent = 'Rp ' + formatRupiah(remaining);
@@ -1133,6 +1159,14 @@
             const amountField = document.getElementById('amount-field');
             const autoApproveNotice = document.getElementById('auto-approve-notice');
             const submitBtn = document.getElementById('submit-btn');
+
+            const janjiBayarField = document.getElementById('janji-bayar-field');
+
+            if (type === 'janji_bayar') {
+                if (janjiBayarField) janjiBayarField.classList.remove('hidden');
+            } else {
+                if (janjiBayarField) janjiBayarField.classList.add('hidden');
+            }
 
             if (type === 'partial') {
                 if (amountField) amountField.classList.remove('hidden');
@@ -1215,15 +1249,22 @@
             document.getElementById('submit-btn').addEventListener('click', async function (e) {
                 e.preventDefault();
 
+                const btn = document.getElementById('submit-btn');
                 const formElement = document.getElementById('payment-form');
                 const formData = new FormData(formElement);
                 const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
+                // LOCK MECHANISM
+                const allInputs = document.querySelectorAll('input, select, textarea, button:not(#submit-btn)');
+                const allCards = document.querySelectorAll('.payment-type-card');
+                
                 const data = {
                     invoice_id: invoiceId,
-                    selectedInvoiceIds: selectedInvoices, // NEW: Include all selected
+                    selectedInvoiceIds: selectedInvoices,
                     payment_method: paymentMethod,
-                    notes: formData.get('notes') || ''
+                    payment_type: selectedType,
+                    notes: formData.get('notes') || '',
+                    janji_bayar_date: formData.get('janji_bayar_date') || ''
                 };
 
                 if (selectedType === 'partial') {
@@ -1234,6 +1275,7 @@
                     data.payment_amount = 0;
                 }
 
+                // ... (Discount logic remains same)
                 if (currentDiscount > 0) {
                     data.discount_amount = currentDiscount;
                     const slaInput = document.getElementById('sla-discount-amount');
@@ -1249,7 +1291,6 @@
                     }
                 }
 
-                // Construct detailed confirmation message
                 let confirmHtml = `<div class="text-left text-sm space-y-2 mt-4">
                     <p><b>Periode:</b> ${selectedInvoices.length} Terpilih</p>
                     <p><b>Metode:</b> ${paymentMethod.toUpperCase()}</p>
@@ -1259,39 +1300,30 @@
                 if (currentDiscount > 0) {
                     confirmHtml += `<p><b>Total Diskon:</b> - Rp ${formatRupiah(currentDiscount)}</p>`;
                 }
-                confirmHtml += `<p class="text-lg font-black text-blue-600 mt-2 border-t pt-2">Total Transaksi: Rp ${formatRupiah(finalAmount)}</p>`;
-
-                if (selectedType === 'partial' && finalAmount > (remainingAmount - calculateDiscountOnlySLA())) {
-                    confirmHtml += `<div class="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
-                        <p class="font-bold text-amber-700">⚠️ Notifikasi Saldo</p>
-                        <p class="text-amber-600">Ada kelebihan bayar Rp ${formatRupiah(finalAmount - (remainingAmount - calculateDiscountOnlySLA()))}.</p>
-                        <p class="text-amber-600">Kelebihan akan masuk ke Saldo Pelanggan.</p>
-                    </div>`;
-                }
-                confirmHtml += `</div>`;
+                confirmHtml += `<p class="text-lg font-black text-blue-600 mt-2 border-t pt-2">Total Transaksi: Rp ${formatRupiah(finalAmount)}</p></div>`;
 
                 const resultConfirm = await Swal.fire({
-                    title: 'Konfirmasi Pembayaran Multi-Periode',
+                    title: 'Konfirmasi Proses?',
                     html: confirmHtml,
-                    icon: 'info',
+                    icon: 'question',
                     showCancelButton: true,
                     confirmButtonColor: '#2563eb',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Ya, Proses Sekarang!',
                     cancelButtonText: 'Batal'
                 });
 
                 if (!resultConfirm.isConfirmed) return;
 
-                // USING UNIFIED ENDPOINT
-                const endpoint = '/billing/payments/process';
+                // LOCK UI
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sedang Memproses...';
+                allInputs.forEach(el => el.disabled = true);
+                allCards.forEach(card => {
+                    card.style.opacity = '0.5';
+                    card.style.pointerEvents = 'none';
+                });
 
                 try {
-                    const btn = document.getElementById('submit-btn');
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
-
-                    const res = await fetch(endpoint, {
+                    const res = await fetch('/billing/payments/process', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
@@ -1300,38 +1332,26 @@
                     const result = await res.json();
                     if (result.success) {
                         await Swal.fire({
-                            title: 'Transaksi Berhasil!',
+                            title: 'Berhasil!',
                             text: result.message,
                             icon: 'success',
-                            confirmButtonColor: '#10b981',
                             timer: 2000,
-                            timerProgressBar: true
+                            showConfirmButton: false
                         });
-                        
-                        // Always return to the tagihan list in the Admin module as requested
-                        window.location.href = '/billing/tagihan';
+                        window.location.href = '/billing/tagihan' + window.location.search;
                     } else {
-                        Swal.fire({
-                            title: 'Error Pengolahan!',
-                            text: result.message,
-                            icon: 'error',
-                            confirmButtonColor: '#ef4444'
-                        });
-                        btn.disabled = false;
-                        document.getElementById('btn-text').textContent = 'PROSES PEMBAYARAN';
-                        btn.innerHTML = btn.innerHTML.replace('<i class="fas fa-spinner fa-spin mr-2"></i>', '');
+                        throw new Error(result.message);
                     }
                 } catch (err) {
-                    Swal.fire({
-                        title: 'Koneksi Gagal!',
-                        text: 'Server tidak merespon pengolahan pembayaran',
-                        icon: 'warning',
-                        confirmButtonColor: '#f59e0b'
-                    });
-                    const btn = document.getElementById('submit-btn');
+                    Swal.fire('Gagal!', err.message || 'Terjadi kesalahan sistem', 'error');
+                    // UNLOCK UI
                     btn.disabled = false;
-                    document.getElementById('btn-text').textContent = 'PROSES PEMBAYARAN';
-                    btn.innerHTML = btn.innerHTML.replace('<i class="fas fa-spinner fa-spin mr-2"></i>', '');
+                    btn.innerHTML = '<span id="btn-text">PROSES PEMBAYARAN</span>';
+                    allInputs.forEach(el => el.disabled = false);
+                    allCards.forEach(card => {
+                        card.style.opacity = '1';
+                        card.style.pointerEvents = 'auto';
+                    });
                 }
             });
         });

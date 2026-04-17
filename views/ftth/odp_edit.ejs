@@ -312,7 +312,7 @@
                         zoom: hasLocation ? 16 : 13
                     });
 
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                         attribution: '© OpenStreetMap contributors',
                         maxZoom: 19
                     }).addTo(map);
@@ -362,7 +362,7 @@
                                 const q = searchInput.value.trim();
                                 if (q.length > 2) {
                                     searchInput.classList.add('opacity-50');
-                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+                                    fetch(`/api/proxy/geocode?q=${encodeURIComponent(q)}`)
                                         .then(r => r.json())
                                         .then(data => {
                                             if (data && data.length > 0) {
