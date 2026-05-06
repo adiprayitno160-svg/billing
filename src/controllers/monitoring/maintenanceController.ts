@@ -48,7 +48,7 @@ export class MaintenanceController {
                 title: 'Maintenance Schedules',
                 schedules,
                 status,
-                user: req.user
+                user: (req as any).user
             });
 
         } catch (error) {
@@ -91,7 +91,7 @@ export class MaintenanceController {
                 title: 'Create Maintenance Schedule',
                 areas,
                 customers,
-                user: req.user
+                user: (req as any).user
             });
 
         } catch (error) {
@@ -119,7 +119,7 @@ export class MaintenanceController {
                 end_time
             } = req.body;
 
-            const userId = (req.user as any)?.id;
+            const userId = ((req as any).user as any)?.id;
 
             if (!userId) {
                 res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -276,7 +276,7 @@ export class MaintenanceController {
             res.render('monitoring/maintenance/detail', {
                 title: `Maintenance: ${schedule.title}`,
                 schedule,
-                user: req.user
+                user: (req as any).user
             });
 
         } catch (error) {

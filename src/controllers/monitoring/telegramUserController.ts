@@ -30,11 +30,10 @@ export class TelegramUserController {
             // Get Telegram bot info
             const botInfo = telegramBotService.getBotInfo();
 
-            res.render('monitoring/telegram/users', {
                 title: 'Telegram Users Management',
                 users,
                 botInfo,
-                user: req.user
+                user: (req as any).user
             });
 
         } catch (error) {
@@ -64,7 +63,7 @@ export class TelegramUserController {
             res.render('monitoring/telegram/create-invite', {
                 title: 'Create Invite Code',
                 areas,
-                user: req.user
+                user: (req as any).user
             });
 
         } catch (error) {
