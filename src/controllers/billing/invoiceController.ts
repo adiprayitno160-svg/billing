@@ -31,8 +31,8 @@ export class InvoiceController {
                     queryParams.push(status);
                 }
             } else if (!search) {
-                // Default: Hide 'paid' invoices as per user request to keep view clean, UNLESS searching
-                whereConditions.push("i.status != 'paid'");
+                // Default: Hide 'paid' AND 'hutang' invoices as per user request to keep view clean, UNLESS searching
+                whereConditions.push("i.status NOT IN ('paid', 'hutang')");
             }
 
             if (period) {
@@ -77,12 +77,17 @@ export class InvoiceController {
                     COALESCE(
                         (SELECT SUM(amount) FROM payments WHERE invoice_id = i.id),
                         0
-                    ) as total_paid
+                    ) as total_paid,
+                    EXISTS(
+                        SELECT 1 FROM invoice_items ii 
+                        WHERE ii.invoice_id = i.id 
+                        AND (LOWER(ii.description) LIKE '%tunggakan%' OR LOWER(ii.description) LIKE '%kekurangan%')
+                    ) as has_tunggakan
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc odc ON c.odc_id = odc.id
                 ${whereClause}
-                ORDER BY i.created_at DESC
+                ORDER BY i.created_at DESC, i.id DESC
                 LIMIT ? OFFSET ?
             `;
 
@@ -120,6 +125,26 @@ export class InvoiceController {
 
             const [statsResult] = await databasePool.query(statsQuery);
             const stats = (statsResult as RowDataPacket[])[0];
+
+            // Monthly specific stats for the selected period
+            const monthlyStatsQuery = `
+                SELECT 
+                    COUNT(*) as total_count,
+                    SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count,
+                    SUM(CASE WHEN status != 'paid' AND status != 'cancelled' THEN 1 ELSE 0 END) as unpaid_count,
+                    SUM(total_amount) as total_amount,
+                    SUM(paid_amount) as total_paid
+                FROM invoices
+                WHERE period = ?
+            `;
+            const [monthlyStatsResult] = await databasePool.query(monthlyStatsQuery, [period]);
+            const monthlyStats = (monthlyStatsResult as RowDataPacket[])[0] || {
+                total_count: 0,
+                paid_count: 0,
+                unpaid_count: 0,
+                total_amount: 0,
+                total_paid: 0
+            };
 
             // Get ODC list for filter dropdown
             const odcQuery = `SELECT id, name, location FROM ftth_odc ORDER BY name`;
@@ -184,6 +209,7 @@ export class InvoiceController {
                 title: 'Daftar Tagihan',
                 invoices,
                 stats,
+                monthlyStats,
                 odcList,
                 pagination: {
                     currentPage: page,
@@ -918,6 +944,8 @@ export class InvoiceController {
                 } else {
                     notificationIds = await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id), false);
                 }
+            } else if (invoice.status === 'hutang') {
+                notificationIds = await UnifiedNotificationService.notifyPaymentDebt(parseInt(id), false);
             } else {
                 notificationIds = await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id), false);
             }
@@ -949,70 +977,30 @@ export class InvoiceController {
      * Delete invoice
      */
     async deleteInvoice(req: Request, res: Response): Promise<void> {
-        const conn = await databasePool.getConnection();
-
         try {
-            await conn.beginTransaction();
-
             const { id } = req.params;
-
-            // Get customer_id before deleting to check if we should un-isolate
-            const [invInfo] = await conn.execute('SELECT customer_id FROM invoices WHERE id = ?', [id]);
-            const customerId = (invInfo as any[])[0]?.customer_id;
-
-            // Delete associated items and metadata
-            await conn.execute('DELETE FROM payments WHERE invoice_id = ?', [id]);
-            await conn.execute('DELETE FROM discounts WHERE invoice_id = ?', [id]);
-            await conn.execute('DELETE FROM debt_tracking WHERE invoice_id = ?', [id]);
-            await conn.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
+            const { InvoiceService } = await import('../../services/billing/invoiceService');
             
-            // [Fix] Cleanup notifications and late payment tracking for this invoice
-            await conn.execute('DELETE FROM unified_notifications_queue WHERE invoice_id = ?', [id]);
-            try {
-              await conn.execute('DELETE FROM customer_late_payment_tracking WHERE invoice_id = ?', [id]);
-            } catch (e) { /* ignore if table doesn't exist */ }
-
-            // Delete invoice
-            await conn.execute('DELETE FROM invoices WHERE id = ?', [id]);
-
-            // [Fix] Automatically un-isolate if there are no more unpaid invoices
-            if (customerId) {
-                const [checkUnpaid] = await conn.execute(
-                    "SELECT COUNT(*) as count FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled')", 
-                    [customerId]
-                );
-                
-                if ((checkUnpaid as any[])[0].count === 0) {
-                    try {
-                        const { IsolationService } = await import('../../services/billing/isolationService');
-                        await IsolationService.isolateCustomer({
-                            customer_id: customerId,
-                            action: 'restore',
-                            reason: 'Otomatis unisolir: Tagihan telah dihapus oleh admin',
-                            performed_by: 'system'
-                        }, conn);
-                    } catch (isoErr) {
-                        console.error('Failed to auto-restore customer after invoice delete:', isoErr);
-                    }
-                }
+            const result = await InvoiceService.bulkDeleteInvoices([parseInt(id)]);
+            
+            if (result.failed > 0) {
+                res.status(400).json({
+                    success: false,
+                    message: result.errors[0]?.message || 'Gagal menghapus tagihan'
+                });
+                return;
             }
-
-            await conn.commit();
 
             res.json({
                 success: true,
-                message: 'Invoice berhasil dihapus'
+                message: 'Tagihan berhasil dihapus'
             });
-
-        } catch (error) {
-            await conn.rollback();
+        } catch (error: any) {
             console.error('Error deleting invoice:', error);
             res.status(500).json({
                 success: false,
-                message: 'Gagal menghapus invoice'
+                message: 'Gagal menghapus tagihan: ' + error.message
             });
-        } finally {
-            conn.release();
         }
     }
 
@@ -1053,6 +1041,10 @@ export class InvoiceController {
             await conn.execute(`DELETE FROM discounts WHERE invoice_id IN (${idListStr})`);
             await conn.execute(`DELETE FROM debt_tracking WHERE invoice_id IN (${idListStr})`);
             await conn.execute(`DELETE FROM invoice_items WHERE invoice_id IN (${idListStr})`);
+            await conn.execute(`DELETE FROM invoice_payment_sessions WHERE invoice_id IN (${idListStr})`);
+            await conn.execute(`DELETE FROM payment_transactions WHERE invoice_id IN (${idListStr})`);
+            await conn.execute(`DELETE FROM payment_verifications WHERE invoice_id IN (${idListStr})`);
+            await conn.execute(`UPDATE customer_compensations SET status = "pending", applied_invoice_id = NULL, applied_at = NULL WHERE applied_invoice_id IN (${idListStr})`);
             
             // [Fix] Cleanup notifications and late payment tracking for these invoices
             await conn.execute(`DELETE FROM unified_notifications_queue WHERE invoice_id IN (${idListStr})`);
@@ -1063,48 +1055,62 @@ export class InvoiceController {
             // Delete invoice
             await conn.execute(`DELETE FROM invoices WHERE id IN (${idListStr})`);
 
-            // [Fix] Automatically un-isolate customers who have no more unpaid invoices
-            if (customerIds.length > 0) {
-                for (const custId of customerIds) {
-                    const [checkUnpaid] = await conn.execute(
-                        "SELECT COUNT(*) as count FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled')", 
-                        [custId]
-                    );
-                    
-                    if ((checkUnpaid as any[])[0].count === 0) {
-                        try {
-                            const { IsolationService } = await import('../../services/billing/isolationService');
-                            await IsolationService.isolateCustomer({
-                                customer_id: custId,
-                                action: 'restore',
-                                reason: 'Otomatis unisolir: Tagihan massal pelanggan telah dihapus',
-                                performed_by: 'system'
-                            }, conn);
-                        } catch (isoErr) {
-                            console.error(`Failed to auto-restore customer ${custId} after bulk invoice delete:`, isoErr);
-                        }
-                    }
-                }
-            }
-
             await conn.commit();
+            conn.release();
 
+            // Return success immediately to UI so it doesn't hang!
             res.json({
                 success: true,
                 message: `${validIds.length} tagihan berhasil dihapus`,
                 deleted: validIds.length
             });
 
+            // [Fix] Automatically un-isolate customers ASYNCHRONOUSLY without blocking UI response
+            if (customerIds.length > 0) {
+                setTimeout(async () => {
+                    let tempConn;
+                    try {
+                        tempConn = await databasePool.getConnection();
+                        for (const custId of customerIds) {
+                            const [checkUnpaid] = await tempConn.execute(
+                                "SELECT COUNT(*) as count FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled')", 
+                                [custId]
+                            );
+                            
+                            if ((checkUnpaid as any[])[0].count === 0) {
+                                try {
+                                    const { IsolationService } = await import('../../services/billing/isolationService');
+                                    await IsolationService.isolateCustomer({
+                                        customer_id: custId,
+                                        action: 'restore',
+                                        reason: 'Otomatis unisolir: Tagihan massal pelanggan telah dihapus',
+                                        performed_by: 'system'
+                                    }, tempConn);
+                                } catch (isoErr) {
+                                    console.error(`Failed to auto-restore customer ${custId} after bulk invoice delete:`, isoErr);
+                                }
+                            }
+                        }
+                    } catch (asyncErr) {
+                        console.error('Error in async un-isolate:', asyncErr);
+                    } finally {
+                        if (tempConn) tempConn.release();
+                    }
+                }, 100);
+            }
+            
+            return;
+
         } catch (error) {
             await conn.rollback();
+            if (conn) conn.release();
             console.error('Error bulk deleting invoice:', error);
             res.status(500).json({
                 success: false,
                 message: 'Gagal menghapus tagihan secara masal'
             });
-        } finally {
-            conn.release();
         }
+
     }
 
     /**
@@ -1489,6 +1495,44 @@ export class InvoiceController {
             });
         } catch (error: any) {
             console.error('Error bulk sending WhatsApp:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * Apply manual discount to an invoice
+     */
+    async applyManualDiscount(req: Request, res: Response): Promise<void> {
+        try {
+            const { invoiceId, amount, reason } = req.body;
+            const appliedBy = (req as any).user?.id || null;
+
+            if (!invoiceId) {
+                res.status(400).json({ success: false, message: 'ID tagihan tidak valid' });
+                return;
+            }
+
+            if (amount === undefined || amount === null || isNaN(parseInt(amount)) || parseInt(amount) <= 0) {
+                res.status(400).json({ success: false, message: 'Jumlah diskon tidak valid' });
+                return;
+            }
+
+            const { DiscountService } = await import('../../services/billing/discountService');
+            
+            await DiscountService.applyManualDiscount({
+                invoice_id: parseInt(invoiceId),
+                discount_type: 'manual',
+                amount: parseInt(amount),
+                reason: reason || 'Diskon Manual oleh Admin',
+                approved_by: appliedBy
+            });
+
+            res.json({
+                success: true,
+                message: `Diskon manual sebesar Rp ${new Intl.NumberFormat('id-ID').format(amount)} berhasil diterapkan.`
+            });
+        } catch (error: any) {
+            console.error('Error applying manual discount:', error);
             res.status(500).json({ success: false, message: error.message });
         }
     }

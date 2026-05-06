@@ -264,7 +264,7 @@ export class IsolationService {
             // Security Check: Verify unpaid invoices before restore
             if (isolationData.action === 'restore') {
                 const [unpaidCheck] = await connection.query<RowDataPacket[]>(
-                    "SELECT period FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled') AND (remaining_amount > 0 OR status != 'paid') ORDER BY period ASC",
+                    "SELECT period FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled', 'hutang') AND (remaining_amount > 0 OR status != 'paid') ORDER BY period ASC",
                     [isolationData.customer_id]
                 );
                 
@@ -598,7 +598,7 @@ export class IsolationService {
                     DATEDIFF(CURDATE(), i.due_date) as days_overdue
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
-                WHERE i.status NOT IN ('paid', 'cancelled')
+                WHERE i.status NOT IN ('paid', 'cancelled', 'hutang')
                 AND i.remaining_amount > 0
                 AND i.due_date < CURDATE()
                 AND DATEDIFF(CURDATE(), i.due_date) BETWEEN 1 AND 2
@@ -674,7 +674,7 @@ export class IsolationService {
                 MIN(i.due_date) as oldest_due_date
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
-            WHERE i.status NOT IN ('paid', 'partial', 'cancelled')
+            WHERE i.status NOT IN ('paid', 'partial', 'cancelled', 'hutang')
             AND i.period <= '2026-03'
             AND i.due_date < DATE_SUB(CURDATE(), INTERVAL ${GRACE_PERIOD_DAYS} DAY)
             AND c.is_isolated = FALSE
@@ -768,7 +768,7 @@ export class IsolationService {
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.period = ?
-            AND i.status NOT IN ('paid', 'partial')
+            AND i.status NOT IN ('paid', 'partial', 'hutang')
             AND (i.due_date IS NULL OR i.due_date < CURDATE())
             AND c.is_isolated = FALSE
             AND c.is_deferred = FALSE
@@ -814,7 +814,7 @@ export class IsolationService {
             JOIN invoices i ON c.id = i.customer_id
             WHERE pd.status IN ('pending', 'approved')
             AND pd.deferred_until_date < CURDATE()
-            AND i.status NOT IN ('paid')
+            AND i.status NOT IN ('paid', 'hutang')
             AND c.is_isolated = FALSE
             AND c.status = 'active'
         `;
@@ -1123,7 +1123,7 @@ export class IsolationService {
             JOIN invoices i ON c.id = i.customer_id
             LEFT JOIN isolation_logs il ON c.id = il.customer_id AND il.action = 'restore' 
                 AND il.created_at = (SELECT MAX(created_at) FROM isolation_logs WHERE customer_id = c.id AND action = 'restore')
-            WHERE i.status NOT IN ('paid', 'partial', 'cancelled', 'overdue_not_handled')
+            WHERE i.status NOT IN ('paid', 'partial', 'cancelled', 'overdue_not_handled', 'hutang')
             AND i.due_date <= CURDATE()
             AND c.is_isolated = FALSE
             AND c.status = 'active'
@@ -1253,7 +1253,7 @@ export class IsolationService {
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
             WHERE i.period = ?
-            AND i.status NOT IN ('paid', 'cancelled')
+            AND i.status NOT IN ('paid', 'cancelled', 'hutang')
             AND c.is_isolated = FALSE
             AND c.status = 'active'
         `;

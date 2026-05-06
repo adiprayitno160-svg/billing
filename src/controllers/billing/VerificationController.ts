@@ -182,7 +182,7 @@ export class VerificationController {
                 SELECT id, invoice_number, total_amount, paid_amount, remaining_amount, status, due_date
                 FROM invoices
                 WHERE customer_id = ?
-                AND status IN ('sent', 'partial', 'overdue', 'unpaid')
+                AND status IN ('sent', 'partial', 'overdue', 'unpaid', 'janji_bayar', 'hutang')
                 AND remaining_amount > 0
                 ORDER BY due_date ASC
             `, [customerId]);

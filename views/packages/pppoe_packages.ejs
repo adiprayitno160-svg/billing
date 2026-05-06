@@ -1,361 +1,322 @@
-<div class="rounded border border-slate-200 bg-white p-4 min-h-[60vh]">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Daftar Paket PPPoE</h2>
-        <a href="/packages/pppoe/packages/create"
-            class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 inline-block">
-            Tambah Paket
-        </a>
+<div class="space-y-6">
+    <!-- Header Page -->
+    <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/20 shadow-sm transition-all duration-300">
+        <div class="flex items-center gap-4">
+            <div class="p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200 text-white">
+                <i class="fas fa-network-wired text-xl"></i>
+            </div>
+            <div>
+                <nav class="flex text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1"
+                    aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center">
+                            <a href="/dashboard" class="hover:text-indigo-600">Admin</a>
+                            <i class="fas fa-chevron-right mx-2 text-[8px]"></i>
+                        </li>
+                        <li class="text-indigo-600">PPPoE Packages</li>
+                    </ol>
+                </nav>
+                <h2 class="text-xl font-bold text-slate-800 uppercase tracking-tight">Daftar Paket PPPoE</h2>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/packages/pppoe/packages/create"
+                class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95">
+                <i class="fas fa-plus"></i>
+                <span class="hidden sm:inline text-nowrap">Tambah Paket</span>
+            </a>
+        </div>
     </div>
 
-    <% if (success && success.length> 0) { %>
-        <div class="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
-            <%= success[0] %>
+    <!-- Alert Messages -->
+    <% if (success && success.length > 0) { %>
+        <div
+            class="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl flex items-center gap-3 shadow-sm animate-fade-in-down">
+            <i class="fas fa-check-circle text-xl"></i>
+            <p class="font-medium text-sm">
+                <%= success[0] %>
+            </p>
         </div>
-        <% } %>
+    <% } %>
 
-            <% if (error && error.length> 0) { %>
-                <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
-                    <%= error[0] %>
-                </div>
-                <% } %>
+    <% if (error && error.length > 0) { %>
+        <div
+            class="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl flex items-center gap-3 shadow-sm animate-shake">
+            <i class="fas fa-exclamation-circle text-xl"></i>
+            <p class="font-medium text-sm">
+                <%= error[0] %>
+            </p>
+        </div>
+    <% } %>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="text-left text-slate-600">
-                                <tr>
-                                    <th class="py-2 pr-4">Nama Paket</th>
-                                    <th class="py-2 pr-4">Profil</th>
-                                    <th class="py-2 pr-4">Harga</th>
-                                    <th class="py-2 pr-4">Speed Limit</th>
-                                    <th class="py-2 pr-4 text-center">Client</th>
-                                    <th class="py-2 pr-4">Status</th>
-                                    <th class="py-2 pr-4">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% (packages || []).forEach(function(pkg){ %>
-                                    <tr class="border-t border-slate-100">
-                                        <td class="py-2 pr-4">
-                                            <div class="flex items-center gap-2">
-                                                <span class="font-medium">
-                                                    <%= pkg.name %>
-                                                </span>
-                                                <% if ((pkg.max_clients || 1)> 1) { %>
-                                                    <span
-                                                        class="px-1.5 py-0.5 text-[10px] rounded bg-purple-100 text-purple-700 border border-purple-200 font-bold"
-                                                        title="Shared Bandwidth: <%= pkg.max_clients %> pelanggan share <%= pkg.rate_limit_rx || '?' %>">
-                                                        SHARE
-                                                    </span>
-                                                    <% } %>
-                                            </div>
-                                        </td>
-                                        <td class="py-2 pr-4">
-                                            <%= pkg.profile_name || '-' %>
-                                        </td>
-                                        <td class="py-2 pr-4">Rp <%= Number(pkg.price).toLocaleString('id-ID') %>
-                                        </td>
-                                        <td class="py-2 pr-4">
-                                            <% if (pkg.rate_limit_rx && pkg.rate_limit_tx) { %>
-                                                <div class="flex flex-col">
-                                                    <span>
-                                                        <%= pkg.rate_limit_rx %>/<%= pkg.rate_limit_tx %>
-                                                    </span>
-                                                    <% if ((pkg.max_clients || 1)> 1) { %>
-                                                        <span class="text-[10px] text-slate-500">
-                                                            Min: <%- (pkg.limit_at_download ||
-                                                                Math.floor(parseInt(pkg.rate_limit_rx) /
-                                                                pkg.max_clients) + 'M' ) %>/<%- (pkg.limit_at_upload ||
-                                                                    Math.floor(parseInt(pkg.rate_limit_tx) /
-                                                                    pkg.max_clients) + 'M' ) %>
-                                                        </span>
-                                                        <% } %>
-                                                </div>
-                                                <% } else { %>
-                                                    -
-                                                    <% } %>
-                                        </td>
-                                        <td class="py-2 pr-4 text-center">
-                                            <% if ((pkg.max_clients || 1)> 1) { %>
-                                                <span
-                                                    class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold <%= pkg.current_clients >= pkg.max_clients ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-purple-100 text-purple-800 border border-purple-200' %>"
-                                                    title="<%= pkg.current_clients || 0 %> dari <%= pkg.max_clients %> slot terisi">
-                                                    <%= pkg.current_clients || 0 %>/<%= pkg.max_clients %>
-                                                </span>
-                                                <% } else { %>
-                                                    <span
-                                                        class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-                                                        <%= pkg.current_clients || 0 %>/∞
-                                                    </span>
-                                                    <% } %>
-                                        </td>
-                                        <td class="py-2 pr-4">
-                                            <span
-                                                class="px-2 py-1 text-xs rounded <%= pkg.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' %>">
-                                                <%= pkg.status === 'active' ? 'Aktif' : 'Nonaktif' %>
+    <!-- Content Section -->
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-visible">
+        <!-- Desktop Table View -->
+        <div class="hidden md:block overflow-visible">
+            <table class="min-w-full divide-y divide-slate-100">
+                <thead class="bg-slate-50/50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                            Nama Paket</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                            Profil / Mikrotik</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                            Speed (RX/TX)</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter text-center">
+                            Clients</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter text-center text-nowrap">
+                            Harga / Bulan</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter text-center">
+                            Status</th>
+                        <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                            Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    <% (packages || []).forEach(function(pkg){ %>
+                        <tr class="hover:bg-slate-50/50 transition-colors group">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-all font-bold">
+                                        <%= pkg.name.charAt(0).toUpperCase() %>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-slate-700">
+                                                <%= pkg.name %>
                                             </span>
-                                            <% if (!pkg.auto_activation) { %>
-                                                <span
-                                                    class="ml-1 px-1.5 py-0.5 text-[10px] rounded border border-amber-200 bg-amber-50 text-amber-700"
-                                                    title="Aktivasi Manual">
-                                                    Manual
+                                            <% if ((pkg.max_clients || 1) > 1) { %>
+                                                <span class="px-1.5 py-0.5 text-[8px] rounded-md bg-purple-100 text-purple-600 border border-purple-200 font-black uppercase tracking-widest">
+                                                    SHARE
                                                 </span>
-                                                <% } %>
-                                        </td>
-                                        <td class="py-2 pr-4 flex gap-2">
-                                            <button type="button" data-package="<%= JSON.stringify(pkg) %>"
-                                                onclick="copyPackage(JSON.parse(this.dataset.package))"
-                                                class="px-2 py-1 text-xs rounded border border-blue-300 text-blue-700 hover:bg-blue-50 inline-block">
-                                                Copy
-                                            </button>
-                                            <a href="/packages/pppoe/packages/<%= pkg.id %>/edit"
-                                                class="px-2 py-1 text-xs rounded border border-slate-300 hover:bg-slate-50 inline-block">
-                                                Edit
-                                            </a>
-                                            <button type="button"
-                                                data-id="<%= pkg.id %>" data-name="<%= pkg.name %>"
-                                                onclick="confirmDeletePackage(this.dataset.id, this.dataset.name)"
-                                                class="px-2 py-1 text-xs rounded border border-rose-300 text-rose-700 hover:bg-rose-50">
-                                                Hapus
-                                            </button>
-                                            <form id="delete-form-<%= pkg.id %>" method="post"
-                                                action="/packages/pppoe/packages/<%= pkg.id %>/delete" class="hidden">
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    <% }) %>
-                                        <% if (!packages || packages.length===0) { %>
-                                            <tr>
-                                                <td colspan="7" class="py-6 text-center text-slate-500">Belum ada paket.
-                                                    Klik "Tambah Paket" untuk membuat paket baru.</td>
-                                            </tr>
                                             <% } %>
-                            </tbody>
-                        </table>
-                    </div>
-</div>
-
-<div id="modalPackage" class="fixed inset-0 hidden items-center justify-center bg-black/40 p-4 z-50">
-    <div class="w-full max-w-4xl rounded bg-white p-4 max-h-[90vh] overflow-y-auto shadow-lg">
-        <div class="flex items-center justify-between mb-3 border-b pb-2">
-            <h3 class="font-semibold" id="modalTitle">Tambah Paket PPPoE</h3>
-            <button id="btnClosePackage" class="text-slate-500 hover:text-slate-700">✕</button>
+                                        </div>
+                                        <p class="text-[10px] text-slate-400 font-medium">PPPoE Service</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                                        <i class="fas fa-id-card text-[9px] text-slate-400"></i>
+                                        <%= pkg.profile_name || '-' %>
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-medium">MikroTik Profile</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                                        <i class="fas fa-arrow-down text-[9px] text-blue-400"></i>
+                                        <%= pkg.rate_limit_rx || '?' %>
+                                    </span>
+                                    <span class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                                        <i class="fas fa-arrow-up text-[9px] text-orange-400"></i>
+                                        <%= pkg.rate_limit_tx || '?' %>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <div class="flex flex-col items-center gap-1">
+                                    <div class="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                        <% 
+                                            let maxClients = pkg.max_clients || 999;
+                                            let isInfinite = !pkg.max_clients || pkg.max_clients >= 999;
+                                            let clientPercent = isInfinite ? 0 : Math.min(((pkg.current_clients || 0) / maxClients) * 100, 100); 
+                                        %>
+                                        <div class="h-full <%= clientPercent >= 90 ? 'bg-rose-500' : 'bg-indigo-500' %>"
+                                            style="width: <%= isInfinite ? '0' : clientPercent %>%"></div>
+                                    </div>
+                                    <span class="text-[10px] font-black tracking-tight <%= (pkg.current_clients || 0) >= maxClients ? 'text-rose-600' : 'text-indigo-600' %>">
+                                        <%= pkg.current_clients || 0 %> / <%= isInfinite ? '∞' : maxClients %>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-center text-nowrap">
+                                <span class="text-sm font-black text-slate-700">Rp <%= Number(pkg.price).toLocaleString('id-ID') %></span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <div class="flex flex-col items-center gap-1">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest <%= pkg.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400' %>">
+                                        <%= pkg.status === 'active' ? 'Active' : 'Offline' %>
+                                    </span>
+                                    <% if (!pkg.auto_activation) { %>
+                                        <span class="text-[8px] font-black text-amber-500 uppercase tracking-tighter">Manual Activation</span>
+                                    <% } %>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center justify-center gap-2">
+                                    <button type="button" 
+                                        onclick='copyPackage(<%= JSON.stringify(pkg) %>)'
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all active:scale-90"
+                                        title="Copy Package">
+                                        <i class="fas fa-clone text-xs"></i>
+                                    </button>
+                                    <a href="/packages/pppoe/packages/<%= pkg.id %>/edit"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-white hover:shadow-md transition-all active:scale-90"
+                                        title="Edit Package">
+                                        <i class="fas fa-edit text-xs"></i>
+                                    </a>
+                                    <button type="button"
+                                        onclick="confirmDeletePackage('<%= pkg.id %>', '<%= pkg.name %>')"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all active:scale-90"
+                                        title="Delete Package">
+                                        <i class="fas fa-trash text-xs"></i>
+                                    </button>
+                                    <form id="delete-form-<%= pkg.id %>" method="post" action="/packages/pppoe/packages/<%= pkg.id %>/delete" class="hidden"></form>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }) %>
+                    <% if (!packages || packages.length === 0) { %>
+                        <tr>
+                            <td colspan="7" class="px-6 py-20 text-center">
+                                <div class="flex flex-col items-center gap-3">
+                                    <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                                        <i class="fas fa-box-open text-4xl"></i>
+                                    </div>
+                                    <p class="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Belum ada paket PPPoE</p>
+                                    <a href="/packages/pppoe/packages/create" class="text-indigo-600 font-bold text-xs underline mt-2 hover:text-indigo-700">Buat paket pertama anda</a>
+                                </div>
+                            </td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
         </div>
-        <form id="formPackage" method="post" action="/packages/pppoe/packages"
-            class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Nama Paket *</label>
-                <input name="name" required
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-            </div>
-            <div>
-                <div class="hidden">
-                    <label class="block text-xs text-slate-600 mb-1">Profil PPPoE</label>
-                    <select name="profile_id"
-                        class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none">
-                        <option value="">Auto-Create (Sesuai Nama Paket)</option>
-                        <% (profiles || []).forEach(function(profile){ %>
-                            <option value="<%= profile.id %>">
-                                <%= profile.name %>
-                            </option>
-                            <% }) %>
-                    </select>
-                </div>
-                <label class="block text-xs text-slate-600 mb-1">Status Aktivasi</label>
-                <select name="auto_activation"
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none">
-                    <option value="1">Otomatis (Saat Bayar)</option>
-                    <option value="0">Manual (Konfirmasi Admin)</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Harga (Rp) *</label>
-                <input name="price" type="number" min="0" step="1" required
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Durasi (hari) *</label>
-                <input name="duration_days" type="number" min="1" value="30" required
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Status</label>
-                <select name="status"
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none">
-                    <option value="active">Aktif</option>
-                    <option value="inactive">Nonaktif</option>
-                </select>
-            </div>
 
-            <!-- Rate Limits -->
-            <div class="col-span-1 sm:col-span-2 mt-2">
-                <div class="flex items-center justify-between bg-slate-100 p-1 mb-2">
-                    <h4 class="text-xs font-semibold text-slate-700">Rate & Burst Limits</h4>
-                    <div class="flex items-center">
-                        <input type="checkbox" id="burst_enabled_toggle" name="burst_enabled" value="1" class="mr-1" onchange="toggleBurstInputs(this.checked)">
-                        <label for="burst_enabled_toggle" class="text-[10px] font-bold text-slate-600">Enable Burst Limit</label>
+        <!-- Mobile Card View -->
+        <div class="md:hidden divide-y divide-slate-100 p-4 space-y-4">
+            <% (packages || []).forEach(function(pkg){ %>
+                <div class="flex flex-col gap-4 p-4 rounded-3xl border border-slate-100 bg-white shadow-sm overflow-visible relative">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                                <%= pkg.name.charAt(0).toUpperCase() %>
+                            </div>
+                            <div>
+                                <h4 class="font-black text-slate-800 tracking-tight leading-none"><%= pkg.name %></h4>
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">PPPoE Mode</p>
+                            </div>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest <%= pkg.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400' %>">
+                            <%= pkg.status === 'active' ? 'Active' : 'Offline' %>
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pb-3 border-b border-slate-50">
+                        <div class="bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100/50">
+                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">RX/TX Speed</span>
+                            <div class="flex flex-col gap-0.5 font-bold text-slate-800">
+                                <span class="text-[10px] tracking-tight">DN: <%= pkg.rate_limit_rx %></span>
+                                <span class="text-[10px] tracking-tight">UP: <%= pkg.rate_limit_tx %></span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100/50">
+                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Profile</span>
+                            <div class="flex items-center gap-1.5 font-bold text-slate-800">
+                                <i class="fas fa-id-card text-[8px] text-slate-400"></i>
+                                <span class="text-[10px] tracking-tight truncate"><%= pkg.profile_name || '-' %></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Harga / Bulan</span>
+                            <span class="text-sm font-black text-slate-800">Rp <%= Number(pkg.price).toLocaleString('id-ID') %></span>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Slot Client</span>
+                            <span class="text-[10px] font-black text-indigo-600">
+                                <%= pkg.current_clients || 0 %> / <%= (!pkg.max_clients || pkg.max_clients >= 999) ? '∞' : pkg.max_clients %>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 pt-2">
+                        <button type="button" 
+                            onclick='copyPackage(<%= JSON.stringify(pkg) %>)'
+                            class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-200">
+                            <i class="fas fa-clone text-sm"></i>
+                            <span class="text-[8px] font-bold uppercase tracking-widest">Copy</span>
+                        </button>
+                        <a href="/packages/pppoe/packages/<%= pkg.id %>/edit"
+                            class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-white border border-slate-200 text-slate-600">
+                            <i class="fas fa-edit text-sm"></i>
+                            <span class="text-[8px] font-bold uppercase tracking-widest text-slate-500">Edit</span>
+                        </a>
+                        <button type="button"
+                            onclick="confirmDeletePackage('<%= pkg.id %>', '<%= pkg.name %>')"
+                            class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600">
+                            <i class="fas fa-trash text-sm"></i>
+                            <span class="text-[8px] font-bold uppercase tracking-widest text-rose-600">Hapus</span>
+                        </button>
                     </div>
                 </div>
-            </div>
-
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Rate Limit Download (Mbps)</label>
-                <input name="rate_limit_rx" type="number" min="0" step="0.1"
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-            </div>
-            <div>
-                <label class="block text-xs text-slate-600 mb-1">Rate Limit Upload (Mbps)</label>
-                <input name="rate_limit_tx" type="number" min="0" step="0.1"
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-            </div>
-
-            <div id="burst_inputs_container" class="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 opacity-50 pointer-events-none transition-opacity">
-                <div>
-                    <label class="block text-xs text-slate-600 mb-1">Burst Limit Download (Mbps)</label>
-                    <input name="burst_limit_rx" type="number" min="0" step="0.1"
-                        class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-600 mb-1">Burst Limit Upload (Mbps)</label>
-                    <input name="burst_limit_tx" type="number" min="0" step="0.1"
-                        class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-600 mb-1">Burst Threshold Download (Mbps)</label>
-                    <input name="burst_threshold_rx" type="number" min="0" step="0.1"
-                        class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-600 mb-1">Burst Threshold Upload (Mbps)</label>
-                    <input name="burst_threshold_tx" type="number" min="0" step="0.1"
-                        class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-600 mb-1">Burst Time Download (detik)</label>
-                    <input name="burst_time_rx" type="number" min="0"
-                        class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-600 mb-1">Burst Time Upload (detik)</label>
-                    <input name="burst_time_tx" type="number" min="0"
-                        class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none" />
-                </div>
-            </div>
-
-            <div class="sm:col-span-2">
-                <label class="block text-xs text-slate-600 mb-1">Deskripsi</label>
-                <textarea name="description"
-                    class="w-full rounded border border-slate-300 px-2 py-1.5 focus:border-blue-500 focus:outline-none"
-                    rows="3"></textarea>
-            </div>
-            <div class="sm:col-span-2 flex justify-end gap-2 pt-2 border-t">
-                <button type="button" id="btnCancelPackage"
-                    class="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-50">Batal</button>
-                <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan
-                    Paket</button>
-            </div>
-        </form>
+            <% }) %>
+        </div>
     </div>
 </div>
+
+<!-- Simple Hidden Form for Copy Logic (handled in JS or Controller) -->
+<form id="copy-form" method="post" action="/packages/pppoe/packages/create" class="hidden">
+    <input type="hidden" name="name" id="copy-name">
+    <input type="hidden" name="price" id="copy-price">
+    <input type="hidden" name="profile_id" id="copy-profile">
+    <input type="hidden" name="rate_limit_rx" id="copy-rx">
+    <input type="hidden" name="rate_limit_tx" id="copy-tx">
+    <input type="hidden" name="max_clients" id="copy-max">
+    <input type="hidden" name="status" value="active">
+</form>
 
 <script>
-    (function () {
-        const modal = document.getElementById('modalPackage');
-        const openBtn = document.getElementById('btnAddPackage');
-        const closeBtn = document.getElementById('btnClosePackage');
-        const cancelBtn = document.getElementById('btnCancelPackage');
-        const form = document.getElementById('formPackage');
-        const modalTitle = document.getElementById('modalTitle');
-
-        function hide() {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            form.reset();
-            toggleBurstInputs(false); // Disable burst inputs on reset
-            form.action = '/packages/pppoe/packages'; // Reset to create URL
-            modalTitle.innerText = 'Tambah Paket PPPoE'; // Reset title
-
-            // Remove any hidden ID fields if they exist
-            const existingIdInput = form.querySelector('input[name="id"]');
-            if (existingIdInput) existingIdInput.remove();
-        }
-
-        function show() {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        // Expose copyPackage globally
-        window.copyPackage = function (pkg) {
-            // Set form to create mode (no ID parameter in URL)
-            form.action = '/packages/pppoe/packages';
-            modalTitle.innerText = 'Copy Paket PPPoE: ' + pkg.name;
-
-            // Fill form data
-            const fields = [
-                'profile_id', 'price', 'duration_days', 'status',
-                'rate_limit_rx', 'rate_limit_tx',
-                'burst_limit_rx', 'burst_limit_tx',
-                'burst_threshold_rx', 'burst_threshold_tx',
-                'burst_time_rx', 'burst_time_tx',
-                'description'
-            ];
-
-            fields.forEach(field => {
-                if (form.elements[field] && pkg[field] !== undefined && pkg[field] !== null) {
-                    form.elements[field].value = pkg[field];
-                }
-            });
-
-            // Handle burst_enabled toggle
-            if (pkg.burst_enabled) {
-                document.getElementById('burst_enabled_toggle').checked = true;
-                toggleBurstInputs(true);
-            } else {
-                document.getElementById('burst_enabled_toggle').checked = false;
-                toggleBurstInputs(false);
+    function copyPackage(pkg) {
+        Swal.fire({
+            title: 'Duplikasi Paket',
+            text: `Apakah Anda ingin menduplikasi paket "${pkg.name}"?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Duplikasi',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#4f46e5',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // We use the existing form structure or redirect to edit page with copy flag
+                // For now, let's redirect to create page and fill it if possible, 
+                // but simpler is to use a hidden form and submit
+                const form = document.getElementById('copy-form');
+                document.getElementById('copy-name').value = pkg.name + ' (Copy)';
+                document.getElementById('copy-price').value = pkg.price;
+                document.getElementById('copy-profile').value = pkg.profile_id || '';
+                document.getElementById('copy-rx').value = pkg.rate_limit_rx || '';
+                document.getElementById('copy-tx').value = pkg.rate_limit_tx || '';
+                document.getElementById('copy-max').value = pkg.max_clients || 1;
+                form.submit();
             }
+        });
+    }
 
-            // Set Name with suffix
-            if (form.elements['name']) {
-                form.elements['name'].value = pkg.name + ' (Copy)';
+    function confirmDeletePackage(id, name) {
+        Swal.fire({
+            title: 'Hapus Paket?',
+            text: `Paket "${name}" akan dihapus secara permanen dari sistem.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('delete-form-' + id).submit();
             }
-
-            show();
-        };
-
-        window.toggleBurstInputs = function (enabled) {
-            const container = document.getElementById('burst_inputs_container');
-            if (enabled) {
-                container.classList.remove('opacity-50', 'pointer-events-none');
-            } else {
-                container.classList.add('opacity-50', 'pointer-events-none');
-            }
-        };
-
-        if (openBtn) openBtn.addEventListener('click', show);
-        if (closeBtn) closeBtn.addEventListener('click', hide);
-        if (cancelBtn) cancelBtn.addEventListener('click', hide);
-
-        window.confirmDeletePackage = function (id, name) {
-            Swal.fire({
-                title: 'Apakah Anda yakin?',
-                text: "Paket '" + name + "' akan dihapus beserta profil MikroTik terkait jika tidak digunakan paket lain!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#e11d48',
-                cancelButtonColor: '#64748b',
-                confirmButtonText: 'Ya, Hapus!',
-                cancelButtonText: 'Batal',
-                reverseButtons: true,
-                focusCancel: true,
-                heightAuto: false, // Prevents body height glitches
-                position: 'center', // Ensures modal is always in center
-                scrollbarPadding: false
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('delete-form-' + id).submit();
-                }
-            });
-        };
-    })();
+        });
+    }
 </script>
+

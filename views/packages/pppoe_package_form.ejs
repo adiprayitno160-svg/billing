@@ -1,435 +1,451 @@
 <div class="space-y-6 pb-24">
-    <div class="mb-6">
-        <div class="flex items-center gap-3 mb-2">
-            <a href="/packages/pppoe/packages" class="text-blue-600 hover:text-blue-800">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-            </a>
-            <h1 class="text-2xl font-bold text-slate-800">Tambah Paket PPPoE</h1>
+    <!-- Breadcrumb & Title -->
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-6 rounded-3xl border border-white/20 shadow-sm transition-all duration-300">
+        <div class="flex items-center gap-4">
+            <div class="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200 text-white">
+                <i class="fas fa-plus-circle text-2xl"></i>
+            </div>
+            <div>
+                <nav class="flex text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1"
+                    aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center">
+                            <a href="/packages/pppoe/packages" class="hover:text-blue-600">PPPoE Packages</a>
+                            <i class="fas fa-chevron-right mx-2 text-[8px]"></i>
+                        </li>
+                        <li class="text-blue-600">Add New</li>
+                    </ol>
+                </nav>
+                <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Tambah Paket PPPoE</h2>
+            </div>
         </div>
-        <p class="text-slate-600">Buat paket PPPoE baru dengan konfigurasi yang sesuai</p>
+        <a href="/packages/pppoe/packages"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 shadow-sm transition-all active:scale-95">
+            <i class="fas fa-arrow-left"></i> Kembali
+        </a>
     </div>
 
-    <% if (error && error.length> 0) { %>
-        <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
-            <%= error[0] %>
+    <% if (typeof error !=='undefined' && error && error.length> 0) { %>
+        <div
+            class="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl flex items-center gap-3 shadow-sm animate-shake">
+            <i class="fas fa-exclamation-circle text-xl"></i>
+            <p class="font-medium text-sm">
+                <%= error[0] %>
+            </p>
         </div>
         <% } %>
 
-            <div class="bg-white rounded-lg border border-slate-200 p-6">
-                <form method="post" action="/packages/pppoe/packages/create" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Nama Paket -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Nama Paket <span class="text-red-500">*</span>
-                            </label>
-                            <input name="name" type="text" required
-                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Masukkan nama paket" />
-                        </div>
+            <form method="post" action="/packages/pppoe/packages/create" id="packageForm" class="space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                        <!-- Profil PPPoE -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Profil PPPoE
-                            </label>
-
-                            <!-- Toggle Create New Profile -->
-                            <div class="flex items-center space-x-2 mb-3">
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="create_new_profile" name="create_new_profile"
-                                        class="sr-only peer" onchange="toggleProfileMode()">
-                                    <div
-                                        class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-                                    </div>
-                                </label>
-                                <span class="text-xs text-slate-600 font-medium">Buat Profil Baru Otomatis</span>
-                            </div>
-
-                            <!-- Existing Profile Select -->
-                            <div id="profile_select_container">
-                                <select id="profile_id" name="profile_id"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    onchange="loadProfileRateLimits(this.value)">
-                                    <option value="">Pilih Profil (Opsional)</option>
-                                    <% (profiles || []).forEach(function(profile){ %>
-                                        <option value="<%= profile.id %>"
-                                            data-rate-rx="<%= profile.rate_limit_rx || '' %>"
-                                            data-rate-tx="<%= profile.rate_limit_tx || '' %>"
-                                            data-burst-rx="<%= profile.burst_limit_rx || '' %>"
-                                            data-burst-tx="<%= profile.burst_limit_tx || '' %>"
-                                            data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>"
-                                            data-burst-threshold-tx="<%= profile.burst_threshold_tx || '' %>"
-                                            data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
-                                            data-burst-time-tx="<%= profile.burst_time_tx || '' %>">
-                                            <%= profile.name %>
-                                        </option>
-                                        <% }) %>
-                                </select>
-                                <p class="text-xs text-slate-500 mt-1">💡 Rate limiting akan otomatis terisi dari profil
-                                    MikroTik</p>
-                            </div>
-
-                            <!-- New Profile Fields -->
-                            <div id="new_profile_container"
-                                class="hidden space-y-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                <div>
-                                    <label class="block text-xs font-medium text-slate-700">Remote Address Pool
-                                        (Wajib)</label>
-                                    <input name="new_profile_remote_pool" type="text"
-                                        class="w-full rounded border-slate-300 px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="contoh: dhcp_pool1">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-slate-700">Local Address
-                                        (Opsional)</label>
-                                    <input name="new_profile_local_addr" type="text"
-                                        class="w-full rounded border-slate-300 px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="contoh: 192.168.1.1">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-slate-700">DNS Server
-                                        (Opsional)</label>
-                                    <input name="new_profile_dns" type="text"
-                                        class="w-full rounded border-slate-300 px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="contoh: 8.8.8.8">
-                                </div>
-                                <p class="text-[10px] text-blue-600">ℹ️ Nama profil akan sama dengan Nama Paket</p>
-                            </div>
-                        </div>
-
-                        <!-- Harga Reguler -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Harga Reguler (Rp) <span class="text-red-500">*</span>
-                            </label>
-                            <input name="price" type="number" min="0" step="1000" required
-                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="0" />
-                        </div>
-
-                        <!-- Prepaid Pricing Configuration -->
-                        <div class="col-span-full border-t border-slate-200 pt-6 mt-2">
-                            <h3 class="text-lg font-semibold text-slate-800 mb-4">Konfigurasi Harga Prepaid</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <!-- 7 Hari -->
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
-                                    <div class="flex justify-between items-center mb-3">
-                                        <label class="text-sm font-semibold text-slate-700">Paket 7 Hari</label>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" name="is_enabled_7_days" value="1"
-                                                class="peer sr-only" onchange="togglePriceInput(this, 'price_7_days')">
-                                            <div
-                                                class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-                                            </div>
-                                        </label>
-                                    </div>
-                                    <div class="relative">
-                                        <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
-                                        <input id="price_7_days" name="price_7_days" type="number" step="1000" disabled
-                                            class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-slate-100 text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                                            placeholder="0" />
-                                    </div>
-                                </div>
-
-                                <!-- 14 Hari -->
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
-                                    <div class="flex justify-between items-center mb-3">
-                                        <label class="text-sm font-semibold text-slate-700">Paket 14 Hari</label>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" name="is_enabled_14_days" value="1"
-                                                class="peer sr-only" onchange="togglePriceInput(this, 'price_14_days')">
-                                            <div
-                                                class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-                                            </div>
-                                        </label>
-                                    </div>
-                                    <div class="relative">
-                                        <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
-                                        <input id="price_14_days" name="price_14_days" type="number" step="1000"
-                                            disabled
-                                            class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-slate-100 text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                                            placeholder="0" />
-                                    </div>
-                                </div>
-
-                                <!-- 30 Hari -->
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
-                                    <div class="flex justify-between items-center mb-3">
-                                        <label class="text-sm font-semibold text-slate-700">Paket 30 Hari</label>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" name="is_enabled_30_days" value="1"
-                                                class="peer sr-only" onchange="togglePriceInput(this, 'price_30_days')">
-                                            <div
-                                                class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-                                            </div>
-                                        </label>
-                                    </div>
-                                    <div class="relative">
-                                        <span class="absolute left-3 top-2 text-slate-500 text-sm">Rp</span>
-                                        <input id="price_30_days" name="price_30_days" type="number" step="1000"
-                                            disabled
-                                            class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-slate-100 text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                                            placeholder="0" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Durasi (Hidden - Postpaid tidak menggunakan durasi, default 30 untuk backward compatibility) -->
-                        <input type="hidden" name="duration_days" value="30" />
-
-                        <!-- Auto Activation Toggle -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Auto Activation
-                            </label>
-                            <div class="flex items-center space-x-3">
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input id="auto_activation" name="auto_activation" type="checkbox" value="1"
-                                        class="sr-only peer" onchange="toggleActivationInfo()" />
-                                    <div
-                                        class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
-                                    </div>
-                                </label>
-                                <span id="activation_status" class="text-sm text-slate-600">Nonaktif</span>
-                            </div>
-                            <div id="activation_info"
-                                class="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 hidden">
-                                <p class="font-semibold mb-1">⚠️ Perhatian:</p>
-                                <p>Jika Auto Activation <strong>NONAKTIF</strong>, paket harus diaktifkan manual. Isolir
-                                    otomatis akan mengikuti jadwal isolir bulanan yang sudah diatur di sistem.</p>
-                            </div>
-                            <div id="activation_info_active"
-                                class="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800 hidden">
-                                <p class="font-semibold mb-1">✅ Auto Activation Aktif:</p>
-                                <p>Paket akan otomatis aktif saat pelanggan subscribe. Masa berlaku dimulai dari tanggal
-                                    aktivasi.</p>
-                            </div>
-                        </div>
-
-                        <!-- Status -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Status
-                            </label>
-                            <select name="status"
-                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="active">Aktif</option>
-                                <option value="inactive">Tidak Aktif</option>
-                            </select>
-                        </div>
-
-                        <!-- Deskripsi -->
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Deskripsi
-                            </label>
-                            <textarea name="description" rows="3"
-                                class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Deskripsi paket (opsional)"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Share & Limit Section -->
-                    <div class="border-t border-slate-200 pt-6">
-                        <div class="flex items-center gap-2 mb-4">
-                            <h3 class="text-lg font-semibold text-slate-800">Shared Bandwidth & Priority</h3>
-                            <span
-                                class="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full">SHARE</span>
-                        </div>
-
-                        <!-- Info Box -->
-                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                            <p class="text-sm text-purple-800">
-                                <strong>💡 Cara Kerja Shared Bandwidth:</strong><br>
-                                • Set <strong>Max Clients > 1</strong> untuk mengaktifkan mode share<br>
-                                • Contoh: 15M share 10 pelanggan = masing-masing dapat <strong>minimal 1.5M</strong>,
-                                maksimal 15M jika yang lain idle<br>
-                                • Sistem otomatis membuat Parent Queue (Simple Queue) di MikroTik untuk membatasi total
-                                bandwidth
-                            </p>
-                        </div>
-
+                    <!-- Left Column: Primary & Pricing -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Section 1: Basic Identity & Profile -->
                         <div
-                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Max Clients (Sharing)
-                                </label>
-                                <input id="max_clients" name="max_clients" type="number" min="1" value="1"
-                                    onchange="updateSharedPreview()"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    placeholder="Contoh: 10" />
-                                <p class="text-[10px] text-slate-500 mt-1">1 = Dedicated, >1 = Shared</p>
+                            class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+                            <div class="flex items-center gap-4 mb-8">
+                                <div
+                                    class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                                    <i class="fas fa-tag"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">Informasi
+                                        Dasar</h3>
+                                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Identitas &
+                                        Profil MikroTik</p>
+                                </div>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Priority (1-8)
-                                </label>
-                                <input name="priority" type="number" min="1" max="8" value="8"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    placeholder="8 (Lowest)" />
-                                <p class="text-[10px] text-slate-500 mt-1">1 (Highest) - 8 (Lowest)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Limit At Download
-                                </label>
-                                <input id="limit_at_download" name="limit_at_download" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    placeholder="Auto (kosongkan)" />
-                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Limit At Upload
-                                </label>
-                                <input id="limit_at_upload" name="limit_at_upload" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    placeholder="Auto (kosongkan)" />
-                                <p class="text-[10px] text-slate-500 mt-1">Bandwidth minimal per user</p>
-                            </div>
-                        </div>
-
-                        <!-- Shared Preview -->
-                        <div id="shared_preview" class="hidden mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <p class="text-sm text-green-800 font-medium">📊 Preview Bandwidth Sharing:</p>
-                            <ul class="text-xs text-green-700 mt-1 ml-4">
-                                <li>• Total Bandwidth: <strong id="preview_total">-</strong></li>
-                                <li>• Max Clients: <strong id="preview_clients">-</strong></li>
-                                <li>• Minimum per Client: <strong id="preview_min">-</strong></li>
-                                <li>• Maximum per Client (jika idle): <strong id="preview_max">-</strong></li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Rate Limiting Section -->
-                    <div class="border-t border-slate-200 pt-6">
-                        <h3 class="text-lg font-semibold text-slate-800 mb-4">Rate Limiting (Per Client)</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Download Limit (Max)
-                                </label>
-                                <input id="rate_limit_rx" name="rate_limit_rx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 10M, 5M (kosongkan untuk unlimited)" />
-                                <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil MikroTik. Jika
-                                    kosong = unlimited (0)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Upload Limit (Max)
-                                </label>
-                                <input id="rate_limit_tx" name="rate_limit_tx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 2M, 1M (kosongkan untuk unlimited)" />
-                                <p class="text-xs text-slate-500 mt-1">🔄 Otomatis terisi dari profil MikroTik. Jika
-                                    kosong = unlimited (0)</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Burst Limiting Section -->
-                    <div class="border-t border-slate-200 pt-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-slate-800">Burst Limiting</h3>
-                            <div class="flex items-center space-x-2">
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="burst_enabled" name="burst_enabled" value="1"
-                                        class="sr-only peer" onchange="toggleBurstInputs()">
-                                    <div
-                                        class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2">
+                                    <label
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nama
+                                        Paket *</label>
+                                    <div class="relative group">
+                                        <span
+                                            class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                                            <i class="fas fa-box"></i>
+                                        </span>
+                                        <input name="name" required placeholder="Contoh: Paket Home 20Mbps"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 shadow-sm" />
                                     </div>
-                                </label>
-                                <span class="text-sm font-semibold text-slate-700">Aktifkan Burst</span>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Profil
+                                        PPPoE</label>
+                                    <div class="flex flex-col gap-3">
+                                        <!-- Toggle Create New Profile -->
+                                        <div class="flex items-center gap-3 bg-blue-50/50 p-3 rounded-2xl border border-blue-100/50">
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" id="create_new_profile" name="create_new_profile"
+                                                    class="sr-only peer" onchange="toggleProfileMode()">
+                                                <div
+                                                    class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                                                </div>
+                                            </label>
+                                            <span class="text-[10px] text-slate-600 font-black uppercase tracking-widest">Buat Profil Baru</span>
+                                        </div>
+
+                                        <!-- Existing Profile Select -->
+                                        <div id="profile_select_container" class="relative">
+                                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                                <i class="fas fa-id-badge"></i>
+                                            </span>
+                                            <select id="profile_id" name="profile_id"
+                                                class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 appearance-none cursor-pointer"
+                                                onchange="loadProfileRateLimits(this.value)">
+                                                <option value="">Pilih Profil (Opsional)</option>
+                                                <% (profiles || []).forEach(function(profile){ %>
+                                                    <option value="<%= profile.id %>"
+                                                        data-rate-rx="<%= profile.rate_limit_rx || '' %>"
+                                                        data-rate-tx="<%= profile.rate_limit_tx || '' %>"
+                                                        data-burst-rx="<%= profile.burst_limit_rx || '' %>"
+                                                        data-burst-tx="<%= profile.burst_limit_tx || '' %>"
+                                                        data-burst-threshold-rx="<%= profile.burst_threshold_rx || '' %>"
+                                                        data-burst-threshold-tx="<%= profile.burst_threshold_tx || '' %>"
+                                                        data-burst-time-rx="<%= profile.burst_time_rx || '' %>"
+                                                        data-burst-time-tx="<%= profile.burst_time_tx || '' %>">
+                                                        <%= profile.name %>
+                                                    </option>
+                                                    <% }) %>
+                                            </select>
+                                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </span>
+                                        </div>
+
+                                        <!-- New Profile Fields (Hidden by default) -->
+                                        <div id="new_profile_container" class="hidden space-y-4 bg-blue-50/50 p-5 rounded-3xl border border-blue-100/50">
+                                            <div class="space-y-1">
+                                                <label class="text-[9px] font-black text-blue-600 uppercase tracking-widest ml-1">Remote Address Pool *</label>
+                                                <input name="new_profile_remote_pool" placeholder="dhcp_pool1"
+                                                    class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-bold text-slate-700 shadow-sm" />
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div class="space-y-1">
+                                                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Local Address</label>
+                                                    <input name="new_profile_local_addr" placeholder="192.168.1.1"
+                                                        class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-bold text-slate-700 shadow-sm" />
+                                                </div>
+                                                <div class="space-y-1">
+                                                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">DNS Server</label>
+                                                    <input name="new_profile_dns" placeholder="8.8.8.8"
+                                                        class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-bold text-slate-700 shadow-sm" />
+                                                </div>
+                                            </div>
+                                            <p class="text-[9px] text-blue-500 font-bold italic">Nama profil akan otomatis mengikuti Nama Paket.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Status Paket</label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <i class="fas fa-toggle-on"></i>
+                                        </span>
+                                        <select name="status"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 appearance-none cursor-pointer">
+                                            <option value="active" selected>Aktif (Terlihat)</option>
+                                            <option value="inactive">Nonaktif (Arsip)</option>
+                                        </select>
+                                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]">
+                                            <i class="fas fa-chevron-down"></i>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Auto Activation</label>
+                                    <div class="flex flex-col gap-2">
+                                        <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input id="auto_activation" name="auto_activation" type="checkbox" value="1"
+                                                    class="sr-only peer" onchange="toggleActivationInfo()" />
+                                                <div
+                                                    class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500">
+                                                </div>
+                                            </label>
+                                            <span id="activation_status" class="text-[10px] text-slate-600 font-black uppercase tracking-widest">Nonaktif</span>
+                                        </div>
+                                        <div id="activation_info" class="p-3 bg-amber-50 border border-amber-100 rounded-2xl text-[10px] text-amber-700 font-bold hidden">
+                                            Jika nonaktif, isolir otomatis mengikuti jadwal bulanan sistem.
+                                        </div>
+                                        <div id="activation_info_active" class="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-[10px] text-emerald-700 font-bold hidden">
+                                            Paket otomatis aktif saat pelanggan subscribe.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="md:col-span-2 space-y-2">
+                                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Deskripsi Singkat</label>
+                                    <textarea name="description" rows="2"
+                                        placeholder="Tuliskan catatan tambahan mengenai paket ini..."
+                                        class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-medium text-slate-600 shadow-sm"></textarea>
+                                </div>
                             </div>
                         </div>
-                        <div id="burst_inputs_container" class="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-50 pointer-events-none transition-opacity duration-300">
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Burst Download Limit
-                                </label>
-                                <input id="burst_limit_rx" name="burst_limit_rx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 20M" />
+                        <!-- Section 2: Bandwidth Management -->
+                        <div
+                            class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+                            <div class="flex items-center justify-between mb-8">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                                        <i class="fas fa-tachometer-alt"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">Bandwidth Management</h3>
+                                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Aturan Per Pelanggan</p>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Burst Upload Limit
-                                </label>
-                                <input id="burst_limit_tx" name="burst_limit_tx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 4M" />
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <!-- Upload Limit -->
+                                <div class="p-5 bg-orange-50/50 rounded-3xl border border-orange-100/50 space-y-4">
+                                    <div class="flex items-center gap-2 text-orange-600 font-black text-[10px] uppercase tracking-widest mb-2">
+                                        <i class="fas fa-arrow-up"></i> Upload Limit (Max)
+                                    </div>
+                                    <div class="relative">
+                                        <input id="rate_limit_tx" name="rate_limit_tx" placeholder="Contoh: 2M"
+                                            class="w-full bg-white border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
+                                        <p class="text-[9px] text-slate-400 font-bold mt-2 ml-1">Kosongkan untuk Unlimited (0)</p>
+                                    </div>
+                                </div>
+
+                                <!-- Download Limit -->
+                                <div class="p-5 bg-blue-50/50 rounded-3xl border border-blue-100/50 space-y-4">
+                                    <div class="flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-widest mb-2">
+                                        <i class="fas fa-arrow-down"></i> Download Limit (Max)
+                                    </div>
+                                    <div class="relative">
+                                        <input id="rate_limit_rx" name="rate_limit_rx" placeholder="Contoh: 10M"
+                                            class="w-full bg-white border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
+                                        <p class="text-[9px] text-slate-400 font-bold mt-2 ml-1">Kosongkan untuk Unlimited (0)</p>
+                                    </div>
+                                </div>
+
+                                <!-- Sharing Configuration -->
+                                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-50">
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Max Clients (Share)</label>
+                                        <input id="max_clients" name="max_clients" type="number" min="1" value="1"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-black text-slate-700 shadow-sm" />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Priority (1-8)</label>
+                                        <input name="priority" type="number" min="1" max="8" value="8"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-black text-slate-700 shadow-sm" />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Limit At (CIR)</label>
+                                        <input id="limit_at_download" name="limit_at_download" placeholder="Auto"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-black text-slate-700 shadow-sm" />
+                                        <input type="hidden" name="limit_at_upload" id="limit_at_upload" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 3: Burst Limiting -->
+                        <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+                            <div class="flex items-center justify-between mb-8">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl">
+                                        <i class="fas fa-bolt"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">Burst Limiting</h3>
+                                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Extra Speed Temporary</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="burst_enabled" name="burst_enabled" value="1"
+                                            class="sr-only peer" onchange="toggleBurstInputs()">
+                                        <div
+                                            class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
+                                        </div>
+                                    </label>
+                                    <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest">Aktifkan</span>
+                                </div>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Burst Download Threshold
-                                </label>
-                                <input id="burst_threshold_rx" name="burst_threshold_rx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 15M" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Burst Upload Threshold
-                                </label>
-                                <input id="burst_threshold_tx" name="burst_threshold_tx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 3M" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Burst Download Time
-                                </label>
-                                <input id="burst_time_rx" name="burst_time_rx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 10s" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Burst Upload Time
-                                </label>
-                                <input id="burst_time_tx" name="burst_time_tx" type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Contoh: 10s" />
+                            <div id="burst_inputs_container" class="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-40 pointer-events-none transition-all duration-300">
+                                <div class="space-y-2">
+                                    <label class="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Burst Limit DN/UP</label>
+                                    <div class="flex gap-2">
+                                        <input id="burst_limit_rx" name="burst_limit_rx" placeholder="DN (20M)"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700" />
+                                        <input id="burst_limit_tx" name="burst_limit_tx" placeholder="UP (4M)"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700" />
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Threshold DN/UP</label>
+                                    <div class="flex gap-2">
+                                        <input id="burst_threshold_rx" name="burst_threshold_rx" placeholder="DN (15M)"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700" />
+                                        <input id="burst_threshold_tx" name="burst_threshold_tx" placeholder="UP (3M)"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700" />
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Time DN/UP</label>
+                                    <div class="flex gap-2">
+                                        <input id="burst_time_rx" name="burst_time_rx" placeholder="DN (10s)"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700" />
+                                        <input id="burst_time_tx" name="burst_time_tx" placeholder="UP (10s)"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-700" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="flex justify-end gap-3 pt-6 border-t border-slate-200">
-                        <a href="/packages/pppoe/packages"
-                            class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-                            Batal
-                        </a>
-                        <button type="submit"
-                            class="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors">
-                            Simpan Paket
-                        </button>
+                    <!-- Right Column: Sidebar Pricing & Logic -->
+                    <div class="space-y-6">
+                        <!-- Logic Preview Card -->
+                        <div
+                            class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-blue-200 sticky top-6 overflow-hidden group">
+                            <div
+                                class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl transition-all group-hover:bg-white/20">
+                            </div>
+                            <div class="relative z-10">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <i class="fas fa-robot text-xl text-blue-200"></i>
+                                    <h3 class="text-sm font-black uppercase tracking-widest">Logic Preview</h3>
+                                </div>
+
+                                <div class="space-y-6">
+                                    <div class="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/10">
+                                        <span class="block text-[10px] font-black text-blue-200 uppercase tracking-widest mb-3">Service Per Pelanggan</span>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p class="text-[9px] font-bold text-white/50 uppercase">Speed "Up To"</p>
+                                                <p class="text-xl font-black" id="preview-upto">0.0M</p>
+                                            </div>
+                                            <div>
+                                                <p class="text-[9px] font-bold text-white/50 uppercase">Garansi CIR</p>
+                                                <p class="text-xl font-black text-amber-300" id="preview-cir">0.0K</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="shared_preview_info" class="hidden space-y-2 bg-black/10 rounded-2xl p-4 border border-white/5 text-[10px] font-bold">
+                                        <div class="flex justify-between">
+                                            <span class="text-blue-200">MODE</span>
+                                            <span class="text-amber-400">SHARED BANDWIDTH</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-blue-200">TOTAL PKG</span>
+                                            <span id="preview-total">-</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-4 px-1">
+                                        <div class="flex justify-between items-center text-xs">
+                                            <span class="font-bold text-blue-100 text-[10px] uppercase">Service Type</span>
+                                            <span class="font-black">PPPoE</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-xs">
+                                            <span class="font-bold text-blue-100 text-[10px] uppercase">MikroTik Profile</span>
+                                            <span class="font-black text-emerald-300">Auto Sync</span>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit"
+                                        class="w-full py-4 rounded-2xl bg-white text-blue-700 font-black uppercase tracking-widest text-xs shadow-xl hover:bg-blue-50 transition-all active:scale-95 mt-4">
+                                        Simpan Paket PPPoE
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section: Pricing Configuration -->
+                        <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+                            <div class="flex items-center gap-4 mb-8">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Billing & Prepaid</h3>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Konfigurasi Harga</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-6">
+                                <!-- Regular Price -->
+                                <div class="space-y-2">
+                                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Harga Bulanan *</label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">Rp</span>
+                                        <input name="price" type="number" min="0" step="1000" required placeholder="0"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-emerald-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
+                                    </div>
+                                </div>
+
+                                <div class="pt-4 border-t border-slate-50 space-y-4">
+                                    <h4 class="text-[10px] font-black text-slate-700 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg inline-block">Prepaid Options</h4>
+                                    
+                                    <!-- 7 Days -->
+                                    <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">7 Hari</span>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" name="is_enabled_7_days" value="1" class="sr-only peer" onchange="togglePriceInput(this, 'price_7_days')">
+                                                <div class="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+                                            </label>
+                                        </div>
+                                        <input id="price_7_days" name="price_7_days" type="number" step="1000" disabled placeholder="Rp 0"
+                                            class="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-400 focus:text-slate-700 disabled:opacity-50 transition-all" />
+                                    </div>
+
+                                    <!-- 14 Days -->
+                                    <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">14 Hari</span>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" name="is_enabled_14_days" value="1" class="sr-only peer" onchange="togglePriceInput(this, 'price_14_days')">
+                                                <div class="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+                                            </label>
+                                        </div>
+                                        <input id="price_14_days" name="price_14_days" type="number" step="1000" disabled placeholder="Rp 0"
+                                            class="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-400 focus:text-slate-700 disabled:opacity-50 transition-all" />
+                                    </div>
+
+                                    <!-- 30 Days -->
+                                    <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">30 Hari</span>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" name="is_enabled_30_days" value="1" class="sr-only peer" onchange="togglePriceInput(this, 'price_30_days')">
+                                                <div class="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+                                            </label>
+                                        </div>
+                                        <input id="price_30_days" name="price_30_days" type="number" step="1000" disabled placeholder="Rp 0"
+                                            class="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-400 focus:text-slate-700 disabled:opacity-50 transition-all" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Fields -->
+                        <input type="hidden" name="duration_days" value="30" />
                     </div>
-                </form>
-            </div>
+                </div>
+            </form>
 </div>
 
 <script>
     // Auto-fill rate limits from MikroTik profile
     function loadProfileRateLimits(profileId) {
         if (!profileId) {
-            // Clear all fields
             document.getElementById('rate_limit_rx').value = '';
             document.getElementById('rate_limit_tx').value = '';
             document.getElementById('burst_limit_rx').value = '';
@@ -438,13 +454,13 @@
             document.getElementById('burst_threshold_tx').value = '';
             document.getElementById('burst_time_rx').value = '';
             document.getElementById('burst_time_tx').value = '';
+            updateSharedPreview();
             return;
         }
 
         const selectElement = document.getElementById('profile_id');
         const selectedOption = selectElement.options[selectElement.selectedIndex];
 
-        // Get data attributes
         const rateRx = selectedOption.getAttribute('data-rate-rx');
         const rateTx = selectedOption.getAttribute('data-rate-tx');
         const burstRx = selectedOption.getAttribute('data-burst-rx');
@@ -454,39 +470,19 @@
         const burstTimeRx = selectedOption.getAttribute('data-burst-time-rx');
         const burstTimeTx = selectedOption.getAttribute('data-burst-time-tx');
 
-        // Fill the form - if empty/null, set to "0" for unlimited (per user requirement)
         document.getElementById('rate_limit_rx').value = (rateRx && rateRx.trim() !== '') ? rateRx : '0';
         document.getElementById('rate_limit_tx').value = (rateTx && rateTx.trim() !== '') ? rateTx : '0';
 
-        // Burst fields are optional, so only fill if they have values
         document.getElementById('burst_limit_rx').value = (burstRx && burstRx.trim() !== '') ? burstRx : '';
         document.getElementById('burst_limit_tx').value = (burstTx && burstTx.trim() !== '') ? burstTx : '';
         document.getElementById('burst_threshold_rx').value = (burstThresholdRx && burstThresholdRx.trim() !== '') ? burstThresholdRx : '';
         document.getElementById('burst_threshold_tx').value = (burstThresholdTx && burstThresholdTx.trim() !== '') ? burstThresholdTx : '';
         document.getElementById('burst_time_rx').value = (burstTimeRx && burstTimeRx.trim() !== '') ? burstTimeRx : '';
         document.getElementById('burst_time_tx').value = (burstTimeTx && burstTimeTx.trim() !== '') ? burstTimeTx : '';
+        
+        updateSharedPreview();
     }
 
-    // Calculate expiry date based on duration
-    function calculateExpiryDate() {
-        const durationDays = parseInt(document.getElementById('duration_days').value) || 0;
-        if (durationDays <= 0) {
-            document.getElementById('expiry_preview').textContent = '';
-            return;
-        }
-
-        const today = new Date();
-        const expiryDate = new Date(today);
-        expiryDate.setDate(today.getDate() + durationDays);
-
-        const options = { year: 'numeric', month: 'long', day: 'numeric' };
-        const formattedDate = expiryDate.toLocaleDateString('id-ID', options);
-
-        document.getElementById('expiry_preview').textContent =
-            `📅 Jika aktivasi hari ini: Berakhir pada ${formattedDate}`;
-    }
-
-    // Toggle activation info display
     function toggleActivationInfo() {
         const checkbox = document.getElementById('auto_activation');
         const status = document.getElementById('activation_status');
@@ -496,19 +492,18 @@
         if (checkbox.checked) {
             status.textContent = 'Aktif';
             status.classList.remove('text-slate-600');
-            status.classList.add('text-green-600', 'font-semibold');
+            status.classList.add('text-emerald-600', 'font-black');
             infoInactive.classList.add('hidden');
             infoActive.classList.remove('hidden');
         } else {
             status.textContent = 'Nonaktif';
-            status.classList.remove('text-green-600', 'font-semibold');
+            status.classList.remove('text-emerald-600', 'font-black');
             status.classList.add('text-slate-600');
             infoActive.classList.add('hidden');
             infoInactive.classList.remove('hidden');
         }
     }
 
-    // Toggle Profile Mode (Existing vs New)
     function toggleProfileMode() {
         const isNew = document.getElementById('create_new_profile').checked;
         const selectContainer = document.getElementById('profile_select_container');
@@ -518,9 +513,7 @@
         if (isNew) {
             selectContainer.classList.add('hidden');
             newContainer.classList.remove('hidden');
-            // Disable select to avoid submitting profile_id
             profileSelect.disabled = true;
-            // Clear current rate limit loads
             loadProfileRateLimits('');
         } else {
             selectContainer.classList.remove('hidden');
@@ -529,87 +522,90 @@
         }
     }
 
-    // Toggle price input enable/disable state
     function togglePriceInput(checkbox, inputId) {
         const input = document.getElementById(inputId);
         if (checkbox.checked) {
             input.disabled = false;
-            input.classList.remove('bg-slate-100', 'text-slate-400');
-            input.classList.add('bg-white', 'text-slate-900');
+            input.classList.remove('text-slate-400');
+            input.classList.add('text-slate-700');
             input.focus();
         } else {
             input.disabled = true;
-            input.classList.add('bg-slate-100', 'text-slate-400');
-            input.classList.remove('bg-white', 'text-slate-900');
+            input.classList.add('text-slate-400');
+            input.classList.remove('text-slate-700');
         }
     }
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function () {
-        calculateExpiryDate();
-        toggleActivationInfo();
-
-        // Initialize price inputs
-        ['7_days', '14_days', '30_days'].forEach(duration => {
-            const inputName = `price_${duration}`;
-            const toggleName = `is_enabled_${duration}`;
-            // Note: On create page everything defaults to disabled/unchecked, so no extra init needed.
-            // On edit page we will need to check checkboxes based on values.
-        });
-
-        // Add event listeners for shared preview
-        const rateRxInput = document.getElementById('rate_limit_rx');
-        const rateTxInput = document.getElementById('rate_limit_tx');
-        const maxClientsInput = document.getElementById('max_clients');
-
-        if (rateRxInput) rateRxInput.addEventListener('input', updateSharedPreview);
-        if (rateTxInput) rateTxInput.addEventListener('input', updateSharedPreview);
-        if (maxClientsInput) maxClientsInput.addEventListener('input', updateSharedPreview);
-    });
 
     function toggleBurstInputs() {
         const checkbox = document.getElementById('burst_enabled');
         const container = document.getElementById('burst_inputs_container');
         
         if (checkbox.checked) {
-            container.classList.remove('opacity-50', 'pointer-events-none');
+            container.classList.remove('opacity-40', 'pointer-events-none');
         } else {
-            container.classList.add('opacity-50', 'pointer-events-none');
+            container.classList.add('opacity-40', 'pointer-events-none');
         }
     }
 
-    // Update Shared Bandwidth Preview
+    function parseRate(val) {
+        if (!val) return 0;
+        val = val.toUpperCase().trim();
+        let num = parseFloat(val);
+        if (val.endsWith('M')) return num;
+        if (val.endsWith('K')) return num / 1024;
+        if (val.endsWith('G')) return num * 1024;
+        return num;
+    }
+
+    function formatRate(num) {
+        if (num >= 1024) return (num / 1024).toFixed(1) + 'G';
+        if (num < 1) return (num * 1024).toFixed(0) + 'K';
+        return num.toFixed(1) + 'M';
+    }
+
     function updateSharedPreview() {
-        const maxClients = parseInt(document.getElementById('max_clients')?.value) || 1;
-        const rateRx = document.getElementById('rate_limit_rx')?.value || '';
-        const rateTx = document.getElementById('rate_limit_tx')?.value || '';
-        const previewDiv = document.getElementById('shared_preview');
+        const rateRx = document.getElementById('rate_limit_rx').value;
+        const maxClients = parseInt(document.getElementById('max_clients').value) || 1;
+        const previewUpto = document.getElementById('preview-upto');
+        const previewCir = document.getElementById('preview-cir');
+        const sharedInfo = document.getElementById('shared_preview_info');
+        const previewTotal = document.getElementById('preview-total');
 
-        if (!previewDiv) return;
-
-        if (maxClients > 1 && (rateRx || rateTx)) {
-            previewDiv.classList.remove('hidden');
-
-            // Parse rate values
-            function parseRate(val) {
-                if (!val) return 0;
-                const num = parseFloat(val);
-                if (val.toLowerCase().includes('g')) return num * 1000;
-                if (val.toLowerCase().includes('k')) return num / 1000;
-                return num;
-            }
-
-            const rxNum = parseRate(rateRx);
-            const txNum = parseRate(rateTx);
-            const minRx = rxNum > 0 ? (rxNum / maxClients).toFixed(1) : '?';
-            const minTx = txNum > 0 ? (txNum / maxClients).toFixed(1) : '?';
-
-            document.getElementById('preview_total').textContent = `${rateRx || '?'} / ${rateTx || '?'}`;
-            document.getElementById('preview_clients').textContent = maxClients;
-            document.getElementById('preview_min').textContent = `${minRx}M / ${minTx}M`;
-            document.getElementById('preview_max').textContent = `${rateRx || '?'} / ${rateTx || '?'}`;
-        } else {
-            previewDiv.classList.add('hidden');
+        if (!rateRx || rateRx === '0') {
+            previewUpto.textContent = 'UNL';
+            previewCir.textContent = 'UNL';
+            sharedInfo.classList.add('hidden');
+            return;
         }
+
+        const rxNum = parseRate(rateRx);
+        previewUpto.textContent = formatRate(rxNum);
+
+        if (maxClients > 1) {
+            sharedInfo.classList.remove('hidden');
+            previewTotal.textContent = rateRx;
+            const cir = rxNum / maxClients;
+            previewCir.textContent = formatRate(cir);
+            document.getElementById('limit_at_download').value = formatRate(cir);
+        } else {
+            sharedInfo.classList.add('hidden');
+            previewCir.textContent = formatRate(rxNum);
+            document.getElementById('limit_at_download').value = '';
+        }
+
+        // Sim Card Pulse Effect
+        const simCard = document.querySelector('.bg-gradient-to-br');
+        simCard.classList.add('ring-4', 'ring-white/20');
+        setTimeout(() => simCard.classList.remove('ring-4', 'ring-white/20'), 300);
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        toggleActivationInfo();
+        
+        // Listeners for live preview
+        ['rate_limit_rx', 'max_clients'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateSharedPreview);
+        });
+    });
 </script>

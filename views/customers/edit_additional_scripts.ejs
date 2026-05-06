@@ -73,14 +73,24 @@
                         }).join('');
                     };
 
-                    // Initial Render
-                    renderList(data.data);
+                    // Initial Render - Filter out registered ones by default
+                    const availableItems = data.data.filter(item => !item.isRegistered);
+                    renderList(availableItems);
 
                     // Search Handler
                     const searchInput = content.querySelector('#queue_search');
+                    
+                    // Prevent form submission on Enter and trigger search
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            // Input event will handle the search, but we prevent form submit
+                        }
+                    });
+
                     searchInput.addEventListener('input', (e) => {
                         const q = e.target.value.toLowerCase();
-                        const filtered = data.data.filter(item =>
+                        const filtered = availableItems.filter(item =>
                             item.queueName.toLowerCase().includes(q) ||
                             item.ipAddress.includes(q)
                         );
@@ -117,7 +127,26 @@
                             // Basic fuzzy matching could be added here if needed
                         }
 
-                        alert(`Data Queue dipilih:\n\nNama: ${name}\nIP: ${ip}\nLimit: ${limit}\n\nSilakan sesuaikan Paket Layanan jika diperlukan.`);
+                        Swal.fire({
+                            title: 'Data Berhasil Diimpor!',
+                            html: `
+                                <div class="text-left bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2">
+                                    <div class="flex justify-between"><strong>Nama:</strong> <span class="text-blue-600">${name}</span></div>
+                                    <div class="flex justify-between"><strong>IP:</strong> <span class="text-blue-600 font-mono">${ip}</span></div>
+                                    <div class="flex justify-between"><strong>Limit:</strong> <span class="text-blue-600 font-mono">${limit}</span></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-4">Silakan sesuaikan Paket Layanan jika diperlukan.</p>
+                            `,
+                            icon: 'success',
+                            confirmButtonText: 'Lanjut',
+                            confirmButtonColor: '#3b82f6',
+                            background: '#ffffff',
+                            customClass: {
+                                popup: 'rounded-2xl shadow-2xl border-0',
+                                title: 'font-bold text-gray-800',
+                                htmlContainer: 'text-sm text-gray-600'
+                            }
+                        });
                         close();
                     };
 

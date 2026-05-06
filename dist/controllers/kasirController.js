@@ -1636,10 +1636,15 @@ class KasirController {
                 const [items] = await conn.query(`
                     SELECT id, invoice_id, description, quantity, unit_price, total_price, created_at FROM invoice_items WHERE invoice_id = ? ORDER BY id
                 `, [invoiceId]);
+                // Get company info for thermal print
+                const [companyRows] = await conn.query("SELECT * FROM settings WHERE setting_key IN ('company_name', 'company_phone', 'company_address') ORDER BY setting_key");
+                const companyInfo = {};
+                (companyRows || []).forEach((row) => { companyInfo[row.setting_key] = row.setting_value; });
                 res.render('kasir/print-invoice', {
                     title: `Print Invoice ${invoice.invoice_number}`,
                     invoice,
                     items,
+                    companyInfo,
                     layout: false
                 });
             }

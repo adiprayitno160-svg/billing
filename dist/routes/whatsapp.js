@@ -209,11 +209,11 @@ router.post('/clear-session', async (req, res) => {
     try {
         console.log('🗑️ Clearing WhatsApp session...');
         const waClient = whatsapp_1.whatsappService;
-        // Restart to generate new QR
-        await waClient.logout();
+        // Nuclear reset to ensure session is cleared and QR regenerated
+        await waClient.resetSession();
         res.json({
             success: true,
-            message: 'Session berhasil dihapus. Silakan tunggu QR code baru.',
+            message: 'Session berhasil di-reset total. Silakan tunggu QR code baru.',
             data: {
                 status: waClient.getStatus()
             }
@@ -235,7 +235,7 @@ router.post('/regenerate-qr', async (req, res) => {
     try {
         console.log('🔄 Regenerating QR code...');
         const waClient = whatsapp_1.whatsappService;
-        // Re-initialize to trigger new QR
+        // Re-initialize to trigger new QR using robust restart
         await waClient.restart();
         // Wait longer for QR code to be generated (up to 10 seconds)
         let attempts = 0;

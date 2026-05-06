@@ -1851,10 +1851,18 @@ export class KasirController {
                     SELECT id, invoice_id, description, quantity, unit_price, total_price, created_at FROM invoice_items WHERE invoice_id = ? ORDER BY id
                 `, [invoiceId]);
 
+                // Get company info for thermal print
+                const [companyRows] = await conn.query<RowDataPacket[]>(
+                    "SELECT * FROM settings WHERE setting_key IN ('company_name', 'company_phone', 'company_address') ORDER BY setting_key"
+                );
+                const companyInfo: any = {};
+                (companyRows || []).forEach((row: any) => { companyInfo[row.setting_key] = row.setting_value; });
+
                 res.render('kasir/print-invoice', {
                     title: `Print Invoice ${invoice.invoice_number}`,
                     invoice,
                     items,
+                    companyInfo,
                     layout: false
                 });
             } finally {

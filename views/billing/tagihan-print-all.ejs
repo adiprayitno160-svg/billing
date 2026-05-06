@@ -2,54 +2,64 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Print Batch</title>
+    <meta name="viewport" content="width=440, initial-scale=1.0">
+    <title>Print Batch V2</title>
     <style>
-        /* CSS PALING STABIL UNTUK THERMAL PRINTER (PENGGANTI FLEXBOX) */
+        /* CSS ULTRA-COMPACT UNTUK THERMAL 58MM - ANTI TERPOTONG */
         @page { size: 58mm auto; margin: 0; }
         
         * { margin: 0; padding: 0; box-sizing: border-box; color: #000 !important; }
         
         body {
-            font-family: Arial, sans-serif;
-            font-size: 8.5pt;
-            width: 48mm; /* Lebar isian sangat aman agar tidak terpotong */
-            margin: 0 auto; /* Tengah-tengah roll */
+            font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
+            font-size: 10px !important;
+            width: 52mm;
+            margin: 0;
+            padding-left: 5mm;
+            padding-right: 1mm;
             background: white;
-            line-height: normal;
+            line-height: 1.2;
+            font-weight: 600;
         }
 
         .no-print { display: block; text-align: center; padding: 15px; background: #EEE; border-bottom: 1px solid #CCC; margin-bottom: 10px; width: auto !important; }
-        @media print { .no-print { display: none !important; } }
+        @media print { 
+            .no-print { display: none !important; } 
+            body { width: 52mm; margin: 0; }
+        }
 
         .receipt {
-            padding: 10px 0 20px 0;
+            padding: 0.5mm 0 1mm 0;
             border-bottom: 1px dashed black;
             clear: both;
             overflow: hidden;
             page-break-inside: avoid;
         }
 
-        .header { text-align: center; margin-bottom: 8px; }
-        .company-name { font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+        .header { text-align: center; margin-bottom: 1.5mm; }
+        .company-name { font-size: 12px !important; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: -0.3px; }
+        .company-info { font-size: 9px !important; font-weight: normal; }
 
-        /* REPLACEMENT UNTUK FLEXBOX YANG BERMASALAH DI CHROME PRINT */
-        .row { clear: both; overflow: hidden; margin-bottom: 4px; border-bottom: none; width: 100%; }
-        .lbl { float: left; width: 40%; text-align: left; }
-        .val { float: right; width: 58%; text-align: right; font-weight: bold; }
+        /* FLOAT-BASED ROWS - ANTI TERPOTONG */
+        .row { clear: both; overflow: hidden; margin-bottom: 0.8mm; border-bottom: none; width: 100%; font-size: 10px !important; }
+        .lbl { float: left; width: 35%; text-align: left; font-weight: 600; font-size: 10px !important; }
+        .val { float: right; width: 63%; text-align: right; font-weight: 600; font-size: 10px !important; word-break: break-word; }
         
         /* HR / SEPARATOR */
-        .sep { border-top: 1px dashed black; height: 1px; margin: 4px 0; clear: both; }
-        .sep-bold { border-top: 2px solid black; height: 2px; margin: 4px 0; clear: both; }
+        .sep { border-top: 1px dashed black; height: 1px; margin: 1mm 0; clear: both; }
+        .sep-bold { border-top: 1px solid black; height: 1px; margin: 1mm 0; clear: both; }
 
         .total-row {
-            font-size: 11pt;
+            font-size: 11px !important;
             font-weight: bold;
-            padding-top: 8px;
-            margin-top: 5px;
-            border-top: 2px solid black;
+            padding-top: 1.5mm;
+            margin-top: 1mm;
+            border-top: 1px solid black;
             clear: both;
             overflow: hidden;
         }
+        .total-row .lbl { font-size: 11px !important; font-weight: bold; }
+        .total-row .val { font-size: 11px !important; font-weight: bold; }
 
         @media screen {
             body { background: #f0f0f0; padding: 20px; width: auto; max-width: 400px; margin: 0 auto; }
@@ -59,7 +69,7 @@
 </head>
 <body>
     <div class="no-print">
-        <button id="btnPrint" style="padding: 12px 25px; font-weight: bold; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px;">🖨️ CETAK SEMUA (FIX CHROME)</button>
+        <button id="btnPrint" style="padding: 12px 25px; font-weight: bold; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px;">🖨️ CETAK SEMUA</button>
         <button onclick="window.close()" style="padding: 12px 25px; cursor: pointer; margin-left:10px;">✖️ TUTUP</button>
     </div>
 
@@ -68,14 +78,14 @@
             <div class="receipt">
                 <div class="header">
                     <div class="company-name"><%= companyInfo?.company_name || 'ID.NET BY DBN' %></div>
-                    <div style="font-size: 8pt;">WA: <%= companyInfo?.company_phone %></div>
+                    <div style="font-size: 6.5pt; font-weight: 600;">WA: <%= companyInfo?.company_phone %></div>
                 </div>
 
                 <div class="sep-bold"></div>
 
                 <div class="row">
-                    <div class="lbl" style="width: 30%;"><%= new Date(invoice.created_at).toLocaleDateString('id-ID') %></div>
-                    <div class="val" style="width: 65%;">REF: #<%= invoice.invoice_number %></div>
+                    <div class="lbl" style="width: 30%; font-size: 6.5pt;"><%= new Date(invoice.created_at).toLocaleDateString('id-ID') %></div>
+                    <div class="val" style="width: 68%; font-size: 6.5pt;">REF: #<%= invoice.invoice_number %></div>
                 </div>
 
                 <div class="sep"></div>
@@ -86,9 +96,9 @@
                 <div class="sep"></div>
 
                 <% (invoice.items || []).forEach(item => { %>
-                    <div class="row" style="font-size: 8pt;">
-                        <div class="lbl" style="width: 60%;"><%= item.description %></div>
-                        <div class="val" style="width: 38%;">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %></div>
+                    <div class="row">
+                        <div class="lbl" style="width: 55%; font-size: 6.5pt;"><%= item.description %></div>
+                        <div class="val" style="width: 43%; font-size: 7pt;">Rp <%= new Intl.NumberFormat('id-ID').format(item.total_price) %></div>
                     </div>
                 <% }); %>
 
@@ -103,7 +113,7 @@
                     if (invoice.unpaid_periods) {
                         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
                         const months = invoice.unpaid_periods.split(',')
-                            .filter(p => p !== (invoice.raw_period || invoice.period)) // Skip current invoice period (use raw if available)
+                            .filter(p => p !== (invoice.raw_period || invoice.period))
                             .map(p => {
                                 const [year, month] = p.split('-');
                                 const mIdx = parseInt(month) - 1;
@@ -125,13 +135,13 @@
             </div>
 
             <% if (index < invoices.length - 1) { %>
-                <div style="page-break-after: always; height: 1px;"></div>
+                <div style="margin-bottom: 0.5mm;"></div>
             <% } %>
         <% }); %>
     <% } else { %>
         <div style="text-align: center; padding: 50px 20px; font-family: Arial; font-weight: bold; color: #666;">
             ❌ BELUM ADA TAGIHAN BARU<br>
-            <span style="font-size: 8pt; font-weight: normal;">Semua tagihan lama (overdue) sudah disaring otomatis.</span>
+            <span style="font-size: 7pt; font-weight: normal;">Semua tagihan lama (overdue) sudah disaring otomatis.</span>
         </div>
     <% } %>
 

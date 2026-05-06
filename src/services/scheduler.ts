@@ -26,7 +26,7 @@ export class SchedulerService {
         // ========== ALUR BILLING BARU ==========
         // 1. Tanggal 1: Generate tagihan otomatis untuk bulan berjalan
         // 2. Jatuh tempo: Tanggal 28 bulan tersebut
-        // 3. Tanggal 25-31: Kirim notifikasi peringatan blokir
+        // 3. Tanggal 24-31: Kirim notifikasi peringatan blokir
         // 4. Tanggal 1 bulan berikutnya: Blokir otomatis yang belum bayar
 
         // Generate monthly invoices - tanggal 1 jam 00:10
@@ -138,9 +138,15 @@ export class SchedulerService {
             timezone: "Asia/Jakarta"
         });
 
+        // DISABLED BY USER REQUEST - All automated reminders/warnings disabled to prevent WhatsApp spam
+        // Previously: daily at 09:00 sending H-7, pre-block, isolation warnings
+        // Previously: daily at 10:00 sending payment shortage warnings
+        // These were causing infinite reminder loops via the retry mechanism.
+        // To re-enable, uncomment the blocks below.
+        console.log('[Scheduler] ⏸️ Daily reminder/warning jobs DISABLED (Manual Mode)');
+
+        /*
         // Send isolation warnings 3 days before isolation - daily at 09:00
-        // ALSO send warnings from 25th-31st of each month (before blocking on 1st)
-        // ALSO send H-1 warnings (1 day before mass isolation date)
         cron.schedule('0 9 * * *', async () => {
             const today = new Date();
             const dayOfMonth = today.getDate();
@@ -148,31 +154,22 @@ export class SchedulerService {
             console.log('Running daily PPPoE maintenance tasks...');
             try {
                 const { pppoeActivationService } = await import('./pppoe/pppoeActivationService');
-                // Send H-7 reminders
                 await pppoeActivationService.sendH7Reminders();
-                // Send reminders 3 days before block date ("Kesepakatan Final" Point 3)
                 await pppoeActivationService.sendReminders();
             } catch (pppoeError) {
                 console.error('Error in daily PPPoE maintenance:', pppoeError);
             }
 
-            /* 
-            // DISABLED: Legacy "1st of month" mass isolation warnings. 
-            // We now use anniversary-based warnings (sendIsolationWarnings below).
-            if (dayOfMonth >= 25) {
-                console.log(`[Pre-Block Warning] Running on day ${dayOfMonth} - sending block warnings...`);
+            if (dayOfMonth >= 24) {
+                console.log('[Scheduler] 📢 Sending monthly fixed-date reminders (24th-EOM)');
                 try {
                     const { IsolationService } = await import('./billing/isolationService');
-                    // Send warnings for unpaid invoices that will be blocked on 1st
-                    const result = await IsolationService.sendPreBlockWarnings();
-                    console.log(`[Pre-Block Warning] Sent: ${result.warned} warned, ${result.failed} failed`);
-                } catch (error) {
-                    console.error('Error sending pre-block warnings:', error);
+                    await IsolationService.sendPreBlockWarnings(); 
+                } catch (e) {
+                    console.error('Error in monthly 24th blast:', e);
                 }
             }
-            */
 
-            // Also send regular isolation warnings (3 days before deadline)
             console.log('Running isolation warnings (3 days before deadline)...');
             try {
                 const { IsolationService } = await import('./billing/isolationService');
@@ -181,29 +178,12 @@ export class SchedulerService {
             } catch (error) {
                 console.error('Error sending isolation warnings:', error);
             }
-
-            /*
-            // DISABLED: Hardcoded H1 isolation warnings. 
-            // We now handle this in IsolationService by checking individual invoice due dates.
-            console.log('[H-1 Isolation Warning] Checking if H-1 warnings should be sent...');
-            try {
-                const { IsolationService } = await import('./billing/isolationService');
-                const result = await IsolationService.sendIsolationH1Warnings();
-                if (result.skipped) {
-                    console.log(`[H-1 Isolation Warning] Skipped: ${result.skipped}`);
-                } else {
-                    console.log(`[H-1 Isolation Warning] Sent: ${result.warned} warned, ${result.failed} failed`);
-                }
-            } catch (error) {
-                console.error('Error in H-1 isolation warnings:', error);
-            }
-            */
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
         });
 
-        // Send payment shortage warnings - daily at 10:00 (for payments overdue >= 14 days)
+        // Send payment shortage warnings - daily at 10:00
         cron.schedule('0 10 * * *', async () => {
             console.log('Running payment shortage warnings (14+ days overdue)...');
             try {
@@ -217,6 +197,7 @@ export class SchedulerService {
             scheduled: true,
             timezone: "Asia/Jakarta"
         });
+        */
 
         // Daily late payment recalculation - every day at 00:30
         cron.schedule('30 0 * * *', async () => {

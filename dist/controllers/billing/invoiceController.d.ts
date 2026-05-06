@@ -63,6 +63,10 @@ export declare class InvoiceController {
      */
     bulkSendInvoiceWhatsApp(req: Request, res: Response): Promise<void>;
     /**
+     * Apply manual discount to an invoice
+     */
+    applyManualDiscount(req: Request, res: Response): Promise<void>;
+    /**
      * Apply downtime discount based on days
      */
     applyDowntimeDiscount(req: Request, res: Response): Promise<void>;

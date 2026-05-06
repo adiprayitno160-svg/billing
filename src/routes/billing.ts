@@ -199,7 +199,8 @@ router.post('/tagihan/generate-bulk', invoiceController.generateBulkInvoices.bin
 // Emergency Cleanup Route
 router.post('/tagihan/force-cleanup', invoiceController.forceCleanupPeriod.bind(invoiceController));
 
-// Apply downtime discount
+// Apply manual discount
+router.post('/tagihan/apply-manual-discount', invoiceController.applyManualDiscount.bind(invoiceController));
 router.post('/tagihan/apply-downtime-discount', invoiceController.applyDowntimeDiscount.bind(invoiceController));
 
 
@@ -725,8 +726,8 @@ router.get('/tagihan/:id/print', async (req, res) => {
                     c.address as customer_address,
                     c.customer_code,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 WHERE i.id = ?`,
@@ -759,11 +760,19 @@ router.get('/tagihan/:id/print', async (req, res) => {
             invoice.items = items || [];
             invoice.discounts = discounts || [];
 
+            // Get company info for thermal print
+            const [companyRows] = await conn.query(
+                "SELECT * FROM settings WHERE setting_key IN ('company_name', 'company_phone', 'company_address', 'company_website', 'company_logo') ORDER BY setting_key"
+            ) as any;
+            const companyInfo: any = {};
+            (companyRows || []).forEach((row: any) => { companyInfo[row.setting_key] = row.setting_value; });
+
             res.render('billing/tagihan-print', {
                 title: `Print Invoice ${invoice.invoice_number}`,
                 invoice,
                 items,
                 discounts,
+                companyInfo,
                 layout: false
             });
         } finally {
@@ -790,8 +799,8 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
                     c.address as customer_address,
                     c.customer_code,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 WHERE i.id = ?`,
@@ -846,6 +855,130 @@ router.post('/tagihan/:id/send-whatsapp', invoiceController.sendInvoiceWhatsApp.
 
 // Send paid invoice PDF
 router.post('/tagihan/:id/send-paid-pdf', invoiceController.sendPaidInvoicePdf.bind(invoiceController));
+
+// Settle carry-over items (Lunasi Tunggakan Bulan Lalu)
+// This removes carry-over line items from the current invoice, reduces totals,
+// and marks the original source invoices as paid.
+router.post('/tagihan/:id/settle-carryover', async (req, res) => {
+    const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+    try {
+        await conn.beginTransaction();
+
+        const invoiceId = parseInt(req.params.id);
+        const { payment_method, payment_date, notes } = req.body;
+
+        // 1. Get current invoice
+        const [invoiceRows] = await conn.query(
+            'SELECT i.*, c.name as customer_name FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE i.id = ?',
+            [invoiceId]
+        ) as any;
+        if (!invoiceRows.length) {
+            await conn.rollback();
+            return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
+        }
+        const invoice = invoiceRows[0];
+
+        // 2. Identify carry-over items (Tunggakan/Kekurangan)
+        const [carryOverItems] = await conn.query(
+            `SELECT * FROM invoice_items WHERE invoice_id = ? 
+             AND (description LIKE 'Tunggakan Tagihan Bulan%' OR description LIKE 'Kekurangan Tagihan Bulan%')`,
+            [invoiceId]
+        ) as any;
+
+        if (!carryOverItems.length) {
+            await conn.rollback();
+            return res.status(400).json({ success: false, message: 'Tidak ada item tunggakan di invoice ini' });
+        }
+
+        // 3. Calculate total carry-over amount
+        let totalCarryOverAmount = 0;
+        for (const item of carryOverItems) {
+            totalCarryOverAmount += parseFloat(item.total_price);
+        }
+
+        // 4. Find and restore original source invoices (carried_over status)
+        const [sourceInvoices] = await conn.query(
+            `SELECT id, period, remaining_amount, total_amount, notes FROM invoices 
+             WHERE customer_id = ? AND status = 'carried_over' AND period < ?
+             ORDER BY period ASC`,
+            [invoice.customer_id, invoice.period]
+        ) as any;
+
+        const paymentDateStr = payment_date || new Date().toISOString().slice(0, 10);
+        const paymentMethodStr = payment_method || 'cash';
+
+        // Mark each source invoice as paid and record a payment
+        for (const srcInv of sourceInvoices) {
+            // Record payment on source invoice
+            await conn.execute(
+                `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_at) 
+                 VALUES (?, ?, ?, ?, ?, NOW())`,
+                [srcInv.id, paymentMethodStr, parseFloat(srcInv.total_amount), paymentDateStr, 
+                 notes || `Dibayar via invoice ${invoice.invoice_number} (Lunasi Tunggakan)`]
+            );
+
+            // Update source invoice to paid
+            await conn.execute(
+                `UPDATE invoices SET status = 'paid', paid_amount = total_amount, remaining_amount = 0, 
+                 last_payment_date = ?, updated_at = NOW() WHERE id = ?`,
+                [paymentDateStr, srcInv.id]
+            );
+
+            // Resolve debt tracking for source invoice
+            await conn.execute(
+                `UPDATE debt_tracking SET status = 'resolved', resolved_at = NOW(), updated_at = NOW() 
+                 WHERE invoice_id = ? AND status = 'active'`,
+                [srcInv.id]
+            );
+        }
+
+        // 5. Remove carry-over items from current invoice
+        await conn.execute(
+            `DELETE FROM invoice_items WHERE invoice_id = ? 
+             AND (description LIKE 'Tunggakan Tagihan Bulan%' OR description LIKE 'Kekurangan Tagihan Bulan%')`,
+            [invoiceId]
+        );
+
+        // 6. Recalculate current invoice totals
+        const newTotalAmount = Math.max(0, parseFloat(invoice.total_amount) - totalCarryOverAmount);
+        const newRemainingAmount = Math.max(0, parseFloat(invoice.remaining_amount) - totalCarryOverAmount);
+
+        // Update notes to reflect settlement
+        const settlementNote = `[TUNGGAKAN DILUNASI ${paymentDateStr}: Rp ${totalCarryOverAmount.toLocaleString('id-ID')}]`;
+        const updatedNotes = invoice.notes 
+            ? invoice.notes.replace(/Include carry.over.*$/m, '').trim() + '\n' + settlementNote
+            : settlementNote;
+
+        await conn.execute(
+            `UPDATE invoices SET total_amount = ?, remaining_amount = ?, notes = ?, updated_at = NOW() WHERE id = ?`,
+            [newTotalAmount, newRemainingAmount, updatedNotes, invoiceId]
+        );
+
+        // 7. Clear carry_over_invoices records
+        await conn.execute(
+            `UPDATE carry_over_invoices SET status = 'settled' WHERE customer_id = ? AND status IN ('pending', 'applied')`,
+            [invoice.customer_id]
+        );
+
+        await conn.commit();
+
+        res.json({
+            success: true,
+            message: `Tunggakan Rp ${totalCarryOverAmount.toLocaleString('id-ID')} berhasil dilunasi. Invoice ${invoice.invoice_number} sekarang: Rp ${newTotalAmount.toLocaleString('id-ID')}`,
+            settled_amount: totalCarryOverAmount,
+            new_total: newTotalAmount,
+            new_remaining: newRemainingAmount,
+            source_invoices_settled: sourceInvoices.length
+        });
+
+    } catch (error: any) {
+        await conn.rollback();
+        console.error('[SettleCarryOver] Error:', error);
+        res.status(500).json({ success: false, message: 'Gagal: ' + (error.message || 'Unknown error') });
+    } finally {
+        conn.release();
+    }
+});
 
 // Invoice detail (harus di akhir karena :id catch-all)
 router.get('/tagihan/:id', invoiceController.getInvoiceDetail.bind(invoiceController));

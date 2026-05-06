@@ -193,6 +193,63 @@
         </div>
     </div>
 
+    <!-- Monthly Stats Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fadeIn">
+        <div class="bg-white/60 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+                <i class="fas fa-file-invoice text-xl"></i>
+            </div>
+            <div>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Total Invoice</span>
+                <span class="text-2xl font-black text-slate-800"><%= (typeof monthlyStats !== 'undefined' ? monthlyStats.total_count : 0) %></span>
+                <span class="text-[9px] font-bold text-slate-400 ml-1">KIRIMAN</span>
+            </div>
+        </div>
+
+        <div class="bg-white/60 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-inner">
+                <i class="fas fa-check-circle text-xl"></i>
+            </div>
+            <div>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Lunas</span>
+                <span class="text-2xl font-black text-emerald-600"><%= (typeof monthlyStats !== 'undefined' ? monthlyStats.paid_count : 0) %></span>
+                <span class="text-[9px] font-bold text-slate-400 ml-1">INVOICE</span>
+            </div>
+        </div>
+
+        <div class="bg-white/60 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shadow-inner">
+                <i class="fas fa-clock text-xl"></i>
+            </div>
+            <div>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Belum Lunas</span>
+                <span class="text-2xl font-black text-amber-600"><%= (typeof monthlyStats !== 'undefined' ? monthlyStats.unpaid_count : 0) %></span>
+                <span class="text-[9px] font-bold text-slate-400 ml-1">INVOICE</span>
+            </div>
+        </div>
+
+        <div class="bg-white/60 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner">
+                <i class="fas fa-percentage text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Progress Penagihan</span>
+                <% 
+                    let progress = 0;
+                    if (typeof monthlyStats !== 'undefined' && monthlyStats.total_count > 0) {
+                        progress = Math.round((monthlyStats.paid_count / monthlyStats.total_count) * 100);
+                    }
+                %>
+                <div class="flex items-end gap-2">
+                    <span class="text-2xl font-black text-indigo-600"><%= progress %>%</span>
+                    <div class="flex-1 h-2 bg-slate-100 rounded-full mb-2 overflow-hidden border border-slate-200">
+                        <div class="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full transition-all duration-1000" style="width: <%= progress %>%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bulk Action Float Bar (Visible only when selected) -->
     <div id="bulkActionFloat"
         class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] scale-90 opacity-0 pointer-events-none transition-all duration-300">
@@ -435,9 +492,9 @@
                                                 <%= invoice.customer_name ? invoice.customer_name.charAt(0) : '?' %>
                                             </div>
                                             <div class="flex flex-col">
-                                                <span class="font-bold text-slate-700">
+                                                <a href="/billing/tagihan/<%= invoice.id %>" class="font-bold text-slate-700 hover:text-blue-600 transition-colors">
                                                     <%= invoice.customer_name %>
-                                                </span>
+                                                </a>
                                                 <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
                                                     class="text-[10px] font-black text-slate-400 hover:text-emerald-500 flex items-center gap-1 transition-colors uppercase">
                                                     <i class="fab fa-whatsapp"></i>
@@ -486,9 +543,11 @@
                                     <td class="px-6 py-4 text-right pr-6">
                                         <div
                                             class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                                            <button data-action="detail" data-invoice-id="<%= invoice.id %>"
-                                                class="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                                                title="View"><i class="fas fa-eye text-xs"></i></button>
+                                            <% if (invoice.has_tunggakan) { %>
+                                                <button onclick="payCarryOver('<%= invoice.id %>')"
+                                                    class="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all shadow-sm ring-1 ring-amber-200"
+                                                    title="Lunasi Tunggakan"><i class="fas fa-hand-holding-usd text-xs"></i></button>
+                                            <% } %>
                                             <% if (invoice.status !=='paid' ) { %>
                                                 <button data-action="print" data-invoice-id="<%= invoice.id %>"
                                                     class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-all shadow-sm"
@@ -498,6 +557,9 @@
                                                         <button data-action="pay" data-invoice-id="<%= invoice.id %>"
                                                             class="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                                                             title="Pay"><i class="fas fa-wallet text-xs"></i></button>
+                                                        <button data-action="send-wanew" data-invoice-id="<%= invoice.id %>"
+                                                            class="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-600 hover:text-white transition-all shadow-sm"
+                                                            title="Kirim WA"><i class="fab fa-whatsapp text-xs"></i></button>
                                                         <% if (invoice.customer_is_isolated) { %>
                                                             <button data-action="restore"
                                                                 data-customer-id="<%= invoice.customer_id %>"
@@ -572,9 +634,9 @@
                                 <%= invoice.customer_name ? invoice.customer_name.charAt(0) : '?' %>
                             </div>
                             <div class="flex flex-col min-w-0">
-                                <span class="text-sm font-black text-slate-800 leading-tight truncate">
+                                <a href="/billing/tagihan/<%= invoice.id %>" class="text-sm font-black text-slate-800 hover:text-blue-600 transition-colors leading-tight truncate">
                                     <%= invoice.customer_name %>
-                                </span>
+                                </a>
                                 <span class="text-[10px] font-bold text-slate-400 truncate">
                                     <%= invoice.invoice_number %> &bull; <%= invoice.odc_name || 'NO AREA' %>
                                 </span>
@@ -616,10 +678,12 @@
                         </div>
 
                         <div class="flex items-center gap-2 flex-wrap pt-3 border-t border-slate-100">
-                            <button onclick="handleTagihanAction(this, 'detail', '<%= invoice.id %>')"
-                                class="flex-1 min-w-[70px] h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
-                                <i class="fas fa-eye text-[10px]"></i><span class="text-[9px] font-bold">Detail</span>
-                            </button>
+                            <% if (invoice.has_tunggakan) { %>
+                                <button onclick="payCarryOver('<%= invoice.id %>')"
+                                    class="flex-1 min-w-[70px] h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all ring-1 ring-amber-200">
+                                    <i class="fas fa-hand-holding-usd text-[10px]"></i><span class="text-[9px] font-bold">Lunasi Tunggakan</span>
+                                </button>
+                            <% } %>
                             <% if (invoice.status !=='paid' ) { %>
                                 <button onclick="handleTagihanAction(this, 'pay', '<%= invoice.id %>')"
                                     class="flex-1 min-w-[70px] h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all">
@@ -1405,6 +1469,7 @@
                 const params = new URLSearchParams();
                 ids.forEach(id => params.append('ids[]', id));
                 params.append('format', 'thermal');
+                params.append('t', Date.now().toString());
                 window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
                 break;
 
@@ -1412,6 +1477,7 @@
                 const filterParams = new URLSearchParams(window.location.search);
                 filterParams.delete('page');
                 filterParams.set('format', 'thermal');
+                filterParams.set('t', Date.now().toString());
                 window.open('/billing/tagihan/print-all?' + filterParams.toString(), '_blank');
                 break;
         }
@@ -1475,4 +1541,65 @@
     };
 
     window.closeModals = closeModals;
+
+    // Lunasi Tunggakan from list
+    window.payCarryOver = function(invoiceId) {
+        Swal.fire({
+            title: 'Lunasi Tunggakan?',
+            html: `
+                <div class="text-left space-y-4">
+                    <p class="text-sm text-slate-600">Pilih metode pembayaran untuk melunasi hutang/tunggakan ini:</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center gap-2 p-3 border rounded-xl cursor-pointer hover:bg-slate-50">
+                            <input type="radio" name="pay_method" value="cash" checked class="w-4 h-4 text-blue-600">
+                            <span class="font-bold">Tunai / Cash</span>
+                        </label>
+                        <label class="flex items-center gap-2 p-3 border rounded-xl cursor-pointer hover:bg-slate-50">
+                            <input type="radio" name="pay_method" value="transfer" class="w-4 h-4 text-blue-600">
+                            <span class="font-bold">Transfer</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal Bayar</label>
+                        <input type="date" id="pay_date" class="w-full p-2 border rounded-xl" value="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Catatan (Opsional)</label>
+                        <input type="text" id="pay_notes" class="w-full p-2 border rounded-xl placeholder-slate-300" placeholder="Contoh: Titip ke teknisi...">
+                    </div>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Lunasi Sekarang',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#f59e0b',
+            preConfirm: () => {
+                return {
+                    payment_method: document.querySelector('input[name="pay_method"]:checked').value,
+                    payment_date: document.getElementById('pay_date').value,
+                    notes: document.getElementById('pay_notes').value
+                }
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Memproses Pelunasan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                try {
+                    const res = await fetch('/billing/tagihan/' + invoiceId + '/settle-carryover', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(result.value)
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                        Swal.fire('Berhasil', d.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Gagal', d.message || 'Terjadi kesalahan sistem', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('Error', 'Gagal menghubungi server', 'error');
+                }
+            }
+        });
+    };
 </script>

@@ -311,13 +311,13 @@ router.use(async (req, res, next) => {
 
     // Load user first jika ada session
     const userId = (req.session as any)?.userId;
-    if (userId && !req.user) {
+    if (userId && !(req as any).user) {
         try {
             const { UserService } = await import('../services/userService');
             const userService = new UserService();
             const user = await userService.getUserById(userId);
             if (user && user.is_active) {
-                req.user = user;
+                (req as any).user = user;
             }
         } catch (error) {
             console.error('Error loading user:', error);
@@ -2178,66 +2178,82 @@ router.get('/customers/new-pppoe', async (req, res) => {
 });
 
 router.get('/customers/new-static-ip', async (req, res) => {
-    let packages = await listStaticIpPackages();
-    // Filter out full packages
-    packages = packages.filter(p => !p.is_full);
-    const cfg = await getMikrotikConfig();
-
-    // Generate customer code dengan format YYYYMMDDHHMMSS
-    const initial_customer_code = CustomerIdGenerator.generateCustomerId();
-
-    // Generate current timestamp for default values
-    const now = new Date();
-    const timestamp = now.getFullYear().toString() +
-        (now.getMonth() + 1).toString().padStart(2, '0') +
-        now.getDate().toString().padStart(2, '0') +
-        now.getHours().toString().padStart(2, '0') +
-        now.getMinutes().toString().padStart(2, '0') +
-        now.getSeconds().toString().padStart(2, '0');
-
-    const conn = await databasePool.getConnection();
     try {
+        let packages = await listStaticIpPackages();
+        // Filter out full packages
+        packages = packages.filter(p => !p.is_full);
+        const cfg = await getMikrotikConfig();
 
-        // Get ODP data
-        const [odpRows] = await conn.execute(`
-            SELECT 
-                o.id, 
-                o.name as odp_name,
-                o.odc_id,
-                odc.name as odc_name,
-                odc.olt_id,
-                olt.name as olt_name
-            FROM ftth_odp o
-            LEFT JOIN ftth_odc odc ON o.odc_id = odc.id
-            LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
-            ORDER BY o.name
-        `);
+        // Generate customer code dengan format YYYYMMDDHHMMSS
+        const initial_customer_code = CustomerIdGenerator.generateCustomerId();
 
-        // Check for registration requests
-        let registrationData: any = null;
-        if (req.query.request_id) {
-            try {
-                const [regRows] = await conn.query<RowDataPacket[]>('SELECT * FROM registration_requests WHERE id = ?', [req.query.request_id]);
-                if (regRows.length > 0) registrationData = regRows[0];
-            } catch (e) { console.error('Reg fetch err', e); }
+        // Generate current timestamp for default values
+        const now = new Date();
+        const timestamp = now.getFullYear().toString() +
+            (now.getMonth() + 1).toString().padStart(2, '0') +
+            now.getDate().toString().padStart(2, '0') +
+            now.getHours().toString().padStart(2, '0') +
+            now.getMinutes().toString().padStart(2, '0') +
+            now.getSeconds().toString().padStart(2, '0');
+
+        const conn = await databasePool.getConnection();
+        try {
+
+            // Get ODP data
+            const [odpRows] = await conn.execute(`
+                SELECT 
+                    o.id, 
+                    o.name as odp_name,
+                    o.odc_id,
+                    odc.name as odc_name,
+                    odc.olt_id,
+                    olt.name as olt_name
+                FROM ftth_odp o
+                LEFT JOIN ftth_odc odc ON o.odc_id = odc.id
+                LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
+                ORDER BY o.name
+            `);
+
+            // Check for registration requests
+            let registrationData: any = null;
+            if (req.query.request_id) {
+                try {
+                    const [regRows] = await conn.query<RowDataPacket[]>('SELECT * FROM registration_requests WHERE id = ?', [req.query.request_id]);
+                    if (regRows.length > 0) registrationData = regRows[0];
+                } catch (e) { console.error('Reg fetch err', e); }
+            }
+
+            // Get interfaces from MikroTik (non-critical, don't crash page if MikroTik unreachable)
+            let interfaces: any[] = [];
+            if (cfg) {
+                try {
+                    interfaces = await getInterfaces(cfg);
+                } catch (mikrotikErr: any) {
+                    console.warn('[new-static-ip] Could not fetch MikroTik interfaces (non-critical):', mikrotikErr.message);
+                }
+            }
+
+            res.render('customers/new_static_ip', {
+                title: 'Pelanggan IP Statis Baru',
+                packages,
+                mikrotikConfig: cfg,
+                interfaces,
+                odpData: odpRows,
+                initial_customer_code,
+                timestamp,
+                registrationData,
+                error: req.query.error || null
+            });
+        } finally {
+            conn.release();
         }
-
-        // Get interfaces from MikroTik
-        const interfaces = cfg ? await getInterfaces(cfg) : [];
-
-        res.render('customers/new_static_ip', {
-            title: 'Pelanggan IP Statis Baru',
-            packages,
-            mikrotikConfig: cfg,
-            interfaces,
-            odpData: odpRows,
-            initial_customer_code,
-            timestamp,
-            registrationData,
-            error: req.query.error || null
+    } catch (err: any) {
+        console.error('[new-static-ip] Error loading page:', err);
+        res.status(500).render('error', {
+            title: 'Error',
+            status: 500,
+            message: 'Gagal memuat halaman pelanggan IP Statis: ' + (err.message || err)
         });
-    } finally {
-        conn.release();
     }
 });
 

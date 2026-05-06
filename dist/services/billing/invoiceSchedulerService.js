@@ -60,11 +60,12 @@ class InvoiceSchedulerService {
             });
             // Schedule: Daily Reminder Check at 09:00 AM
             // Checks for due/overdue invoices and sends notifications
-            const reminderSchedule = '0 9 * * *';
-            cron.schedule(reminderSchedule, async () => {
-                await this.runInvoiceReminders();
-            });
-            console.log(`✅ Invoice Scheduler initialized with schedule: ${schedule} (Generation) & ${reminderSchedule} (Reminders)`);
+            // DISABLED BY REQUEST: "mengganggu sekali"
+            // const reminderSchedule = '0 9 * * *';
+            // cron.schedule(reminderSchedule, async () => {
+            //     await this.runInvoiceReminders();
+            // });
+            console.log(`✅ Invoice Scheduler initialized with schedule: ${schedule} (Generation) - Reminders Disabled`);
         }
         catch (error) {
             console.error('❌ Error initializing Invoice Scheduler:', error);

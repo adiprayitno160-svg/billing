@@ -651,13 +651,14 @@ export class PaymentController {
                 newRemainingAmount = 0;
             }
 
-            // We also need to update total_amount if we treat discount as reduction of bill?
-            // Or just track it in discount_amount?
-            // If we increase discount_amount, we should probably decrease total_amount?
-            // "total_amount" = subtotal - discount_amount.
-            // So yes.
-
-            const newTotalAmount = parseFloat(invoice.subtotal) - newDiscountTotal;
+            // total_amount should reflect the ORIGINAL billed amount minus any new discount.
+            // We use invoice.total_amount (not invoice.subtotal) as the base because
+            // total_amount already includes carry-over items from previous months.
+            // Discounts are deducted on top of this final total.
+            // This prevents carry-over amounts from disappearing after a partial payment.
+            const originalTotal = parseFloat(invoice.total_amount);
+            const prevDiscountAmount = parseFloat(invoice.discount_amount || '0');
+            const newTotalAmount = Math.max(0, originalTotal - (newDiscountTotal - prevDiscountAmount));
 
             // Update invoice
             const updateInvoiceQuery = `
@@ -985,7 +986,7 @@ export class PaymentController {
         try {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
-            let status = req.query.status as string || '';
+            let status = req.query.status as string || 'active';
             const search = req.query.search as string || '';
             const min_amount = parseFloat(req.query.min_amount as string) || 0;
             const format = req.query.format as string || '';
@@ -1205,6 +1206,9 @@ export class PaymentController {
                 let newStatus = invoice.status;
                 if (newRemainingAmount <= 0.01) {
                     newStatus = 'paid';
+                } else if (invoice.status === 'carried_over') {
+                    // Keep it carried_over if not fully paid yet
+                    newStatus = 'carried_over';
                 }
 
                 await conn.execute(`
@@ -1217,6 +1221,53 @@ export class PaymentController {
                         updated_at = NOW()
                     WHERE id = ?
                 `, [newPaidAmount, newRemainingAmount, newStatus, debt.invoice_id]);
+
+                // Check if there is a future invoice that absorbed this carry over debt
+                if (invoice.status === 'carried_over') {
+                    const [futureInvoices] = await conn.query<RowDataPacket[]>(`
+                        SELECT id, total_amount, remaining_amount, subtotal
+                        FROM invoices
+                        WHERE customer_id = ? AND period > ? AND status NOT IN ('paid', 'cancelled')
+                        ORDER BY period ASC LIMIT 1
+                    `, [invoice.customer_id, invoice.period]);
+                    
+                    if (futureInvoices.length > 0) {
+                        const fInv = futureInvoices[0];
+                        const fRemaining = parseFloat(fInv.remaining_amount);
+                        const fTotal = parseFloat(fInv.total_amount);
+                        
+                        // We deduct the debtAmount from the future invoice since it's already paid directly
+                        const newFRemaining = Math.max(0, fRemaining - debtAmount);
+                        const newFTotal = Math.max(0, fTotal - debtAmount);
+                        let newFStatus = fInv.status;
+                        
+                        if (newFRemaining <= 0) {
+                            newFStatus = 'paid';
+                        }
+                        
+                        await conn.execute(`
+                            UPDATE invoices 
+                            SET total_amount = ?, remaining_amount = ?, status = ?
+                            WHERE id = ?
+                        `, [newFTotal, newFRemaining, newFStatus, fInv.id]);
+                        
+                        // Add a note about the correction
+                        await conn.execute(`
+                            UPDATE invoices
+                            SET notes = CONCAT(COALESCE(notes, ''), '\n[Dikoreksi: Tunggakan lama Rp ', ?, ' telah dibayar terpisah]')
+                            WHERE id = ?
+                        `, [debtAmount, fInv.id]);
+                        
+                        // Also clear carry_over_invoices if it exists and hasn't been applied fully yet
+                        // Just in case it's pending
+                        await conn.execute(`
+                            UPDATE carry_over_invoices 
+                            SET carry_over_amount = GREATEST(0, carry_over_amount - ?),
+                                status = CASE WHEN carry_over_amount - ? <= 0 THEN 'cancelled' ELSE status END
+                            WHERE customer_id = ? AND status = 'pending'
+                        `, [debtAmount, debtAmount, invoice.customer_id]);
+                    }
+                }
             }
 
             await conn.commit();
@@ -1332,7 +1383,8 @@ export class PaymentController {
                 discount_reason,
                 sla_discount_amount,
                 manual_discount_value,
-                manual_discount_type
+                manual_discount_type,
+                janji_bayar_date
             } = req.body;
 
             if (!invoice_id || !payment_method) {
@@ -1369,7 +1421,8 @@ export class PaymentController {
                 discountReason: discount_reason,
                 slaDiscountAmount: parseFloat(sla_discount_amount || '0'),
                 manualDiscountValue: parseFloat(manual_discount_value || '0'),
-                manualDiscountType: manual_discount_type
+                manualDiscountType: manual_discount_type,
+                dueDate: janji_bayar_date || null
             });
 
             // Trigger WA Notification (Non-blocking)
@@ -1392,6 +1445,8 @@ export class PaymentController {
 
         } catch (error: any) {
             console.error('Error in processPayment:', error);
+            const fs = require('fs');
+            fs.appendFileSync('logs/debug_payment.log', `[${new Date().toISOString()}] processPayment Error: ${error.message}\n${error.stack}\n\n`);
             res.status(500).json({ success: false, message: error.message });
         }
     }
@@ -1408,7 +1463,8 @@ export class PaymentController {
         discountReason?: string,
         slaDiscountAmount?: number,
         manualDiscountValue?: number,
-        manualDiscountType?: string
+        manualDiscountType?: string,
+        dueDate?: string
     }) {
         const conn = await databasePool.getConnection();
         try {
@@ -1426,7 +1482,8 @@ export class PaymentController {
                 discountReason = '',
                 slaDiscountAmount = 0,
                 manualDiscountValue = 0,
-                manualDiscountType = 'manual'
+                manualDiscountType = 'manual',
+                dueDate
             } = params;
 
             // 1. Fetch the target invoices
@@ -1485,12 +1542,12 @@ export class PaymentController {
                 const invPayment = Math.min(invRemaining, remainingPool);
                 remainingPool -= invPayment;
 
-                if (invPayment > 0 || invDiscount > 0 || paymentType === 'debt') {
+                if (invPayment > 0 || invDiscount > 0 || paymentType === 'debt' || paymentType === 'janji_bayar') {
                     // Record payment if cash was spent OR if it's a debt to ensure history is updated
-                    if (invPayment > 0 || paymentType === 'debt') {
+                    if (invPayment > 0 || paymentType === 'debt' || paymentType === 'janji_bayar') {
                         const [pResult] = await conn.execute<ResultSetHeader>(
                             'INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, kasir_name, created_at) VALUES (?, ?, ?, ?, "completed", ?, ?, NOW())',
-                            [invId, paymentType === 'debt' && invPayment === 0 ? 'debt' : paymentMethod, invPayment, paymentDateStr, notes || 'Dialihkan ke Hutang', kasirName]
+                            [invId, (paymentType === 'debt' || paymentType === 'janji_bayar') && invPayment === 0 ? paymentType : paymentMethod, invPayment, paymentDateStr, notes || 'Dialihkan ke Hutang/Janji Bayar', kasirName]
                         );
                         if (!firstPaymentId) firstPaymentId = pResult.insertId;
                     }
@@ -1500,9 +1557,17 @@ export class PaymentController {
                     const newDiscount = parseFloat(inv.discount_amount || 0) + invDiscount;
                     const newRemaining = Math.max(0, parseFloat(inv.remaining_amount) - invPayment - invDiscount);
                     
-                    let newStatus = newRemaining <= 0 ? 'paid' : 'partial';
+                    let newStatus = inv.status;
+                    if (newRemaining <= 0) {
+                        newStatus = 'paid';
+                    } else if (newRemaining < parseFloat(inv.total_amount)) {
+                        newStatus = 'partial';
+                    }
+
                     if (paymentType === 'debt' && newRemaining > 0) {
                         newStatus = 'hutang';
+                    } else if (paymentType === 'janji_bayar' && newRemaining > 0) {
+                        newStatus = 'janji_bayar';
                     }
 
                     await conn.execute(
@@ -1523,12 +1588,30 @@ export class PaymentController {
                             "UPDATE debt_tracking SET status = 'resolved', resolved_at = NOW() WHERE invoice_id = ?",
                             [invId]
                         );
-                    } else {
-                        // Update debt tracking with new remaining
-                        await conn.execute(
-                            "UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE invoice_id = ? AND status = 'active'",
-                            [newRemaining, invId]
+                    } else if (paymentType === 'debt') {
+                        // Update or insert debt tracking with new remaining
+                        const [existingDebt] = await conn.query<RowDataPacket[]>(
+                            'SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"',
+                            [invId]
                         );
+
+                        if (existingDebt.length > 0) {
+                            await conn.query(
+                                'UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?',
+                                [newRemaining, existingDebt[0].id]
+                            );
+                        } else {
+                            await conn.query(
+                                `INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, debt_date, status, notes, created_at, updated_at) 
+                                 VALUES (?, ?, ?, ?, NOW(), 'active', ?, NOW(), NOW())`,
+                                [customerId, invId, newRemaining, 'Pencatatan hutang pelanggan', notes || 'Dilakukan via Kasir Digital']
+                            );
+                        }
+                    }
+                    
+                    // Juga update invoice due_date jika itu janji bayar
+                    if (dueDate && paymentType === 'janji_bayar') {
+                        await conn.query("UPDATE invoices SET due_date = ? WHERE id = ?", [dueDate, invId]);
                     }
                 }
             }
@@ -1553,22 +1636,78 @@ export class PaymentController {
             await conn.commit();
 
             // 4. Notifications (Non-blocking)
-            if (firstPaymentId) {
+            if (firstPaymentId || payment_type === 'janji_bayar' || payment_type === 'debt') {
                 import('../../services/notification/UnifiedNotificationService').then(({ UnifiedNotificationService }) => {
-                    // Send PDF receipt to customer
-                    UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true)
-                        .catch(err => console.error('[AdminPayment] Failed to send customer receipt:', err));
+                    if (payment_type === 'janji_bayar') {
+                        // Send Janji Bayar confirmation to customer
+                        UnifiedNotificationService.notifyJanjiBayar(selectedInvoiceIds[0], true)
+                            .catch(err => console.error('[AdminPayment] Failed to send customer janji bayar receipt:', err));
+                    } else if (payment_type === 'debt') {
+                        // Send Debt notification to customer
+                        UnifiedNotificationService.notifyPaymentDebt(selectedInvoiceIds[0], true)
+                            .catch(err => console.error('[AdminPayment] Failed to send customer debt notification:', err));
+                    } else if (firstPaymentId) {
+                        // Send Regular/Partial receipt to customer
+                        UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true)
+                            .catch(err => console.error('[AdminPayment] Failed to send customer receipt:', err));
+                    }
 
-                    // Send debt notification to admins if applicable
-                    if (paymentType === 'debt') {
+                    // Admin Broadcast
+                    if (payment_type === 'debt' || payment_type === 'janji_bayar') {
+                        const typeLabel = payment_type === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
+                        const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `📆 *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';
+                        
                         UnifiedNotificationService.broadcastToAdmins(
-                            `📌 *INFORMASI HUTANG BARU (ADMIN)*\n\n` +
+                            `📌 *INFORMASI ${typeLabel} BARU (ADMIN)*\n\n` +
                             `👤 *Pelanggan ID:* ${customerId}\n` +
                             `🧾 *Invoices:* ${selectedInvoiceIds.join(', ')}\n` +
-                            `💰 *Total:* Rp ${amount.toLocaleString('id-ID')}\n` +
-                            `📝 *Keterangan:* Pembayaran ditunda via Admin Panel.\n\n` +
+                            `💰 *Sisa Tagihan:* Rp ${amount.toLocaleString('id-ID')}\n` +
+                            dateInfo +
+                            `📝 *Keterangan:* Status diupdate via Admin Panel.\n\n` +
                             `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`
-                        ).catch(notifErr => console.error('[AdminPayment] Failed to notify admins about debt:', notifErr));
+                        ).catch(notifErr => console.error('[AdminPayment] Failed to notify admins about status change:', notifErr));
+
+                        // [Fix] Auto-Regenerate Next Period Invoice if already created
+                        // This ensures 'tunggakan' appears in the new invoice!
+                        if (selectedInvoiceIds.length > 0) {
+                            setTimeout(async () => {
+                                try {
+                                    const { InvoiceService } = await import('../../services/billing/invoiceService');
+                                    // Make our own temporary connection pool
+                                    const { databasePool } = await import('../../db/pool');
+                                    
+                                    const [invs]: any = await databasePool.query('SELECT period FROM invoices WHERE id = ?', [selectedInvoiceIds[0]]);
+                                    if (invs && invs.length > 0) {
+                                        const currentPeriod = invs[0].period;
+                                        const [year, month] = currentPeriod.split('-').map(Number);
+                                        let nextYear = year;
+                                        let nextMonth = month + 1;
+                                        if (nextMonth > 12) {
+                                            nextYear++;
+                                            nextMonth = 1;
+                                        }
+                                        const nextPeriod = `${nextYear}-${nextMonth.toString().padStart(2, '0')}`;
+                                        
+                                        const [nextInvs]: any = await databasePool.query(
+                                            "SELECT id, status FROM invoices WHERE customer_id = ? AND period = ?", 
+                                            [customerId, nextPeriod]
+                                        );
+                                        
+                                        // If next month invoice exists and is unpaid, rebuild it
+                                        if (nextInvs && nextInvs.length > 0) {
+                                            if (nextInvs[0].status === 'sent') {
+                                                console.log(`[AutoRegen] Next invoice ${nextPeriod} already exists. Deleting & Rebuilding to include the new debt...`);
+                                                // Delete it cleanly
+                                                await InvoiceService.bulkDeleteInvoices([nextInvs[0].id]);
+                                                // Regenerate!
+                                                await InvoiceService.generateMonthlyInvoices(nextPeriod, [customerId], true);
+                                                console.log(`[AutoRegen] ✅ Regenerated next invoice ${nextPeriod} for customer ${customerId}`);
+                                            }
+                                        }
+                                    }
+                                } catch (e) { console.error('[AutoRegen] Error dynamically reconstructing next invoice:', e); }
+                            }, 2000); // give it 2 seconds
+                        }
                     }
                 }).catch(err => console.error('[AdminPayment] Error importing notification service:', err));
             }

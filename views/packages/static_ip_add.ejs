@@ -1,4 +1,4 @@
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="space-y-6 pb-24">
     <!-- Breadcrumb & Title -->
     <div
         class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-6 rounded-3xl border border-white/20 shadow-sm transition-all duration-300">
@@ -11,7 +11,7 @@
                     aria-label="Breadcrumb">
                     <ol class="list-none p-0 inline-flex">
                         <li class="flex items-center">
-                            <a href="/packages/static-ip" class="hover:text-blue-600">Packages</a>
+                            <a href="/packages/static-ip" class="hover:text-blue-600">Static IP Packages</a>
                             <i class="fas fa-chevron-right mx-2 text-[8px]"></i>
                         </li>
                         <li class="text-blue-600">Add New</li>
@@ -50,40 +50,36 @@
                                     <i class="fas fa-tag"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">Informasi
-                                        Dasar</h3>
-                                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Identitas
-                                        Paket</p>
+                                    <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">Informasi Dasar</h3>
+                                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Identitas Paket</p>
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-2">
                                     <label
-                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nama
-                                        Paket *</label>
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nama Paket *</label>
                                     <div class="relative group">
                                         <span
                                             class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
                                             <i class="fas fa-box"></i>
                                         </span>
                                         <input name="name" required placeholder="Contoh: Paket Home Extreme"
-                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 decoration-none shadow-sm" />
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 shadow-sm" />
                                     </div>
                                 </div>
 
                                 <div class="space-y-2">
                                     <label
-                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Status
-                                        Paket</label>
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Status Paket</label>
                                     <div class="relative">
                                         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                                             <i class="fas fa-toggle-on"></i>
                                         </span>
                                         <select name="status"
                                             class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 appearance-none cursor-pointer">
-                                            <option value="active" selected>Aktif (Terlihat & Bisa Digunakan)</option>
-                                            <option value="inactive">Nonaktif (Arsip)</option>
+                                            <option value="active" selected>Aktif</option>
+                                            <option value="inactive">Nonaktif</option>
                                         </select>
                                         <span
                                             class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]">
@@ -94,8 +90,7 @@
 
                                 <div class="md:col-span-2 space-y-2">
                                     <label
-                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Deskripsi
-                                        Singkat</label>
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Deskripsi Singkat</label>
                                     <textarea name="description" rows="2"
                                         placeholder="Tuliskan catatan tambahan mengenai paket ini..."
                                         class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-medium text-slate-600 shadow-sm"></textarea>
@@ -116,8 +111,7 @@
                                         <h3
                                             class="text-lg font-black text-slate-800 uppercase tracking-tight text-nowrap">
                                             Bandwidth Management</h3>
-                                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Aturan
-                                            Queue & Sharing</p>
+                                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Aturan Queue & Sharing</p>
                                     </div>
                                 </div>
                                 <button type="button" onclick="autoCalculateAll()"
@@ -127,50 +121,42 @@
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <!-- Left Sub-Section -->
-                                <div class="space-y-6">
-                                    <div class="p-5 bg-orange-50/50 rounded-3xl border border-orange-100/50 space-y-4">
-                                        <div
-                                            class="flex items-center gap-2 text-orange-600 font-black text-[10px] uppercase tracking-widest mb-2">
-                                            <i class="fas fa-arrow-up"></i> Upload Limit (Total)
+                                <!-- Upload Limit -->
+                                <div class="p-5 bg-orange-50/50 rounded-3xl border border-orange-100/50 space-y-4">
+                                    <div
+                                        class="flex items-center gap-2 text-orange-600 font-black text-[10px] uppercase tracking-widest mb-2">
+                                        <i class="fas fa-arrow-up"></i> Upload Limit (Total)
+                                    </div>
+                                    <div class="space-y-4">
+                                        <div class="space-y-1">
+                                            <span class="text-[9px] font-bold text-orange-400 ml-1 uppercase">Max Limit (Parent)</span>
+                                            <input name="max_limit_upload" required placeholder="10M"
+                                                class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
                                         </div>
-                                        <div class="space-y-4">
-                                            <div class="space-y-1">
-                                                <span class="text-[9px] font-bold text-orange-400 ml-1">MAX LIMIT
-                                                    (Parent)</span>
-                                                <input name="max_limit_upload" required placeholder="10M"
-                                                    class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
-                                            </div>
-                                            <div class="space-y-1">
-                                                <span class="text-[9px] font-bold text-orange-400 ml-1">GUARANTEED
-                                                    (Limit At)</span>
-                                                <input name="limit_at_upload" placeholder="2M"
-                                                    class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
-                                            </div>
+                                        <div class="space-y-1">
+                                            <span class="text-[9px] font-bold text-orange-400 ml-1 uppercase">Guaranteed (Limit At)</span>
+                                            <input name="limit_at_upload" placeholder="2M"
+                                                class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Right Sub-Section -->
-                                <div class="space-y-6">
-                                    <div class="p-5 bg-blue-50/50 rounded-3xl border border-blue-100/50 space-y-4">
-                                        <div
-                                            class="flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-widest mb-2">
-                                            <i class="fas fa-arrow-down"></i> Download Limit (Total)
+                                <!-- Download Limit -->
+                                <div class="p-5 bg-blue-50/50 rounded-3xl border border-blue-100/50 space-y-4">
+                                    <div
+                                        class="flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-widest mb-2">
+                                        <i class="fas fa-arrow-down"></i> Download Limit (Total)
+                                    </div>
+                                    <div class="space-y-4">
+                                        <div class="space-y-1">
+                                            <span class="text-[9px] font-bold text-blue-400 ml-1 uppercase">Max Limit (Parent)</span>
+                                            <input name="max_limit_download" required placeholder="20M"
+                                                class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
                                         </div>
-                                        <div class="space-y-4">
-                                            <div class="space-y-1">
-                                                <span class="text-[9px] font-bold text-blue-400 ml-1">MAX LIMIT
-                                                    (Parent)</span>
-                                                <input name="max_limit_download" required placeholder="20M"
-                                                    class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
-                                            </div>
-                                            <div class="space-y-1">
-                                                <span class="text-[9px] font-bold text-blue-400 ml-1">GUARANTEED (Limit
-                                                    At)</span>
-                                                <input name="limit_at_download" placeholder="4M"
-                                                    class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
-                                            </div>
+                                        <div class="space-y-1">
+                                            <span class="text-[9px] font-bold text-blue-400 ml-1 uppercase">Guaranteed (Limit At)</span>
+                                            <input name="limit_at_download" placeholder="4M"
+                                                class="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all text-sm font-black text-slate-700 shadow-sm" />
                                         </div>
                                     </div>
                                 </div>
@@ -185,8 +171,6 @@
                                         </label>
                                         <input name="max_clients" type="number" min="1" value="1" required
                                             class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-black text-slate-700 shadow-sm" />
-                                        <p class="text-[9px] text-slate-400 font-medium ml-1">Total pelanggan maksimal
-                                            dalam paket ini</p>
                                     </div>
                                     <div class="space-y-2">
                                         <label
@@ -195,8 +179,6 @@
                                         </label>
                                         <input name="sharing_ratio" type="number" min="1" value="1" required
                                             class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-black text-slate-700 shadow-sm" />
-                                        <p class="text-[9px] text-slate-400 font-medium ml-1">Gunakan 1 untuk Dedicated
-                                            (1:1)</p>
                                     </div>
                                 </div>
                             </div>
@@ -211,18 +193,15 @@
                                     <i class="fas fa-money-bill-wave"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">Billing &
-                                        Prepaid</h3>
-                                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Harga &
-                                        Retensi</p>
+                                    <h3 class="text-lg font-black text-slate-800 uppercase tracking-tight">Billing & Pricing</h3>
+                                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Harga & Tagihan</p>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-2">
                                     <label
-                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Harga
-                                        Bulanan *</label>
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Harga Bulanan *</label>
                                     <div class="relative">
                                         <span
                                             class="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">Rp</span>
@@ -232,17 +211,14 @@
                                 </div>
                                 <div class="space-y-2">
                                     <label
-                                        class="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Prepaid
-                                        7 Hari</label>
-                                    <input name="price_7_days" type="number" min="0" step="1000" placeholder="Rp 0"
-                                        class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:bg-white transition-all text-sm font-bold text-slate-600 shadow-sm" />
-                                </div>
-                                <div class="space-y-2">
-                                    <label
-                                        class="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Prepaid
-                                        30 Hari</label>
-                                    <input name="price_30_days" type="number" min="0" step="1000" placeholder="Rp 0"
-                                        class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:bg-white transition-all text-sm font-bold text-slate-600 shadow-sm" />
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Durasi Paket (Hari)</label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </span>
+                                        <input name="duration_days" type="number" min="1" required value="30"
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 shadow-sm" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -265,12 +241,10 @@
                                 <div class="space-y-6">
                                     <div class="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/10">
                                         <span
-                                            class="block text-[10px] font-black text-blue-200 uppercase tracking-widest mb-3">Service
-                                            Per Pelanggan</span>
+                                            class="block text-[10px] font-black text-blue-200 uppercase tracking-widest mb-3 text-nowrap">Service Per Pelanggan</span>
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
-                                                <p class="text-[9px] font-bold text-white/50 uppercase">Speed "Up To"
-                                                </p>
+                                                <p class="text-[9px] font-bold text-white/50 uppercase">Speed "Up To"</p>
                                                 <p class="text-xl font-black" id="preview-upto">0.0M</p>
                                             </div>
                                             <div>
@@ -282,13 +256,7 @@
 
                                     <div class="space-y-4 px-1">
                                         <div class="flex justify-between items-center text-xs">
-                                            <span class="font-bold text-blue-100 text-[10px] uppercase">Burst
-                                                Factor</span>
-                                            <span class="font-black">2.0x (Auto)</span>
-                                        </div>
-                                        <div class="flex justify-between items-center text-xs">
-                                            <span class="font-bold text-blue-100 text-[10px] uppercase">Parenting
-                                                Mode</span>
+                                            <span class="font-bold text-blue-100 text-[10px] uppercase tracking-tight">Parenting Mode</span>
                                             <span class="font-black">Simple Queue</span>
                                         </div>
                                         <div class="flex justify-between items-center text-xs">
@@ -299,7 +267,7 @@
 
                                     <button type="submit"
                                         class="w-full py-4 rounded-2xl bg-white text-blue-700 font-black uppercase tracking-widest text-xs shadow-xl hover:bg-blue-50 transition-all active:scale-95 mt-4">
-                                        Simpan Paket Baru
+                                        Buat Paket Sekarang
                                     </button>
                                 </div>
                             </div>
@@ -314,18 +282,15 @@
                                     <i class="fas fa-server"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight leading-none">
-                                        Advanced Config</h3>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                                        Parent & Child Queue</p>
+                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight leading-none">Advanced Config</h3>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Parent & Child Queue</p>
                                 </div>
                             </div>
 
                             <div class="space-y-6">
                                 <div class="space-y-2">
                                     <label
-                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Parent
-                                        Upload</label>
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Parent Upload</label>
                                     <select name="parent_upload_name"
                                         class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none text-xs font-bold text-slate-600 appearance-none cursor-pointer">
                                         <option value="UPLOAD ALL" selected>UPLOAD ALL (Default)</option>
@@ -344,8 +309,7 @@
 
                                 <div class="space-y-2">
                                     <label
-                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Parent
-                                        Download</label>
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Parent Download</label>
                                     <select name="parent_download_name"
                                         class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:outline-none text-xs font-bold text-slate-600 appearance-none cursor-pointer">
                                         <option value="DOWNLOAD ALL" selected>DOWNLOAD ALL (Default)</option>
@@ -364,120 +328,96 @@
 
                                 <div class="pt-4 border-t border-slate-50 space-y-4">
                                     <h4
-                                        class="text-[11px] font-black text-slate-700 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg inline-block">
-                                        Child Template</h4>
+                                        class="text-[11px] font-black text-slate-700 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg inline-block">Child Template</h4>
                                     <div class="grid grid-cols-1 gap-4">
                                         <div class="hidden">
                                             <input name="child_upload_name" readonly />
                                             <input name="child_download_name" readonly />
                                         </div>
                                         <div class="space-y-1">
-                                            <span class="text-[10px] font-bold text-slate-400">UPLOAD PER USER (Up
-                                                To)</span>
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Upload per User (Up To)</span>
                                             <input name="child_upload_limit"
                                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-600" />
                                         </div>
                                         <div class="space-y-1">
-                                            <span class="text-[10px] font-bold text-slate-400">DOWNLOAD PER USER (Up
-                                                To)</span>
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Download per User (Up To)</span>
                                             <input name="child_download_limit"
                                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-600" />
                                         </div>
-                                        <!-- Rest of child fields are hidden by default to keep clean -->
+                                        
                                         <button type="button"
                                             onclick="this.nextElementSibling.classList.toggle('hidden')"
                                             class="text-[9px] font-bold text-blue-500 uppercase tracking-tighter hover:underline text-left">
-                                            Show MikroTik More Parameters <i class="fas fa-chevron-down ml-1"></i>
+                                            Show MikroTik Parameters <i class="fas fa-chevron-down ml-1"></i>
                                         </button>
                                         <div class="hidden space-y-4 pt-2">
                                             <div class="grid grid-cols-2 gap-3">
                                                 <div>
-                                                    <span class="text-[9px] font-bold text-slate-400">LIMIT-AT UP</span>
+                                                    <span class="text-[9px] font-bold text-slate-400 uppercase">Limit-At UP</span>
                                                     <input name="child_limit_at_upload"
                                                         class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                 </div>
                                                 <div>
-                                                    <span class="text-[9px] font-bold text-slate-400">LIMIT-AT DN</span>
+                                                    <span class="text-[9px] font-bold text-slate-400 uppercase">Limit-At DN</span>
                                                     <input name="child_limit_at_download"
                                                         class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                 </div>
                                             </div>
-                                            <div class="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <span class="text-[9px] font-bold text-slate-400">TYPE DN</span>
-                                                    <select name="child_queue_type_download"
-                                                        class="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-[10px] font-bold">
+                                            <div class="grid grid-cols-2 gap-3 px-1">
+                                                <div class="flex flex-col gap-1">
+                                                    <span class="text-[9px] font-bold text-slate-400 uppercase">Priority</span>
+                                                    <select name="child_priority_download" class="w-full border rounded-lg py-1 px-2 text-xs font-bold">
+                                                        <% for(let i=1; i<=8; i++) { %>
+                                                            <option value="<%= i %>" <%=i===8 ? 'selected' : '' %>>P-<%= i %></option>
+                                                        <% } %>
+                                                    </select>
+                                                </div>
+                                                <div class="flex flex-col gap-1">
+                                                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Queue Type</span>
+                                                    <select name="child_queue_type_download" class="w-full border rounded-lg py-1 px-2 text-[10px] font-bold">
                                                         <option value="pcq-download-default" selected>PCQ DN</option>
                                                         <option value="default">Default</option>
                                                     </select>
                                                 </div>
-                                                <div>
-                                                    <span class="text-[9px] font-bold text-slate-400">TYPE UP</span>
-                                                    <select name="child_queue_type_upload"
-                                                        class="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-[10px] font-bold">
-                                                        <option value="pcq-upload-default" selected>PCQ UP</option>
-                                                        <option value="default">Default</option>
-                                                    </select>
-                                                </div>
                                             </div>
-                                            <div class="grid grid-cols-2 gap-3 px-1">
-                                                <div class="flex flex-col gap-1">
-                                                    <span
-                                                        class="text-[9px] font-bold text-slate-400 uppercase">Priority</span>
-                                                    <select name="child_priority_download"
-                                                        class="w-full border rounded-lg py-1 px-2 text-xs font-bold">
-                                                        <% for(let i=1; i<=8; i++) { %>
-                                                            <option value="<%= i %>" <%=i===8 ? 'selected' : '' %>>P-<%=
-                                                                    i %>
-                                                            </option>
-                                                            <% } %>
-                                                    </select>
-                                                </div>
-                                                <div class="flex flex-col gap-1">
-                                                    <span class="text-[9px] font-bold text-slate-400 uppercase">Wait
-                                                        Time</span>
-                                                    <input name="child_burst_time_download" value="20s"
-                                                        class="w-full border rounded-lg py-1 px-2 text-xs font-bold" />
-                                                </div>
-                                            </div>
+
                                             <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl mt-4">
                                                 <div class="flex items-center gap-3 mb-4">
                                                     <input type="checkbox" name="enable_burst" id="enableBurst" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
-                                                    <label for="enableBurst" class="text-xs font-black text-slate-700 uppercase tracking-tight">Aktifkan Fitur Burst</label>
+                                                    <label for="enableBurst" class="text-xs font-black text-slate-700 uppercase tracking-tight">Aktifkan Burst</label>
                                                 </div>
                                                 
                                                 <div id="burstConfigSection" class="hidden space-y-4">
                                                     <div class="grid grid-cols-2 gap-3">
                                                         <div>
-                                                            <span class="text-[9px] font-bold text-slate-400">BURST LIMIT UP</span>
+                                                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Burst UP</span>
                                                             <input name="child_burst_upload" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                         </div>
                                                         <div>
-                                                            <span class="text-[9px] font-bold text-slate-400">BURST LIMIT DN</span>
+                                                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Burst DN</span>
                                                             <input name="child_burst_download" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                         </div>
                                                     </div>
                                                     <div class="grid grid-cols-2 gap-3">
                                                         <div>
-                                                            <span class="text-[9px] font-bold text-slate-400">THRESHOLD UP</span>
+                                                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Threshold UP</span>
                                                             <input name="child_burst_threshold_upload" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                         </div>
                                                         <div>
-                                                            <span class="text-[9px] font-bold text-slate-400">THRESHOLD DN</span>
+                                                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Threshold DN</span>
                                                             <input name="child_burst_threshold_download" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                         </div>
                                                     </div>
                                                     <div class="grid grid-cols-2 gap-3">
                                                         <div>
-                                                            <span class="text-[9px] font-bold text-slate-400">BURST TIME UP</span>
+                                                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Time UP</span>
                                                             <input name="child_burst_time_upload" value="20s" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                         </div>
                                                         <div>
-                                                            <span class="text-[9px] font-bold text-slate-400">BURST TIME DN</span>
+                                                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Time DN</span>
                                                             <input name="child_burst_time_download" value="20s" class="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-bold text-slate-600" />
                                                         </div>
                                                     </div>
-                                                    <input type="hidden" name="child_priority_upload" value="8" />
                                                 </div>
                                             </div>
                                         </div>
@@ -524,7 +464,7 @@
         const upBits = parseBandwidth(maxUpRaw);
         const downBits = parseBandwidth(maxDownRaw);
 
-        // Update Parents Limit-At (Optional)
+        // Update Parents Limit-At
         document.querySelector('input[name="limit_at_upload"]').value = formatBandwidth(upBits / 2);
         document.querySelector('input[name="limit_at_download"]').value = formatBandwidth(downBits / 2);
 
@@ -554,7 +494,6 @@
         document.querySelector('input[name="child_burst_threshold_download"]').value = formatBandwidth(childDownMax * 0.8);
 
         if (!silent) {
-            // Shake effect on simulation card
             const simCard = document.querySelector('.bg-gradient-to-br');
             simCard.classList.add('ring-4', 'ring-amber-400');
             setTimeout(() => simCard.classList.remove('ring-4', 'ring-amber-400'), 500);
@@ -589,5 +528,17 @@
                 });
             }
         });
+
+        // Burst Toggle
+        const burstToggle = document.getElementById('enableBurst');
+        const burstSection = document.getElementById('burstConfigSection');
+        if (burstToggle) {
+            burstToggle.addEventListener('change', function() {
+                if (this.checked) burstSection.classList.remove('hidden');
+                else burstSection.classList.add('hidden');
+            });
+        }
+        // Initial preview
+        autoCalculateAll(true);
     });
 </script>

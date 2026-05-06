@@ -189,6 +189,10 @@ export declare class WhatsAppService extends EventEmitter {
      */
     logout(): Promise<void>;
     /**
+     * Forcibly reset session (Nuclear option)
+     */
+    resetSession(): Promise<void>;
+    /**
      * Clear session data
      */
     private clearSession;

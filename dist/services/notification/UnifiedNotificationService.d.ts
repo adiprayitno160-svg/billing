@@ -79,6 +79,10 @@ export declare class UnifiedNotificationService {
      */
     static notifyPaymentDebt(invoiceId: number, sendImmediately?: boolean): Promise<number[]>;
     /**
+     * Send notification for Janji Bayar explicitly
+     */
+    static notifyJanjiBayar(invoiceId: number, sendImmediately?: boolean): Promise<number[]>;
+    /**
      * Get notification statistics
      */
     static getStatistics(days?: number): Promise<{

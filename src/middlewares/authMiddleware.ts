@@ -169,7 +169,7 @@ export class AuthMiddleware {
                 return;
             }
 
-            if (req.user.role !== 'kasir' && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+            if (req.user.role !== 'kasir' && req.user.role !== 'operator' && req.user.role !== 'superadmin') {
                 req.flash('error', 'Akses ditolak. Hanya kasir atau admin yang dapat mengakses halaman ini');
                 res.redirect('/kasir/login');
                 return;

@@ -10,7 +10,7 @@ module.exports = {
       exp_backoff_restart_delay: 100,
       env: {
         NODE_ENV: "production",
-        PORT: 3002,
+        PORT: 3000,
         DISABLE_WHATSAPP: "false"
       },
       error_file: "./logs/pm2-error.log",

@@ -1,35 +1,87 @@
-<div class="rounded border border-slate-200 bg-white p-4">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Tambah Parent Queue</h2>
-        <a href="/packages/parent-queues" class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">? Kembali</a>
+<div class="space-y-6">
+    <!-- Breadcrumb & Title -->
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-6 rounded-3xl border border-white/20 shadow-sm transition-all duration-300">
+        <div class="flex items-center gap-4">
+            <div class="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200 text-white">
+                <i class="fas fa-sitemap text-2xl"></i>
+            </div>
+            <div>
+                <nav class="flex text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1"
+                    aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center">
+                            <a href="/packages/parent-queues" class="hover:text-blue-600">Parent Queues</a>
+                            <i class="fas fa-chevron-right mx-2 text-[8px]"></i>
+                        </li>
+                        <li class="text-blue-600">Add New</li>
+                    </ol>
+                </nav>
+                <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Tambah Parent Queue</h2>
+            </div>
+        </div>
+        <a href="/packages/parent-queues"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 shadow-sm transition-all active:scale-95">
+            <i class="fas fa-arrow-left"></i> Kembali
+        </a>
     </div>
 
     <% if (error && error.length > 0) { %>
-    <div class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded"><%= error[0] %></div>
+        <div class="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl flex items-center gap-3 shadow-sm animate-shake">
+            <i class="fas fa-exclamation-circle text-xl"></i>
+            <p class="font-medium text-sm"><%= error[0] %></p>
+        </div>
     <% } %>
 
-    <form method="post" action="/packages/parent-queues" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Parent *</label>
-            <input name="name" required class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
-            <select name="status" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="active">Aktif</option>
-                <option value="inactive">Nonaktif</option>
-            </select>
-        </div>
-        <div class="sm:col-span-2">
-            <label class="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label>
-            <textarea name="description" class="w-full rounded border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
-        </div>
-        <div class="sm:col-span-2 flex justify-end gap-3">
-            <a href="/packages/parent-queues" class="px-4 py-2 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Batal</a>
-            <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+    <form method="post" action="/packages/parent-queues" class="space-y-6">
+        <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nama Parent *</label>
+                    <div class="relative group">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                            <i class="fas fa-project-diagram"></i>
+                        </span>
+                        <input name="name" required placeholder="Contoh: PARENT-HOME"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 shadow-sm" />
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Status</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                            <i class="fas fa-toggle-on"></i>
+                        </span>
+                        <select name="status"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-bold text-slate-700 appearance-none cursor-pointer">
+                            <option value="active" selected>Aktif</option>
+                            <option value="inactive">Nonaktif</option>
+                        </select>
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 space-y-2">
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Deskripsi</label>
+                    <textarea name="description" rows="3"
+                        placeholder="Catatan tambahan mengenai parent queue ini..."
+                        class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-sm font-medium text-slate-600 shadow-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8 pt-8 border-t border-slate-50">
+                <a href="/packages/parent-queues"
+                    class="px-6 py-3 rounded-2xl bg-slate-100 text-slate-600 font-black uppercase tracking-widest text-xs hover:bg-slate-200 transition-all active:scale-95">
+                    Batal
+                </a>
+                <button type="submit"
+                    class="px-8 py-3 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
+                    Simpan Parent
+                </button>
+            </div>
         </div>
     </form>
 </div>
-
-
-

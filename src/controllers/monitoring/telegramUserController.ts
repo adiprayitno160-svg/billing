@@ -84,7 +84,7 @@ export class TelegramUserController {
     async createInvite(req: Request, res: Response): Promise<any> {
         try {
             const { role, areas } = req.body;
-            const userId = (req.user as any)?.id;
+            const userId = ((req as any).user as any)?.id;
 
             if (!userId) {
                 res.status(401).json({ success: false, message: 'Unauthorized' });

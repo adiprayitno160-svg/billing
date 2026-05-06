@@ -75,11 +75,11 @@ export class GeminiService {
 
         // Prioritize speed which is critical for customer experience
         const settings = await AISettingsService.getSettings();
-        let modelName = settings?.model || 'gemini-1.5-flash';
+        let modelName = settings?.model || 'gemini-1.5-flash-latest';
 
         // Use flash for speed, unless pro is explicitly requested and we don't care about the wait
-        if (!modelName || modelName.includes('gemini-1.0')) {
-            modelName = 'gemini-1.5-flash'; 
+        if (!modelName || modelName.includes('gemini-1.0') || modelName === 'gemini-1.5-flash') {
+            modelName = 'gemini-1.5-flash-latest'; 
         }
 
         try {

@@ -8,7 +8,7 @@ export const getSystemUpdatePage = async (req: Request, res: Response) => {
         res.render('settings/system_update', {
             title: 'Update Sistem',
             currentPath: '/settings/system-update',
-            user: req.user
+            user: (req as any).user
         });
     } catch (error) {
         res.status(500).render('error', { message: 'Gagal memuat halaman update' });

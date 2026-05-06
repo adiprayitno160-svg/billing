@@ -94,6 +94,29 @@ export class NotificationScheduler {
       this.lastRunTime = Date.now();
 
       try {
+        // Check if reminders are disabled - if so, purge any reminder items from queue first
+        const remindersDisabled = process.env.DISABLE_REMINDERS === 'true';
+        if (remindersDisabled) {
+          try {
+            const [purgeResult] = await databasePool.query<any>(
+              `DELETE FROM unified_notifications_queue 
+               WHERE status IN ('pending', 'processing') 
+               AND notification_type IN (
+                 'invoice_reminder', 'invoice_overdue', 'payment_reminder',
+                 'invoice_reminder_manual', 'invoice_reminder_upcoming', 
+                 'invoice_due_today', 'invoice_overdue_1', 'invoice_overdue_2',
+                 'invoice_overdue_monthly', 'pre_block_warning', 'isolation_warning',
+                 'payment_shortage_warning'
+               )`
+            );
+            if (purgeResult.affectedRows > 0) {
+              console.log(`[NotificationScheduler] 🚫 DISABLE_REMINDERS=true → Purged ${purgeResult.affectedRows} reminder notifications from queue`);
+            }
+          } catch (purgeErr) {
+            // Non-critical, continue processing other notifications
+          }
+        }
+
         // Limit 5 messages per minute as requested
         const result = await UnifiedNotificationService.sendPendingNotifications(5);
         if (result.sent > 0 || result.failed > 0) {
@@ -273,6 +296,8 @@ export class NotificationScheduler {
     const connection = await databasePool.getConnection();
     try {
       // Reset failed notifications where retry_count < max_retries
+      // IMPORTANT: Exclude reminder/overdue/warning types to prevent infinite retry loop
+      // Only retry transactional notifications (payment, customer, service events)
       const [result] = await connection.query<any>(
         `UPDATE unified_notifications_queue 
          SET status = 'pending', 
@@ -281,7 +306,14 @@ export class NotificationScheduler {
              updated_at = NOW()
          WHERE status = 'failed' 
          AND retry_count < max_retries
-         AND customer_id IS NOT NULL`
+         AND customer_id IS NOT NULL
+         AND notification_type NOT IN (
+           'invoice_reminder', 'invoice_overdue', 'invoice_reminder_manual',
+           'invoice_reminder_upcoming', 'invoice_due_today',
+           'invoice_overdue_1', 'invoice_overdue_2', 'invoice_overdue_monthly',
+           'pre_block_warning', 'isolation_warning', 'payment_shortage_warning',
+           'payment_reminder'
+         )`
       );
 
       if (result.affectedRows > 0) {

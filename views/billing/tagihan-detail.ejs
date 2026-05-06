@@ -25,13 +25,13 @@
                             </button>
                             <div id="printDropdown"
                                 class="hidden absolute left-0 sm:left-auto sm:right-0 mt-2 w-full sm:w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-[100] transform transition-all duration-200 origin-top-right">
-                                <a href="/billing/tagihan/<%= invoice.id %>/print" target="_blank"
+                                <a href="/billing/tagihan/<%= invoice.id %>/print?format=a4" target="_blank"
                                     class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-t-lg border-b transition-colors">
-                                    <i class="fas fa-file-pdf mr-3 text-red-500"></i>Print A4 (PDF)
+                                    <i class="fas fa-file-invoice mr-3 text-blue-500"></i>Print A4 (Full Professional)
                                 </a>
-                                <a href="/billing/tagihan/<%= invoice.id %>/print-thermal" target="_blank"
+                                <a href="/billing/tagihan/<%= invoice.id %>/print?format=thermal" target="_blank"
                                     class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-b-lg transition-colors">
-                                    <i class="fas fa-receipt mr-3 text-purple-600"></i>Print Thermal 58mm
+                                    <i class="fas fa-receipt mr-3 text-purple-600"></i>Print Thermal Receipt
                                 </a>
                             </div>
                         </div>
@@ -194,10 +194,19 @@
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <% if (items && items.length> 0) { %>
+                                    <% const hasCarryOver = items.some(function(it){ return it.description && (it.description.indexOf('Tunggakan Tagihan Bulan') === 0 || it.description.indexOf('Kekurangan Tagihan Bulan') === 0); }); %>
                                     <% items.forEach(function(item) { %>
-                                        <tr>
+                                        <% const isCarryOver = item.description && (item.description.indexOf('Tunggakan Tagihan Bulan') === 0 || item.description.indexOf('Kekurangan Tagihan Bulan') === 0); %>
+                                        <tr class="<%= isCarryOver ? 'bg-amber-50 border-l-4 border-amber-400' : '' %>">
                                             <td class="px-6 py-4 text-sm text-gray-900">
-                                                <%= item.description %>
+                                                <% if (isCarryOver) { %>
+                                                    <span class="inline-flex items-center gap-1.5">
+                                                        <span class="inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full bg-amber-100 text-amber-700"><i class="fas fa-clock mr-1"></i>Tunggakan</span>
+                                                        <%= item.description %>
+                                                    </span>
+                                                <% } else { %>
+                                                    <%= item.description %>
+                                                <% } %>
                                             </td>
                                             <td class="px-6 py-4 text-sm text-right text-gray-900">
                                                 <%= item.quantity %>
@@ -205,7 +214,7 @@
                                             <td class="px-6 py-4 text-sm text-right text-gray-900">Rp <%= new
                                                     Intl.NumberFormat('id-ID').format(item.unit_price) %>
                                             </td>
-                                            <td class="px-6 py-4 text-sm text-right font-medium text-gray-900">Rp <%=
+                                            <td class="px-6 py-4 text-sm text-right font-medium <%= isCarryOver ? 'text-amber-700' : 'text-gray-900' %>">Rp <%=
                                                     new Intl.NumberFormat('id-ID').format(item.total_price) %>
                                             </td>
                                         </tr>
@@ -510,11 +519,31 @@
                                             <% } %>
 
                                                 <% if (invoice.status !=='paid' && invoice.status !=='cancelled' ) { %>
-                                                    <button onclick="showDowntimeDiscountModal()"
-                                                        class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-bold mt-2">
-                                                        <i class="fas fa-clock mr-2"></i>Diskon Gangguan
+                                                    <% 
+                                                        const carryOverItems = (items || []).filter(function(it){ 
+                                                            return it.description && (it.description.indexOf('Tunggakan Tagihan Bulan') === 0 || it.description.indexOf('Kekurangan Tagihan Bulan') === 0); 
+                                                        });
+                                                        const carryOverTotal = carryOverItems.reduce(function(sum, it){ return sum + parseFloat(it.total_price); }, 0);
+                                                    %>
+                                                    <% if (carryOverItems.length > 0) { %>
+                                                    <button onclick="settleCarryOver()"
+                                                        class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-3 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all text-sm font-bold mt-2 shadow-lg shadow-amber-200 flex items-center justify-center gap-2">
+                                                        <i class="fas fa-hand-holding-usd"></i>
+                                                        <span>Lunasi Tunggakan</span>
+                                                        <span class="bg-white/20 px-2 py-0.5 rounded text-xs">Rp <%= new Intl.NumberFormat('id-ID').format(carryOverTotal) %></span>
                                                     </button>
                                                     <% } %>
+
+                                                    <button onclick="showManualDiscountModal()"
+                                                        class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-bold mt-2 shadow-lg shadow-blue-100">
+                                                        <i class="fas fa-tag mr-2"></i>Diskon Manual
+                                                    </button>
+
+                                                    <button onclick="showDowntimeDiscountModal()"
+                                                        class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-bold mt-2 shadow-lg shadow-orange-100">
+                                                        <i class="fas fa-clock mr-2"></i>Diskon Gangguan
+                                                    </button>
+                                                <% } %>
                     </div>
                 </div>
             </div>
@@ -900,6 +929,165 @@
                     console.error('Error:', error);
                     Swal.fire('Error!', 'Terjadi kesalahan saat menerapkan diskon.', 'error');
                 });
+        }
+    }
+    async function showManualDiscountModal() {
+        const { value: formValues } = await Swal.fire({
+            title: 'Terapkan Diskon Manual',
+            html: `
+                <div class="space-y-4 text-left p-2">
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Jumlah Diskon (Rp)</label>
+                        <input id="swal-manual-amount" type="number" class="swal2-input !m-0 !w-full !rounded-xl font-bold" placeholder="Contoh: 10000">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Alasan / Keterangan</label>
+                        <textarea id="swal-manual-reason" class="swal2-textarea !m-0 !w-full !rounded-xl text-sm" placeholder="Ketik alasan diskon..."></textarea>
+                    </div>
+                    <p class="text-[11px] text-amber-600 font-medium bg-amber-50 p-3 rounded-xl border border-amber-100 italic">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        Diskon ini akan langsung mengurangi total tagihan.
+                    </p>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Terapkan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#2563eb',
+            preConfirm: () => {
+                const amount = document.getElementById('swal-manual-amount').value;
+                const reason = document.getElementById('swal-manual-reason').value;
+
+                if (!amount || parseInt(amount) <= 0) {
+                    Swal.showValidationMessage('Masukkan jumlah diskon yang valid');
+                    return false;
+                }
+
+                return {
+                    amount: parseInt(amount),
+                    reason: reason
+                };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({
+                title: 'Memproses...',
+                didOpen: () => {
+                    Swal.showLoading();
+                },
+                allowOutsideClick: false
+            });
+
+            fetch('/billing/tagihan/apply-manual-discount', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    invoiceId: '<%= invoice.id %>',
+                    ...formValues
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('Berhasil!', data.message, 'success').then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Gagal!', data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error!', 'Terjadi kesalahan saat menerapkan diskon.', 'error');
+                });
+        }
+    }
+
+    // Settle Carry-Over (Lunasi Tunggakan Bulan Lalu)
+    async function settleCarryOver() {
+        const { value: formValues } = await Swal.fire({
+            title: '<i class="fas fa-hand-holding-usd text-amber-500 mr-2"></i> Lunasi Tunggakan',
+            html: `
+                <div class="space-y-4 text-left p-2">
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                        <p class="text-sm text-amber-800 font-medium">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Fitur ini akan:
+                        </p>
+                        <ul class="text-xs text-amber-700 mt-2 space-y-1 list-disc pl-5">
+                            <li>Menghapus item tunggakan dari invoice ini</li>
+                            <li>Mengurangi total tagihan secara otomatis</li>
+                            <li>Menandai invoice bulan lalu sebagai <b>LUNAS</b></li>
+                        </ul>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Metode Pembayaran</label>
+                        <select id="swal-settle-method" class="swal2-select !m-0 !w-full !rounded-xl font-medium text-sm border border-gray-300 px-3 py-2.5">
+                            <option value="cash">Tunai (Cash)</option>
+                            <option value="transfer">Transfer Bank</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Tanggal Pembayaran</label>
+                        <input id="swal-settle-date" type="date" class="swal2-input !m-0 !w-full !rounded-xl font-medium text-sm" value="${new Date().toISOString().slice(0,10)}">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Catatan (Opsional)</label>
+                        <input id="swal-settle-notes" type="text" class="swal2-input !m-0 !w-full !rounded-xl text-sm" placeholder="Misal: Dibayar langsung oleh pelanggan">
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-check mr-1"></i> Ya, Lunasi Sekarang',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#f59e0b',
+            preConfirm: () => {
+                return {
+                    payment_method: document.getElementById('swal-settle-method').value,
+                    payment_date: document.getElementById('swal-settle-date').value,
+                    notes: document.getElementById('swal-settle-notes').value
+                };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({
+                title: 'Memproses...',
+                html: 'Melunasi tunggakan dan memperbarui invoice...',
+                didOpen: () => Swal.showLoading(),
+                allowOutsideClick: false
+            });
+
+            try {
+                const response = await fetch('/billing/tagihan/<%= invoice.id %>/settle-carryover', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formValues)
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Tunggakan Dilunasi!',
+                        html: `<div class="text-left space-y-2">
+                            <p class="text-sm"><b>Jumlah dilunasi:</b> Rp ${parseInt(data.settled_amount).toLocaleString('id-ID')}</p>
+                            <p class="text-sm"><b>Total invoice sekarang:</b> Rp ${parseInt(data.new_total).toLocaleString('id-ID')}</p>
+                            <p class="text-sm"><b>Invoice lama dibayar:</b> ${data.source_invoices_settled} invoice</p>
+                        </div>`,
+                        confirmButtonColor: '#10b981'
+                    });
+                    location.reload();
+                } else {
+                    Swal.fire('Gagal!', data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error!', 'Terjadi kesalahan saat memproses.', 'error');
+            }
         }
     }
 </script>

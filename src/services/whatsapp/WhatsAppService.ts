@@ -25,7 +25,8 @@ import makeWASocket, {
   getContentType,
   downloadMediaMessage,
   isJidGroup,
-  jidNormalizedUser
+  jidNormalizedUser,
+  Browsers
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
@@ -107,14 +108,14 @@ export class WhatsAppService extends EventEmitter {
   // Message Queue
   private messageQueue: QueuedMessage[] = [];
   private isProcessingQueue: boolean = false;
-  private readonly QUEUE_PROCESS_INTERVAL_MIN = 500; // Reduced from 5s to 0.5s
-  private readonly QUEUE_PROCESS_INTERVAL_MAX = 2000; // Reduced from 10s to 2s
+  private readonly QUEUE_PROCESS_INTERVAL_MIN = 5000; // Increased to 5s for safety
+  private readonly QUEUE_PROCESS_INTERVAL_MAX = 15000; // Increased to 15s for safety
   private readonly MAX_QUEUE_SIZE = 500;
 
   // ========== ANTI-SPAM RATE LIMITING ==========
   // Per-contact rate limiting
   private contactLastSent: Map<string, number> = new Map();  // phone -> last sent timestamp
-  private readonly CONTACT_COOLDOWN_MS = 2000; // Reduced from 60s to 2s for better chatbot UX
+  private readonly CONTACT_COOLDOWN_MS = 30000; // 30 seconds cooldown per contact to avoid spam detection
 
   // Hourly/Daily rate limiting
   private hourlySentCount: number = 0;
@@ -241,17 +242,13 @@ export class WhatsAppService extends EventEmitter {
    * Initialize WhatsApp connection
    */
   public async initialize(): Promise<void> {
-    console.trace('[WhatsApp] Initialize called (TRACE):');
-    if (process.env.DISABLE_WHATSAPP === 'true') {
-      this.log('info', '🚫 WhatsApp service is disabled via DISABLE_WHATSAPP env var.');
+    const instanceId = process.env.NODE_APP_INSTANCE || '0';
+    if (instanceId !== '0') {
       return;
     }
 
-    // PM2 Cluster Mode Check: Only initialize on the first instance
-    // This prevents "Session Conflict (440)" errors when multiple instances try to connect
-    const instanceId = process.env.NODE_APP_INSTANCE || '0';
-    if (instanceId !== '0') {
-      this.log('info', `⏭️ WhatsApp service skipping initialization on non-zero instance (${instanceId})`);
+    if (process.env.DISABLE_WHATSAPP === 'true') {
+      this.log('info', '🚫 WhatsApp service is disabled via DISABLE_WHATSAPP env var.');
       return;
     }
 
@@ -287,7 +284,7 @@ export class WhatsAppService extends EventEmitter {
         this.log('info', `📦 Baileys Version: ${version.join('.')} (Latest: ${isLatest})`);
 
         // Create socket
-        const logger = pino({ level: 'silent' });
+        const logger = pino({ level: 'warn' });
 
         this.sock = makeWASocket({
           version,
@@ -297,7 +294,9 @@ export class WhatsAppService extends EventEmitter {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, logger as any),
           },
-          browser: ['Chrome (Windows)', 'Chrome', '114.0.5735.199'],
+          // Use built-in MacOS Desktop identity for maximum compatibility
+          browser: Browsers.macOS('Desktop'),
+          mobile: false,
           generateHighQualityLinkPreview: true,
           defaultQueryTimeoutMs: 120000,
           connectTimeoutMs: 120000,
@@ -373,7 +372,11 @@ export class WhatsAppService extends EventEmitter {
     if (!this.sock) return;
 
     // Credentials update
-    this.sock.ev.on('creds.update', async () => {
+    this.sock.ev.on('creds.update', async (update) => {
+      this.log('debug', '💾 Credentials update received', { 
+        hasUpdate: !!update,
+        registered: update?.registered ?? this.sock?.authState?.creds?.registered
+      });
       await this.authState?.saveCreds();
     });
 
@@ -486,6 +489,7 @@ export class WhatsAppService extends EventEmitter {
           phoneNumber: this.phoneNumber,
           name: this.displayName
         });
+        
         this.saveStatusToDisk();
 
         // Resolve all waiters
@@ -552,10 +556,31 @@ export class WhatsAppService extends EventEmitter {
       this.emit('presence', presence);
     });
 
-    // Message status update
+    // Message status update - CRITICAL for delivery receipt diagnosis
     this.sock.ev.on('messages.update', (updates) => {
       for (const update of updates) {
+        // Log delivery status changes
+        const statusMap: Record<number, string> = {
+          0: 'ERROR',
+          1: 'PENDING (server received)',
+          2: 'SERVER_ACK (delivered to server)',
+          3: 'DELIVERY_ACK (delivered to recipient)',
+          4: 'READ (read by recipient)',
+          5: 'PLAYED (media played)'
+        };
+        const status = (update as any)?.update?.status;
+        if (status !== undefined) {
+          const statusText = statusMap[status] || `UNKNOWN(${status})`;
+          this.log('info', `📬 Message Receipt: ${update.key?.id} → ${statusText} (to: ${update.key?.remoteJid})`);
+        }
         this.emit('message-status', update);
+      }
+    });
+
+    // Message receipt events (message-receipt is separate from messages.update)
+    this.sock.ev.on('message-receipt.update' as any, (updates: any[]) => {
+      for (const update of updates) {
+        this.log('info', `📬 Receipt Event: ${JSON.stringify(update?.key)} receipt: ${JSON.stringify(update?.receipt)}`);
       }
     });
   }
@@ -1167,8 +1192,16 @@ export class WhatsAppService extends EventEmitter {
     }
 
     if (this.sock) {
+      this.log('info', '🔌 Ending existing socket connection...');
       try {
-        this.sock.end(undefined);
+        // Use a timeout for closing to prevent hanging
+        const endPromise = Promise.race([
+          this.sock.end(undefined),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('End timeout')), 3000))
+        ]);
+        await endPromise.catch(() => {
+          this.log('warn', '⚠️ Socket end timed out, forcing null');
+        });
       } catch (e) { }
       this.sock = null;
     }
@@ -1195,8 +1228,16 @@ export class WhatsAppService extends EventEmitter {
 
     try {
       if (this.sock) {
-        await this.sock.logout();
-        this.sock.end(undefined);
+        // Try graceful logout but with a short timeout
+        this.log('info', '📤 Attempting graceful logout from WhatsApp server...');
+        await Promise.race([
+          this.sock.logout(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Logout timeout')), 5000))
+        ]).catch(err => {
+          this.log('warn', `⚠️ Graceful logout failed or timed out: ${err.message}`);
+        });
+        
+        try { this.sock.end(undefined); } catch (e) { }
         this.sock = null;
       }
     } catch (e: any) {
@@ -1217,8 +1258,37 @@ export class WhatsAppService extends EventEmitter {
     this.emit('logout');
 
     // Restart to generate new QR
+    this.log('info', '♻️ Logout complete, re-initializing for new QR...');
     await new Promise(resolve => setTimeout(resolve, 2000));
     this.initialize();
+  }
+
+  /**
+   * Forcibly reset session (Nuclear option)
+   */
+  public async resetSession(): Promise<void> {
+    this.log('info', '☢️ Nuclear reset of WhatsApp session triggered');
+    
+    // 1. Force kill socket
+    if (this.sock) {
+      try { this.sock.end(new Error('Forced reset')); } catch (e) { }
+      this.sock = null;
+    }
+
+    // 2. Reset internal state
+    this.isConnected = false;
+    this.isConnecting = false;
+    this.qrCode = null;
+    this.qrDataUrl = null;
+    this.initPromise = null;
+
+    // 3. Delete files
+    await this.clearSession();
+
+    // 4. Start fresh
+    this.log('info', '🚀 Starting fresh initialization after reset...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.initialize();
   }
 
   /**

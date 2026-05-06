@@ -282,14 +282,14 @@
                                                 </option>
                                                 <% } %>
                                     </select>
-                                    <div class="flex gap-4 mt-2">
+                                    <div class="flex flex-col sm:flex-row gap-2 mt-3">
                                         <button type="button" id="import_mikrotik_ip_btn"
-                                            class="text-xs text-green-600 hover:text-green-800 font-bold flex items-center gap-1">
-                                            📥 Import IP dari ARP/Leases Mikrotik
+                                            class="flex-1 px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-[11px] uppercase tracking-wide">
+                                            <span>📥</span> Import dari ARP / Leases
                                         </button>
                                         <button type="button" id="import_mikrotik_queue_btn"
-                                            class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1">
-                                            🔄 Import dari Queue / Bandwidth Management
+                                            class="flex-1 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-[11px] uppercase tracking-wide">
+                                            <span>🔄</span> Import dari Queue
                                         </button>
                                     </div>
                                 </div>
@@ -1185,43 +1185,92 @@
 
                     content.innerHTML = `
                         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <h3 class="font-bold text-gray-800">Pilih IP dari Mikrotik</h3>
-                            <button class="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button>
+                            <div>
+                                <h3 class="font-bold text-gray-800">Pilih IP dari ARP / Leases</h3>
+                                <p class="text-xs text-gray-500">Pilih IP yang terdeteksi di MikroTik</p>
+                            </div>
+                            <button class="text-gray-400 hover:text-red-500 font-bold text-xl clos-btn">&times;</button>
                         </div>
-                        <div class="overflow-y-auto p-2 space-y-1">
-                            ${data.results.map(item => `
-                                <div class="p-3 hover:bg-blue-50 cursor-pointer rounded-xl border border-transparent hover:border-blue-100 transition-all flex justify-between items-center group"
-                                     onclick="selectMikrotikIP('${item.ip}', '${item.mac}', '${item.comment}')">
-                                    <div>
-                                        <div class="font-mono font-bold text-blue-600">${item.ip}</div>
-                                        <div class="text-xs text-gray-400">${item.mac} ${item.comment ? '• ' + item.comment : ''}</div>
-                                    </div>
-                                    <div class="text-xs font-bold text-gray-300 group-hover:text-blue-500">PILIH</div>
-                                </div>
-                            `).join('')}
+                        <div class="p-3 bg-emerald-50 border-b border-emerald-100">
+                            <input type="text" id="arp_search" placeholder="Cari IP, MAC, atau Comment..." class="w-full px-4 py-2 rounded-xl border border-emerald-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                        </div>
+                        <div class="overflow-y-auto p-2 space-y-1" id="arp_list">
+                            <!-- Items will be injected here -->
                         </div>
                     `;
 
                     modal.appendChild(content);
                     document.body.appendChild(modal);
 
+                    // Render List Function
+                    const renderArpList = (items) => {
+                        const listContainer = content.querySelector('#arp_list');
+                        listContainer.innerHTML = items.map(item => `
+                            <div class="p-3 hover:bg-emerald-50 cursor-pointer rounded-xl border border-transparent hover:border-emerald-100 transition-all flex justify-between items-center group"
+                                 onclick="selectMikrotikIP('${item.ip}', '${item.mac}', '${item.comment}')">
+                                <div>
+                                    <div class="font-mono font-bold text-emerald-600">${item.ip}</div>
+                                    <div class="text-xs text-gray-400">${item.mac} ${item.comment ? '• ' + item.comment : ''}</div>
+                                </div>
+                                <div class="text-xs font-bold text-emerald-300 group-hover:text-emerald-500">PILIH</div>
+                            </div>
+                        `).join('');
+                    };
+
+                    // Initial Render
+                    renderArpList(data.results);
+
+                    // Search Handler
+                    const searchInput = content.querySelector('#arp_search');
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') e.preventDefault();
+                    });
+                    searchInput.addEventListener('input', (e) => {
+                        const q = e.target.value.toLowerCase();
+                        const filtered = data.results.filter(item =>
+                            item.ip.includes(q) ||
+                            item.mac.toLowerCase().includes(q) ||
+                            (item.comment && item.comment.toLowerCase().includes(q))
+                        );
+                        renderArpList(filtered);
+                    });
+
                     // Close handler
-                    const closeBtn = content.querySelector('button');
+                    const closeBtn = content.querySelector('.clos-btn');
                     const close = () => document.body.removeChild(modal);
                     closeBtn.onclick = close;
                     modal.onclick = (e) => { if (e.target === modal) close(); };
 
                     // Selection handler (global function for onclick)
-                    window.selectMikrotikIP = (ip, mac, comment) => {
-                        const ipInput = document.querySelector('input[name="ip_address"]');
-                        if (ipInput) {
-                            ipInput.value = ip;
-                            // Trigger pulse effect
-                            ipInput.classList.add('ring-4', 'ring-green-200');
-                            setTimeout(() => ipInput.classList.remove('ring-4', 'ring-green-200'), 500);
-                        }
-                        close();
-                    };
+                        window.selectMikrotikIP = (ip, mac, comment) => {
+                            const ipInput = document.querySelector('input[name="ip_address"]');
+                            if (ipInput) {
+                                ipInput.value = ip;
+                                // Trigger pulse effect
+                                ipInput.classList.add('ring-4', 'ring-emerald-200', 'border-emerald-500');
+                                setTimeout(() => ipInput.classList.remove('ring-4', 'ring-emerald-200', 'border-emerald-500'), 1500);
+                            }
+                            
+                            Swal.fire({
+                                title: 'IP Terpilih!',
+                                html: `
+                                    <div class="text-left bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2">
+                                        <div class="flex justify-between"><strong>IP:</strong> <span class="text-emerald-600 font-mono">${ip}</span></div>
+                                        <div class="flex justify-between"><strong>MAC:</strong> <span class="text-emerald-600 font-mono">${mac}</span></div>
+                                        ${comment ? `<div class="flex justify-between"><strong>Info:</strong> <span class="text-emerald-600">${comment}</span></div>` : ''}
+                                    </div>
+                                `,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false,
+                                background: '#ffffff',
+                                customClass: {
+                                    popup: 'rounded-2xl shadow-2xl border-0',
+                                    title: 'font-bold text-gray-800'
+                                }
+                            });
+                            close();
+                        };
 
                 } catch (error) {
                     console.error('Error fetching Mikrotik IPs:', error);

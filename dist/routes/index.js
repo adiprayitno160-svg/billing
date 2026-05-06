@@ -1902,64 +1902,82 @@ router.get('/customers/new-pppoe', async (req, res) => {
     }
 });
 router.get('/customers/new-static-ip', async (req, res) => {
-    let packages = await (0, staticIpPackageService_1.listStaticIpPackages)();
-    // Filter out full packages
-    packages = packages.filter(p => !p.is_full);
-    const cfg = await (0, pppoeService_2.getMikrotikConfig)();
-    // Generate customer code dengan format YYYYMMDDHHMMSS
-    const initial_customer_code = customerIdGenerator_1.CustomerIdGenerator.generateCustomerId();
-    // Generate current timestamp for default values
-    const now = new Date();
-    const timestamp = now.getFullYear().toString() +
-        (now.getMonth() + 1).toString().padStart(2, '0') +
-        now.getDate().toString().padStart(2, '0') +
-        now.getHours().toString().padStart(2, '0') +
-        now.getMinutes().toString().padStart(2, '0') +
-        now.getSeconds().toString().padStart(2, '0');
-    const conn = await pool_1.databasePool.getConnection();
     try {
-        // Get ODP data
-        const [odpRows] = await conn.execute(`
-            SELECT 
-                o.id, 
-                o.name as odp_name,
-                o.odc_id,
-                odc.name as odc_name,
-                odc.olt_id,
-                olt.name as olt_name
-            FROM ftth_odp o
-            LEFT JOIN ftth_odc odc ON o.odc_id = odc.id
-            LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
-            ORDER BY o.name
-        `);
-        // Check for registration requests
-        let registrationData = null;
-        if (req.query.request_id) {
-            try {
-                const [regRows] = await conn.query('SELECT * FROM registration_requests WHERE id = ?', [req.query.request_id]);
-                if (regRows.length > 0)
-                    registrationData = regRows[0];
+        let packages = await (0, staticIpPackageService_1.listStaticIpPackages)();
+        // Filter out full packages
+        packages = packages.filter(p => !p.is_full);
+        const cfg = await (0, pppoeService_2.getMikrotikConfig)();
+        // Generate customer code dengan format YYYYMMDDHHMMSS
+        const initial_customer_code = customerIdGenerator_1.CustomerIdGenerator.generateCustomerId();
+        // Generate current timestamp for default values
+        const now = new Date();
+        const timestamp = now.getFullYear().toString() +
+            (now.getMonth() + 1).toString().padStart(2, '0') +
+            now.getDate().toString().padStart(2, '0') +
+            now.getHours().toString().padStart(2, '0') +
+            now.getMinutes().toString().padStart(2, '0') +
+            now.getSeconds().toString().padStart(2, '0');
+        const conn = await pool_1.databasePool.getConnection();
+        try {
+            // Get ODP data
+            const [odpRows] = await conn.execute(`
+                SELECT 
+                    o.id, 
+                    o.name as odp_name,
+                    o.odc_id,
+                    odc.name as odc_name,
+                    odc.olt_id,
+                    olt.name as olt_name
+                FROM ftth_odp o
+                LEFT JOIN ftth_odc odc ON o.odc_id = odc.id
+                LEFT JOIN ftth_olt olt ON odc.olt_id = olt.id
+                ORDER BY o.name
+            `);
+            // Check for registration requests
+            let registrationData = null;
+            if (req.query.request_id) {
+                try {
+                    const [regRows] = await conn.query('SELECT * FROM registration_requests WHERE id = ?', [req.query.request_id]);
+                    if (regRows.length > 0)
+                        registrationData = regRows[0];
+                }
+                catch (e) {
+                    console.error('Reg fetch err', e);
+                }
             }
-            catch (e) {
-                console.error('Reg fetch err', e);
+            // Get interfaces from MikroTik (non-critical, don't crash page if MikroTik unreachable)
+            let interfaces = [];
+            if (cfg) {
+                try {
+                    interfaces = await (0, mikrotikService_2.getInterfaces)(cfg);
+                }
+                catch (mikrotikErr) {
+                    console.warn('[new-static-ip] Could not fetch MikroTik interfaces (non-critical):', mikrotikErr.message);
+                }
             }
+            res.render('customers/new_static_ip', {
+                title: 'Pelanggan IP Statis Baru',
+                packages,
+                mikrotikConfig: cfg,
+                interfaces,
+                odpData: odpRows,
+                initial_customer_code,
+                timestamp,
+                registrationData,
+                error: req.query.error || null
+            });
         }
-        // Get interfaces from MikroTik
-        const interfaces = cfg ? await (0, mikrotikService_2.getInterfaces)(cfg) : [];
-        res.render('customers/new_static_ip', {
-            title: 'Pelanggan IP Statis Baru',
-            packages,
-            mikrotikConfig: cfg,
-            interfaces,
-            odpData: odpRows,
-            initial_customer_code,
-            timestamp,
-            registrationData,
-            error: req.query.error || null
-        });
+        finally {
+            conn.release();
+        }
     }
-    finally {
-        conn.release();
+    catch (err) {
+        console.error('[new-static-ip] Error loading page:', err);
+        res.status(500).render('error', {
+            title: 'Error',
+            status: 500,
+            message: 'Gagal memuat halaman pelanggan IP Statis: ' + (err.message || err)
+        });
     }
 });
 // POST route untuk form new-pppoe - HARUS SEBELUM route dengan parameter

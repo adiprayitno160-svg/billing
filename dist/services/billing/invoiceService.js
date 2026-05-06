@@ -289,20 +289,35 @@ class InvoiceService {
                        c.name as customer_name, c.email, c.phone, COALESCE(s.activation_date, s.start_date) as start_date,
                        DAY(COALESCE(s.activation_date, s.start_date)) as billing_day, c.account_balance, c.use_device_rental, c.is_taxable,
                        c.customer_code, c.rental_mode, c.rental_cost,
-                       c.custom_payment_deadline, c.custom_isolate_days_after_deadline, c.loyalty_discount
+                       c.custom_payment_deadline, c.custom_isolate_days_after_deadline, c.loyalty_discount,
+                       c.status as customer_status
                 FROM subscriptions s
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
-                AND c.status = 'active'
+                AND LOWER(c.status) = 'active'
+                /* ANTI-PREMATURE-BILLING: Pasang bulan ini, bayar bulan depan.
+                   Skip customers whose activation month is the SAME as the invoice period.
+                   Only generate invoices for periods AFTER the activation month. */
+                AND (DATE_FORMAT(COALESCE(s.activation_date, s.start_date), '%Y-%m') < ? OR ? = 'true')
+                /* EXTRA SAFETY: Also skip if activation_date is in the current calendar month */
+                AND (DATE_FORMAT(COALESCE(s.activation_date, s.start_date), '%Y-%m') < DATE_FORMAT(CURDATE(), '%Y-%m') OR ? = 'true')
             `;
-            const queryParams = [];
+            const queryParams = [period, forceAll ? 'true' : 'false', forceAll ? 'true' : 'false'];
             if (!forceAll && !customerIds) {
                 // Modified: check for current day and past days to catch up, up to H-7
-                // And filter out technically expired end_dates only for auto-scheduler
-                subscriptionQuery += ` 
-                    AND (s.end_date IS NULL OR s.end_date >= CURDATE())
-                    AND DAY(COALESCE(s.activation_date, s.start_date)) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) 
-                `;
+                // If it's the start of the month (Day 1), bypass the day check to generate for ALL active customers
+                const isStartOfMonth = new Date().getDate() === 1;
+                if (isStartOfMonth) {
+                    subscriptionQuery += ` 
+                        AND (s.end_date IS NULL OR s.end_date >= CURDATE())
+                    `;
+                }
+                else {
+                    subscriptionQuery += ` 
+                        AND (s.end_date IS NULL OR s.end_date >= CURDATE())
+                        AND DAY(COALESCE(s.activation_date, s.start_date)) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) 
+                    `;
+                }
             }
             if (customerIds) {
                 if (Array.isArray(customerIds)) {
@@ -324,9 +339,19 @@ class InvoiceService {
                 )
             `;
             queryParams.push(period);
+            // Process subscriptions
             const [subscriptions] = await connection.query(subscriptionQuery, queryParams);
+            // EXTRA PROTECTION: Map to track customers already processed in THIS loop
+            const processedCustomerIds = new Set();
             for (const subscription of subscriptions) {
+                if (processedCustomerIds.has(subscription.customer_id))
+                    continue;
                 try {
+                    const [existing] = await connection.query('SELECT id FROM invoices WHERE customer_id = ? AND period = ?', [subscription.customer_id, period]);
+                    if (existing.length > 0) {
+                        processedCustomerIds.add(subscription.customer_id);
+                        continue;
+                    }
                     // Calculate Due Date
                     const periodYear = parseInt(period.split('-')[0]);
                     const periodMonth = parseInt(period.split('-')[1]);
@@ -334,7 +359,14 @@ class InvoiceService {
                     const billingDay = subscription.custom_payment_deadline || subscription.billing_day || new Date(subscription.start_date).getDate();
                     const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
                     const targetDay = Math.min(billingDay, daysInMonth);
-                    const dueDate = new Date(periodYear, periodMonth - 1, targetDay);
+                    let dueDate = new Date(periodYear, periodMonth - 1, targetDay);
+                    // GRACE PERIOD: If invoice is generated AFTER the target billing day,
+                    // ensure due_date is at least 7 days from today to avoid instant "Overdue" status
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (dueDate < today) {
+                        dueDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+                    }
                     // Start transaction for each invoice to minimize lock time
                     await connection.beginTransaction();
                     // Carry Over: Pick up ALL pending debt for this customer up to this period (both full and partial)
@@ -401,8 +433,12 @@ class InvoiceService {
                     }
                     if (deviceFee > 0)
                         items.push({ description: `Sewa Perangkat - ${period}`, quantity: 1, unit_price: deviceFee, total_price: deviceFee });
-                    if (carryOverAmount > 0)
-                        items.push(...carryOverItems);
+                    // Filter carryOverItems to ensure no duplicates with existing items
+                    for (const coItem of carryOverItems) {
+                        if (!items.find(it => it.description === coItem.description)) {
+                            items.push(coItem);
+                        }
+                    }
                     if (slaRebateAmount > 0)
                         items.push({ description: slaReason || `SLA Rebate - ${prevPeriod}`, quantity: 1, unit_price: -slaRebateAmount, total_price: -slaRebateAmount });
                     for (const comp of compRows) {
@@ -431,6 +467,7 @@ class InvoiceService {
                         await connection.query('INSERT INTO discounts (invoice_id, discount_type, discount_value, reason, created_at) VALUES (?, "loyalty", ?, "Potongan Loyalitas Selamanya", NOW())', [invoiceId, loyaltyDiscountTotal]);
                     }
                     invoiceIds.push(invoiceId);
+                    processedCustomerIds.add(subscription.customer_id);
                     // Update related records
                     if (compRows.length > 0) {
                         await connection.query(`UPDATE customer_compensations SET status = 'applied', applied_invoice_id = ?, applied_at = NOW() WHERE id IN (?)`, [invoiceId, compRows.map(c => c.id)]);
@@ -443,10 +480,9 @@ class InvoiceService {
                         // 4. Update source invoices for carry-over debt to prevent double listing
                         try {
                             const [existingNotesResult] = await connection.query('SELECT id, notes FROM invoices WHERE id IN (?)', [oldInvoiceIds]);
-                            // We need to update note per old invoice to avoid overwriting them all with same string
                             for (const inv of existingNotesResult) {
                                 const newNote = (inv.notes || '') + `\n[CARRIED OVER to Period ${period} Invoice ${invoiceId}]`;
-                                await connection.query(`UPDATE invoices SET status = 'paid', remaining_amount = 0, notes = ? WHERE id = ?`, [newNote, inv.id]);
+                                await connection.query(`UPDATE invoices SET status = 'carried_over', remaining_amount = 0, notes = ? WHERE id = ?`, [newNote, inv.id]);
                             }
                             // Deactivate the old debt tracking since it's now applied to a NEW invoice (if any)
                             await connection.query('UPDATE debt_tracking SET status = "applied" WHERE invoice_id IN (?) AND status = "active"', [oldInvoiceIds]);
@@ -475,12 +511,16 @@ class InvoiceService {
                 LEFT JOIN static_ip_clients sip ON c.id = sip.customer_id
                 LEFT JOIN static_ip_packages sp ON sip.package_id = sp.id
                 LEFT JOIN pppoe_packages pp ON c.pppoe_profile_id = pp.profile_id
-                WHERE c.status = 'active'
-                AND c.is_isolated = FALSE
+                WHERE LOWER(c.status) = 'active'
                 AND c.id NOT IN (SELECT customer_id FROM invoices WHERE period = ?)
-                AND c.id NOT IN (SELECT customer_id FROM subscriptions)
+                AND c.id NOT IN (SELECT customer_id FROM subscriptions WHERE status = 'active')
+                /* ANTI-PREMATURE-BILLING: Pasang bulan ini, bayar bulan depan.
+                   Skip customers whose activation/created month is the SAME as the invoice period. */
+                AND (DATE_FORMAT(COALESCE(c.activation_date, c.created_at), '%Y-%m') < ? OR ? = 'true')
+                /* EXTRA SAFETY: Also skip if activation is in the current calendar month */
+                AND (DATE_FORMAT(COALESCE(c.activation_date, c.created_at), '%Y-%m') < DATE_FORMAT(CURDATE(), '%Y-%m') OR ? = 'true')
             `;
-            const customerParams = [period];
+            const customerParams = [period, period, forceAll ? 'true' : 'false', forceAll ? 'true' : 'false'];
             if (!forceAll && !customerIds) {
                 customerQuery += ` AND DAY(c.created_at) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) `;
             }
@@ -499,7 +539,15 @@ class InvoiceService {
             const [customerResult] = await connection.query(customerQuery, customerParams);
             console.log(`[InvoiceService] Found ${customerResult.length} eligible customers without active subscriptions`);
             for (const customer of customerResult) {
+                if (processedCustomerIds.has(customer.customer_id))
+                    continue;
                 try {
+                    // Check if invoice ALREADY EXISTS for this customer and period (Safety double-check)
+                    const [existing] = await connection.query('SELECT id FROM invoices WHERE customer_id = ? AND period = ?', [customer.customer_id, period]);
+                    if (existing.length > 0) {
+                        processedCustomerIds.add(customer.customer_id);
+                        continue;
+                    }
                     await connection.beginTransaction();
                     const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
                     const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
@@ -512,7 +560,13 @@ class InvoiceService {
                     }
                     const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
                     const targetDayFallback = Math.min(baseDay, daysInMonth);
-                    const dueDate = new Date(periodYear, periodMonth - 1, targetDayFallback);
+                    let dueDate = new Date(periodYear, periodMonth - 1, targetDayFallback);
+                    // GRACE PERIOD: Same logic for fallback customers
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (dueDate < today) {
+                        dueDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+                    }
                     const yearStr = dueDate.getFullYear();
                     const monthStr = String(dueDate.getMonth() + 1).padStart(2, '0');
                     const dayStr = String(dueDate.getDate()).padStart(2, '0');
@@ -528,10 +582,27 @@ class InvoiceService {
                         subtotal = parseFloat(customer.pppoe_pkg_price || customer.static_pkg_price) || 0;
                         packageName = customer.pppoe_pkg_name || customer.static_pkg_name || 'Paket PPPoE';
                     }
-                    // Fallback to default if still 0
+                    // Fallback: check last subscription (even if inactive) before using hard default
                     if (subtotal <= 0) {
-                        subtotal = 100000;
-                        packageName = 'Layanan Internet (Default)';
+                        try {
+                            const [lastSub] = await connection.query(`SELECT package_name, price FROM subscriptions 
+                                 WHERE customer_id = ? 
+                                 ORDER BY updated_at DESC LIMIT 1`, [customer.customer_id]);
+                            if (lastSub.length > 0 && parseFloat(lastSub[0].price) > 0) {
+                                subtotal = parseFloat(lastSub[0].price);
+                                packageName = lastSub[0].package_name || 'Layanan Internet';
+                                console.log(`[InvoiceService] Fallback: Using last subscription price for ${customer.customer_name}: ${packageName} = Rp ${subtotal}`);
+                            }
+                            else {
+                                subtotal = 100000;
+                                packageName = 'Layanan Internet (Default)';
+                            }
+                        }
+                        catch (subErr) {
+                            console.error(`[InvoiceService] Error fetching last subscription for fallback:`, subErr);
+                            subtotal = 100000;
+                            packageName = 'Layanan Internet (Default)';
+                        }
                     }
                     let deviceFee = 0;
                     if (deviceRentalEnabled && customer.use_device_rental) {
@@ -589,6 +660,7 @@ class InvoiceService {
                         notes: carryOverAmount > 0 ? `Include carry over: Rp ${carryOverAmount.toLocaleString('id-ID')} (Customer Fallback)` : 'Tagihan bulanan (Customer Fallback)'
                     }, items, connection);
                     invoiceIds.push(invoiceId);
+                    processedCustomerIds.add(customer.customer_id);
                     if (amountFromBalance > 0) {
                         await connection.execute('UPDATE customers SET account_balance = account_balance - ? WHERE id = ?', [amountFromBalance, customer.customer_id]);
                         await connection.execute('INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at) VALUES (?, "balance", ?, NOW(), "COMPLETED", "Otomatis potong saldo", 0, NOW())', [invoiceId, amountFromBalance]);
@@ -599,7 +671,7 @@ class InvoiceService {
                             const [existingNotesResult] = await connection.query('SELECT id, notes FROM invoices WHERE id IN (?)', [oldInvoiceIds]);
                             for (const inv of existingNotesResult) {
                                 const newNote = (inv.notes || '') + `\n[CARRIED OVER to Period ${period} Invoice ${invoiceId}]`;
-                                await connection.query(`UPDATE invoices SET status = 'paid', remaining_amount = 0, notes = ? WHERE id = ?`, [newNote, inv.id]);
+                                await connection.query(`UPDATE invoices SET status = 'carried_over', remaining_amount = 0, notes = ? WHERE id = ?`, [newNote, inv.id]);
                             }
                             await connection.query('UPDATE debt_tracking SET status = "applied" WHERE invoice_id IN (?) AND status = "active"', [oldInvoiceIds]);
                             await connection.query('UPDATE carry_over_invoices SET status = "applied" WHERE customer_id = ? AND status = "pending"', [customer.customer_id]);
@@ -696,6 +768,15 @@ class InvoiceService {
                     await connection.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
                     await connection.execute('DELETE FROM discounts WHERE invoice_id = ?', [id]);
                     await connection.execute('DELETE FROM debt_tracking WHERE invoice_id = ?', [id]);
+                    await connection.execute('DELETE FROM invoice_payment_sessions WHERE invoice_id = ?', [id]);
+                    await connection.execute('DELETE FROM payment_transactions WHERE invoice_id = ?', [id]);
+                    await connection.execute('DELETE FROM payment_verifications WHERE invoice_id = ?', [id]);
+                    try {
+                        await connection.execute('DELETE FROM customer_late_payment_tracking WHERE invoice_id = ?', [id]);
+                    }
+                    catch (e) { /* ignore if table missing */ }
+                    // Unlink compensations instead of deleting them (so they can be reapplied)
+                    await connection.execute('UPDATE customer_compensations SET status = "pending", applied_invoice_id = NULL, applied_at = NULL WHERE applied_invoice_id = ?', [id]);
                     // Cleanup any notification queue entries
                     await connection.execute('DELETE FROM unified_notifications_queue WHERE invoice_id = ?', [id]);
                     // Delete invoice

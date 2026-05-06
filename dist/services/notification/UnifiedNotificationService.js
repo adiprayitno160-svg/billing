@@ -121,8 +121,20 @@ class UnifiedNotificationService {
                 // Replace variables in template
                 let title = NotificationTemplateService_1.NotificationTemplateService.replaceVariables(template.title_template, allVariables);
                 let message = NotificationTemplateService_1.NotificationTemplateService.replaceVariables(template.message_template, allVariables);
-                // Inject isolation info if it's an invoice_created notification
+                // Inject dynamic notification info for cicilan and tunggakan/janji bayar
                 const vars = allVariables;
+                if (data.notification_type === 'payment_partial') {
+                    message += `\n\n📌 *Info Pembayaran*: Anda telah melakukan cicilan pembayaran sebesar *Rp ${vars.paid_amount || 0}*. Kekurangan tagihan sebesar *Rp ${vars.remaining_amount || 0}* mohon dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan.`;
+                }
+                else if (data.notification_type === 'payment_debt') {
+                    if (vars.due_date && vars.due_date !== '-') {
+                        message += `\n\n📌 *Info Janji Bayar*: Tagihan Anda dialihkan menjadi tunggakan/janji bayar dengan sisa tagihan sebesar *Rp ${vars.remaining_amount || 0}*. Mohon komitmen pembayaran sesuai dengan janji bayar yang disepakati, yaitu paling lambat *${vars.due_date}*.`;
+                    }
+                    else {
+                        message += `\n\n📌 *Info Tunggakan*: Tagihan Anda sebesar *Rp ${vars.remaining_amount || 0}* telah dialihkan menjadi tunggakan. Mohon pembayaran segera dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan untuk menghindari pemblokiran layanan.`;
+                    }
+                }
+                // Inject isolation info if it's an invoice_created notification
                 if (data.notification_type === 'invoice_created' && vars.isolation_date) {
                     const isolationInfo = `\n\n*PENTING:* Pembayaran paling lambat diterima tanggal *${vars.due_date}*. Apabila sampai tanggal tersebut belum ada pembayaran, maka layanan akan diisolir otomatis pada tanggal *${vars.isolation_date}*.\n\n_Abaikan pesan ini jika sudah melakukan pembayaran._`;
                     if (!message.includes('diisolir')) {
@@ -329,11 +341,11 @@ class UnifiedNotificationService {
             }
             let processedInThisBatch = 0;
             for (const notif of notifications) {
-                // Anti-spam: Wait 12 seconds between each message if requested
-                // User requested 12 second intervals between messages (max 5 per minute)
+                // Anti-spam: Random delay between 15-45 seconds for mass notifications
                 if (processedInThisBatch > 0) {
-                    console.log(`[UnifiedNotification] ⏳ Waiting 12 seconds before next message...`);
-                    await this.delay(12000);
+                    const randomDelay = Math.floor(Math.random() * (45000 - 15000 + 1)) + 15000;
+                    console.log(`[UnifiedNotification] ⏳ Waiting ${Math.round(randomDelay / 1000)} seconds before next message (Anti-Ban Dynamic Delay)...`);
+                    await this.delay(randomDelay);
                 }
                 console.log(`[UnifiedNotification] 🔍 Processing notification ID: ${notif.id}`, {
                     customer_id: notif.customer_id,
@@ -468,7 +480,15 @@ class UnifiedNotificationService {
      * Send notification via appropriate channel
      */
     static async sendNotification(notification, customer) {
-        const fullMessage = `${notification.title}\n\n${notification.message}`;
+        let fullMessage = `${notification.title}\n\n${notification.message}`;
+        // ANTI-BAN: Add random invisible character or emoji to ensure message uniqueness
+        const emojis = ['✨', '📌', '🔔', '🚀', '✅', '💡', '🌟', '🛡️', '📊', '📅'];
+        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+        const timestampSuffix = `\n\n_Ref: ${Math.random().toString(36).substring(7).toUpperCase()}_ ${randomEmoji}`;
+        // Only add unique suffix if it's not already too long and it's a reminder-type message
+        if (fullMessage.length < 3500 && (notification.notification_type.includes('reminder') || notification.notification_type.includes('warning') || notification.notification_type === 'invoice_created')) {
+            fullMessage += timestampSuffix;
+        }
         console.log(`[UnifiedNotification] 📤 Sending ${notification.channel} notification to customer ${notification.customer_id}...`);
         console.log(`[UnifiedNotification] 📋 Details:`, {
             notification_id: notification.id,
@@ -941,13 +961,16 @@ class UnifiedNotificationService {
                 });
                 // NOTIFIKASI ADMIN: Nina & Diki
                 try {
-                    const adminSummary = `📌 *INFORMASI HUTANG BARU (SISTEM)*\n\n` +
+                    const isJanji = invoice.status === 'janji_bayar';
+                    const typeLabel = isJanji ? 'JANJI BAYAR' : 'TUNGGAKAN/HUTANG';
+                    const adminSummary = `📌 *INFORMASI ${typeLabel} (SISTEM)*\n\n` +
                         `👤 *Pelanggan:* ${invoice.customer_name}\n` +
                         `🆔 *Kode:* ${invoice.customer_code}\n` +
                         `🧾 *No:* ${invoice.invoice_number}\n` +
-                        `💰 *Hutang:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount))}\n` +
+                        `💰 *Sisa Tagihan:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount))}\n` +
+                        (invoice.due_date ? `📆 *Tgl Janji:* ${NotificationTemplateService_1.NotificationTemplateService.formatDate(new Date(invoice.due_date))}\n` : '') +
                         `📅 *Bulan:* ${billingMonth}\n\n` +
-                        `Tagihan telah dipindahkan ke daftar hutang. Mohon pimpinan (Nina / Diki) untuk memantau.`;
+                        `Tagihan telah dipindahkan ke status ${typeLabel.toLowerCase()}. Mohon pimpinan (Nina / Diki) untuk memantau.`;
                     await this.broadcastToAdmins(adminSummary);
                 }
                 catch (adminErr) {
@@ -959,6 +982,39 @@ class UnifiedNotificationService {
                 console.error(`[UnifiedNotification] ❌ Failed to queue debt notification for invoice ${invoiceId}:`, queueError);
                 return [];
             }
+        }
+        finally {
+            connection.release();
+        }
+    }
+    /**
+     * Send notification for Janji Bayar explicitly
+     */
+    static async notifyJanjiBayar(invoiceId, sendImmediately = true) {
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            const { getBillingMonth } = await Promise.resolve().then(() => __importStar(require('../../utils/periodHelper')));
+            const [invoiceRows] = await connection.query(`SELECT i.*, c.name as customer_name, c.customer_code FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE i.id = ?`, [invoiceId]);
+            if (invoiceRows.length === 0)
+                return [];
+            const invoice = invoiceRows[0];
+            const billingMonth = getBillingMonth(invoice.period, new Date(), invoice.due_date);
+            const ids = await this.queueNotification({
+                customer_id: invoice.customer_id,
+                invoice_id: invoiceId,
+                notification_type: 'janji_bayar',
+                variables: {
+                    customer_name: invoice.customer_name,
+                    customer_code: invoice.customer_code,
+                    invoice_number: invoice.invoice_number,
+                    billing_month: billingMonth,
+                    remaining_amount: NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount)),
+                    due_date: invoice.due_date ? NotificationTemplateService_1.NotificationTemplateService.formatDate(new Date(invoice.due_date)) : '-',
+                    notes: invoice.notes || ''
+                },
+                send_immediately: sendImmediately
+            });
+            return ids;
         }
         finally {
             connection.release();
