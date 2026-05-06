@@ -30,6 +30,7 @@ export class TelegramUserController {
             // Get Telegram bot info
             const botInfo = telegramBotService.getBotInfo();
 
+            res.render('monitoring/telegram/users', {
                 title: 'Telegram Users Management',
                 users,
                 botInfo,
