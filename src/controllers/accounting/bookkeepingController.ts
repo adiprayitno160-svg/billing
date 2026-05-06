@@ -19,7 +19,7 @@ export class BookkeepingController {
             res.render('accounting/bookkeeping', {
                 title: 'Pembukuan',
                 currentPath: '/accounting/bookkeeping',
-                user: req.user,
+                user: (req as any).user,
                 data: data,
                 startDate: startDate || '',
                 endDate: endDate || '',

@@ -149,7 +149,7 @@ export class KasirController {
             res.render('kasir/dashboard', {
                 title: 'Dashboard Kasir',
                 currentPath: '/kasir/dashboard',
-                user: req.user,
+                user: (req as any).user,
                 stats: stats,
                 recentTransactions: recentTransactionsData.data,
                 currentMonth: currentMonth,
@@ -180,7 +180,7 @@ export class KasirController {
             res.render('kasir/transactions', {
                 title: 'Transaksi Kasir',
                 currentPath: '/kasir/transactions',
-                user: req.user,
+                user: (req as any).user,
                 transactions: transactions.data,
                 pagination: transactions.pagination,
                 search: search,
@@ -261,7 +261,7 @@ export class KasirController {
                 res.render('kasir/payments', {
                     title: 'Proses Pembayaran',
                     currentPath: '/kasir/payments',
-                    user: req.user,
+                    user: (req as any).user,
                     recentCustomers: recentCustomers,
                     currentMonth: month === 'current',
                     layout: 'layouts/kasir'
@@ -552,7 +552,7 @@ export class KasirController {
                 res.render('kasir/customer-detail', {
                     title: `Profil: ${customer.name}`,
                     currentPath: '/kasir/payments',
-                    user: req.user,
+                    user: (req as any).user,
                     customer: customer,
                     invoices: invoices,
                     payments: payments,
@@ -577,7 +577,7 @@ export class KasirController {
             res.render('kasir/print', {
                 title: 'Print Tagihan Individual',
                 currentPath: '/kasir/print',
-                user: req.user,
+                user: (req as any).user,
                 layout: 'layouts/kasir'
             });
         } catch (error) {
@@ -652,7 +652,7 @@ export class KasirController {
                 res.render('kasir/print-group', {
                     title: 'Print Tagihan Kelompok',
                     currentPath: '/kasir/print-group',
-                    user: req.user,
+                    user: (req as any).user,
                     odcList: odcList,
                     stats: stats[0] || {},
                     layout: 'layouts/kasir'
@@ -895,7 +895,7 @@ export class KasirController {
             res.render('kasir/reports', {
                 title: 'Laporan Kasir',
                 currentPath: '/kasir/reports',
-                user: req.user,
+                user: (req as any).user,
                 reports: reports,
                 startDate: startDate,
                 endDate: endDate,
@@ -1035,7 +1035,7 @@ export class KasirController {
                 parseFloat(amount) || 0,
                 paymentMethod || 'cash',
                 notes || '',
-                req.user!.id,
+                (req as any).user!.id,
                 paymentType,
                 useBalance === 'true' || useBalance === true,
                 req.body.selectedInvoiceIds
@@ -2137,7 +2137,7 @@ export class KasirController {
                 verification.invoice_id,
                 amount || verification.amount,
                 `Verified from WhatsApp proof - ${verification.reason || ''}`,
-                req.user!.id
+                (req as any).user!.id
             ]);
 
             const paymentId = paymentResult.insertId;
@@ -2171,7 +2171,7 @@ export class KasirController {
                     approved_at = NOW(),
                     payment_id = ?
                 WHERE id = ?
-            `, [req.user!.id, paymentId, id]);
+            `, [(req as any).user!.id, paymentId, id]);
 
             // Check if customer qualifies for auto-restore after verification approval
             try {
@@ -2227,7 +2227,7 @@ export class KasirController {
                         rejected_at = NOW(),
                         reject_reason = ?
                     WHERE id = ?
-                `, [req.user!.id, reason || 'Bukti pembayaran tidak valid', id]);
+                `, [(req as any).user!.id, reason || 'Bukti pembayaran tidak valid', id]);
 
                 // Send WhatsApp notification to customer about rejection
                 const [verificRows] = await conn.query<RowDataPacket[]>(
@@ -2371,7 +2371,7 @@ export class KasirController {
                 res.render('kasir/debt', {
                     title: 'Daftar Hutang Pelanggan',
                     currentPath: '/kasir/debt',
-                    user: req.user,
+                    user: (req as any).user,
                     debts,
                     search,
                     pagination: {

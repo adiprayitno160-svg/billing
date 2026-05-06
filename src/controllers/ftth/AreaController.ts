@@ -7,7 +7,7 @@ export class AreaController {
             const [areas] = await databasePool.query('SELECT * FROM ftth_areas ORDER BY name ASC');
             res.render('ftth/areas/index', {
                 title: 'Data Master Area',
-                user: req.user,
+                user: (req as any).user,
                 areas: areas,
                 path: '/ftth/areas'
             });
@@ -21,7 +21,7 @@ export class AreaController {
     static async create(req: Request, res: Response) {
         res.render('ftth/areas/add', {
             title: 'Tambah Area Baru',
-            user: req.user,
+            user: (req as any).user,
             path: '/ftth/areas'
         });
     }
@@ -51,7 +51,7 @@ export class AreaController {
             }
             res.render('ftth/areas/edit', {
                 title: 'Edit Area',
-                user: req.user,
+                user: (req as any).user,
                 area: rows[0],
                 path: '/ftth/areas'
             });

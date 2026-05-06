@@ -25,7 +25,7 @@ export class StaticIpImportController {
 
             res.render('settings/import-static-ip', {
                 title: 'Import Static IP MikroTik',
-                user: req.user,
+                user: (req as any).user,
                 customers: customers,
                 packages: packages,
                 layout: 'layouts/main'
@@ -159,7 +159,7 @@ export class StaticIpImportController {
 
             res.render('customers/import_mikrotik', {
                 title: 'Import Pelanggan dari MikroTik',
-                user: req.user,
+                user: (req as any).user,
                 packages: packages,
                 layout: 'layouts/main'
             });
@@ -309,7 +309,7 @@ export class StaticIpImportController {
                     connectionType: 'static_ip',
                     address: address,
                     packageName: packageName,
-                    createdBy: (req.user as any)?.username || 'System Import'
+                    createdBy: ((req as any).user as any)?.username || 'System Import'
                 });
                 console.log(`[Import] Notification Result:`, notifResult);
 

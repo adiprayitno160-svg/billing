@@ -144,7 +144,7 @@ export class PrepaidController {
 
             const result = await PrepaidService.confirmPayment(
                 parseInt(paymentRequestId),
-                req.user?.id || null,
+                (req as any).user?.id || null,
                 paymentMethod || 'transfer'
             );
 

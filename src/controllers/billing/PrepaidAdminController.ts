@@ -66,7 +66,7 @@ export class PrepaidAdminController {
                 currentStatus: status,
                 currentPage: page,
                 totalPages: Math.ceil(stats.total / limit),
-                user: req.user
+                user: (req as any).user
             });
         } catch (error) {
             console.error('Error in payment monitoring:', error);
@@ -120,7 +120,7 @@ export class PrepaidAdminController {
     static async approvePayment(req: Request, res: Response): Promise<void> {
         try {
             const { id } = req.params;
-            const userId = (req.user as any)?.id;
+            const userId = ((req as any).user as any)?.id;
 
             // Import PrepaidService
             const { PrepaidService } = await import('../../services/billing/PrepaidService');
@@ -237,7 +237,7 @@ export class PrepaidAdminController {
                 packageStats,
                 dailyTrend,
                 voucherStats,
-                user: req.user
+                user: (req as any).user
             });
         } catch (error) {
             console.error('Error loading reports:', error);
@@ -266,7 +266,7 @@ export class PrepaidAdminController {
             res.render('prepaid/vouchers', {
                 title: 'Voucher Management',
                 vouchers,
-                user: req.user
+                user: (req as any).user
             });
         } catch (error) {
             console.error('Error listing vouchers:', error);
@@ -281,7 +281,7 @@ export class PrepaidAdminController {
         try {
             const voucherData = {
                 ...req.body,
-                created_by: (req.user as any)?.id
+                created_by: ((req as any).user as any)?.id
             };
 
             const voucherId = await VoucherService.createVoucher(voucherData);
@@ -371,7 +371,7 @@ export class PrepaidAdminController {
                 title: 'Referral Tracking',
                 referrals,
                 stats: stats[0] || {},
-                user: req.user
+                user: (req as any).user
             });
         } catch (error) {
             console.error('Error loading referral tracking:', error);

@@ -8,7 +8,7 @@ export class OntViewController {
             const onts = await OntService.listOnts();
             res.render('ftth/ont/index', {
                 title: 'Data Master ONT',
-                user: req.user,
+                user: (req as any).user,
                 onts: onts,
                 path: '/ftth/ont'
             });
@@ -29,7 +29,7 @@ export class OntViewController {
 
             res.render('ftth/ont/add', {
                 title: 'Tambah ONT Baru',
-                user: req.user,
+                user: (req as any).user,
                 path: '/ftth/ont',
                 olts, odcs, odps, customers
             });
@@ -93,7 +93,7 @@ export class OntViewController {
 
             res.render('ftth/ont/edit', {
                 title: 'Edit ONT',
-                user: req.user,
+                user: (req as any).user,
                 path: '/ftth/ont',
                 ont,
                 olts, odcs, odps, customers
