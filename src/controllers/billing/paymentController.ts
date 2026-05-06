@@ -1636,13 +1636,13 @@ export class PaymentController {
             await conn.commit();
 
             // 4. Notifications (Non-blocking)
-            if (firstPaymentId || payment_type === 'janji_bayar' || payment_type === 'debt') {
+            if (firstPaymentId || paymentType === 'janji_bayar' || paymentType === 'debt') {
                 import('../../services/notification/UnifiedNotificationService').then(({ UnifiedNotificationService }) => {
-                    if (payment_type === 'janji_bayar') {
+                    if (paymentType === 'janji_bayar') {
                         // Send Janji Bayar confirmation to customer
                         UnifiedNotificationService.notifyJanjiBayar(selectedInvoiceIds[0], true)
                             .catch(err => console.error('[AdminPayment] Failed to send customer janji bayar receipt:', err));
-                    } else if (payment_type === 'debt') {
+                    } else if (paymentType === 'debt') {
                         // Send Debt notification to customer
                         UnifiedNotificationService.notifyPaymentDebt(selectedInvoiceIds[0], true)
                             .catch(err => console.error('[AdminPayment] Failed to send customer debt notification:', err));
@@ -1653,8 +1653,8 @@ export class PaymentController {
                     }
 
                     // Admin Broadcast
-                    if (payment_type === 'debt' || payment_type === 'janji_bayar') {
-                        const typeLabel = payment_type === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
+                    if (paymentType === 'debt' || paymentType === 'janji_bayar') {
+                        const typeLabel = paymentType === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
                         const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `📆 *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';
                         
                         UnifiedNotificationService.broadcastToAdmins(
