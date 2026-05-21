@@ -444,6 +444,14 @@ async function start() {
 			// Initialize Backup Scheduler
 			const { BackupScheduler } = await import('./services/backup/BackupScheduler');
 			BackupScheduler.init();
+			
+			// Initialize Auto-Update Scheduler
+			try {
+				const { autoUpdateScheduler } = await import('./schedulers/autoUpdateScheduler');
+				autoUpdateScheduler.start();
+			} catch (error) {
+				console.error('⚠️ Error initializing Auto Update Scheduler:', error);
+			}
 
 			// Initialize Media Cleanup Service
 			const { MediaCleanupService } = await import('./services/cron/MediaCleanupService');

@@ -808,7 +808,8 @@ router.get('/tagihan/:id/print', async (req, res) => {
             const companyInfo: any = {};
             (companyRows || []).forEach((row: any) => { companyInfo[row.setting_key] = row.setting_value; });
 
-            res.render('billing/tagihan-print', {
+            const template = req.query.format === 'thermal' ? 'billing/tagihan-print-thermal' : 'billing/tagihan-print';
+            res.render(template, {
                 title: `Print Invoice ${invoice.invoice_number}`,
                 invoice,
                 items,
