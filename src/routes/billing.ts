@@ -136,6 +136,47 @@ router.get('/rekap/unpaid', async (req, res) => {
     } catch (error) { res.status(500).send('Error'); }
 });
 
+// Rekap Tunggakan (Arrears Summary)
+router.get('/rekap/tunggakan', async (req, res) => {
+    try {
+        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+        try {
+            const { search } = req.query;
+            let query = `
+                SELECT 
+                    c.id, c.customer_code, c.name, c.phone, c.address,
+                    COUNT(i.id) as unpaid_months_count,
+                    GROUP_CONCAT(i.period ORDER BY i.period ASC) as unpaid_periods,
+                    SUM(i.total_amount - i.paid_amount) as total_arrears
+                FROM customers c
+                JOIN invoices i ON c.id = i.customer_id
+                WHERE i.status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang') 
+                  AND c.status != 'deleted'
+            `;
+            const params: any[] = [];
+            
+            if (search) {
+                query += " AND (c.name LIKE ? OR c.customer_code LIKE ?)";
+                params.push('%' + search + '%', '%' + search + '%');
+            }
+            
+            query += " GROUP BY c.id HAVING unpaid_months_count > 0 ORDER BY unpaid_months_count DESC, total_arrears DESC";
+            
+            const [arrears] = await conn.query(query, params) as any;
+            
+            res.render('billing/rekap-tunggakan', { 
+                title: 'Rekap Tunggakan Pelanggan', 
+                currentPath: '/billing/rekap/tunggakan',
+                arrears,
+                search: search || ''
+            });
+        } finally { conn.release(); }
+    } catch (error) { 
+        console.error('Error fetching rekap tunggakan:', error);
+        res.status(500).render('error', { title: 'Error', message: 'Gagal memuat rekap tunggakan' }); 
+    }
+});
+
 // Rekap Transactions PDF
 router.get('/rekap/transactions', async (req, res) => {
     try {

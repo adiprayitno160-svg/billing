@@ -62,6 +62,8 @@ export interface NotificationData {
 }
 
 export class UnifiedNotificationService {
+  private static processingPayments = new Set<number>();
+
   /**
    * Queue notification for sending
    */
@@ -121,7 +123,7 @@ export class UnifiedNotificationService {
           WHERE customer_id = ? 
             AND notification_type = ? 
             AND channel = ?
-            AND (status = 'pending' OR (status = 'sent' AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)))
+            AND (status IN ('pending', 'processing') OR (status = 'sent' AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)))
         `;
         const duplicateCheckParams: any[] = [data.customer_id, data.notification_type, channel];
 
@@ -188,6 +190,15 @@ export class UnifiedNotificationService {
           const isolationInfo = `\n\n*PENTING:* Pembayaran paling lambat diterima tanggal *${vars.due_date}*. Apabila sampai tanggal tersebut belum ada pembayaran, maka layanan akan diisolir otomatis pada tanggal *${vars.isolation_date}*.\n\n_Abaikan pesan ini jika sudah melakukan pembayaran._`;
           if (!message.includes('diisolir')) {
             message += isolationInfo;
+          }
+        }
+
+        // Add auto-verification prompt for invoice-related notifications
+        const invoiceNotificationTypes = ['invoice_created', 'invoice_reminder', 'invoice_overdue', 'payment_debt'];
+        if (invoiceNotificationTypes.includes(data.notification_type)) {
+          const autoVerifyInfo = `\n\n🤖 *Pembayaran Lebih Cepat & Mudah!*\nAnda dapat langsung membalas pesan ini dengan *mengirimkan foto bukti transfer*. Sistem cerdas kami akan otomatis memverifikasi pembayaran Anda dalam hitungan detik tanpa perlu menunggu Admin.`;
+          if (!message.includes('bukti transfer')) {
+            message += autoVerifyInfo;
           }
         }
 
@@ -1032,6 +1043,13 @@ export class UnifiedNotificationService {
    */
   static async notifyPaymentReceived(paymentId: number, sendImmediately: boolean = true): Promise<number[]> {
     console.log(`[UnifiedNotification] 🔔 notifyPaymentReceived called for paymentId: ${paymentId}, sendImmediately: ${sendImmediately}`);
+    
+    if (this.processingPayments.has(paymentId)) {
+       console.log(`[UnifiedNotification] ⚠️ Prevention: notifyPaymentReceived already processing for paymentId: ${paymentId}`);
+       return [];
+    }
+    this.processingPayments.add(paymentId);
+    
     const connection = await databasePool.getConnection();
 
     try {

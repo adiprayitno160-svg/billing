@@ -102,11 +102,15 @@ export class PrepaidDashboardController {
                         c.customer_code,
                         c.name as customer_name,
                         c.phone,
-                        pp.name as package_name,
+                        CASE 
+                            WHEN c.connection_type = 'static_ip' THEN sp.name
+                            ELSE pp.name
+                        END as package_name,
                         u.username as verified_by_username
                     FROM prepaid_transactions pt
                     LEFT JOIN customers c ON pt.customer_id = c.id
-                    LEFT JOIN pppoe_packages pp ON pt.package_id = pp.id
+                    LEFT JOIN pppoe_packages pp ON pt.package_id = pp.id AND c.connection_type = 'pppoe'
+                    LEFT JOIN static_ip_packages sp ON pt.package_id = sp.id AND c.connection_type = 'static_ip'
                     LEFT JOIN users u ON pt.verified_by = u.id
                     ORDER BY pt.created_at DESC
                     LIMIT 100
@@ -178,7 +182,10 @@ export class PrepaidDashboardController {
                         c.customer_code,
                         c.name as customer_name,
                         c.phone,
-                        pp.name as package_name,
+                        CASE 
+                            WHEN c.connection_type = 'static_ip' THEN sp.name
+                            ELSE pp.name
+                        END as package_name,
                         CASE 
                             WHEN pr.status = 'pending' AND pr.expires_at > NOW() THEN 'active'
                             WHEN pr.status = 'pending' AND pr.expires_at <= NOW() THEN 'expired'
@@ -187,7 +194,8 @@ export class PrepaidDashboardController {
                         TIMESTAMPDIFF(MINUTE, NOW(), pr.expires_at) as minutes_remaining
                     FROM payment_requests pr
                     LEFT JOIN customers c ON pr.customer_id = c.id
-                    LEFT JOIN pppoe_packages pp ON pr.package_id = pp.id
+                    LEFT JOIN pppoe_packages pp ON pr.package_id = pp.id AND c.connection_type = 'pppoe'
+                    LEFT JOIN static_ip_packages sp ON pr.package_id = sp.id AND c.connection_type = 'static_ip'
                     WHERE pr.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                     ORDER BY 
                         CASE 
@@ -256,13 +264,18 @@ export class PrepaidDashboardController {
                 // Get package distribution
                 const [packageStats] = await conn.query<RowDataPacket[]>(`
                     SELECT 
-                        pp.name as package_name,
+                        CASE 
+                            WHEN c.connection_type = 'static_ip' THEN sp.name
+                            ELSE pp.name
+                        END as package_name,
                         COUNT(pt.id) as count,
                         SUM(pt.amount) as revenue
                     FROM prepaid_transactions pt
-                    LEFT JOIN pppoe_packages pp ON pt.package_id = pp.id
+                    LEFT JOIN customers c ON pt.customer_id = c.id
+                    LEFT JOIN pppoe_packages pp ON pt.package_id = pp.id AND c.connection_type = 'pppoe'
+                    LEFT JOIN static_ip_packages sp ON pt.package_id = sp.id AND c.connection_type = 'static_ip'
                     WHERE ${dateCondition}
-                    GROUP BY pt.package_id
+                    GROUP BY package_name
                     ORDER BY count DESC
                 `);
 

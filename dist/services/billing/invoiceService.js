@@ -296,13 +296,11 @@ class InvoiceService {
                 WHERE s.status = 'active' 
                 AND LOWER(c.status) = 'active'
                 /* ANTI-PREMATURE-BILLING: Pasang bulan ini, bayar bulan depan.
-                   Skip customers whose activation month is the SAME as the invoice period.
-                   Only generate invoices for periods AFTER the activation month. */
-                AND (DATE_FORMAT(COALESCE(s.activation_date, s.start_date), '%Y-%m') < ? OR ? = 'true')
-                /* EXTRA SAFETY: Also skip if activation_date is in the current calendar month */
-                AND (DATE_FORMAT(COALESCE(s.activation_date, s.start_date), '%Y-%m') < DATE_FORMAT(CURDATE(), '%Y-%m') OR ? = 'true')
+                   Hanya tagih periode yang LEBIH BESAR DARI bulan pemasangan.
+                   (Aturan ketat, tidak bisa di-bypass oleh forceAll) */
+                AND DATE_FORMAT(COALESCE(s.activation_date, s.start_date), '%Y-%m') < ?
             `;
-            const queryParams = [period, forceAll ? 'true' : 'false', forceAll ? 'true' : 'false'];
+            const queryParams = [period];
             if (!forceAll && !customerIds) {
                 // Modified: check for current day and past days to catch up, up to H-7
                 // If it's the start of the month (Day 1), bypass the day check to generate for ALL active customers
@@ -515,12 +513,11 @@ class InvoiceService {
                 AND c.id NOT IN (SELECT customer_id FROM invoices WHERE period = ?)
                 AND c.id NOT IN (SELECT customer_id FROM subscriptions WHERE status = 'active')
                 /* ANTI-PREMATURE-BILLING: Pasang bulan ini, bayar bulan depan.
-                   Skip customers whose activation/created month is the SAME as the invoice period. */
-                AND (DATE_FORMAT(COALESCE(c.activation_date, c.created_at), '%Y-%m') < ? OR ? = 'true')
-                /* EXTRA SAFETY: Also skip if activation is in the current calendar month */
-                AND (DATE_FORMAT(COALESCE(c.activation_date, c.created_at), '%Y-%m') < DATE_FORMAT(CURDATE(), '%Y-%m') OR ? = 'true')
+                   Hanya tagih periode yang LEBIH BESAR DARI bulan pemasangan.
+                   (Aturan ketat, tidak bisa di-bypass oleh forceAll) */
+                AND DATE_FORMAT(COALESCE(c.activation_date, c.created_at), '%Y-%m') < ?
             `;
-            const customerParams = [period, period, forceAll ? 'true' : 'false', forceAll ? 'true' : 'false'];
+            const customerParams = [period, period];
             if (!forceAll && !customerIds) {
                 customerQuery += ` AND DAY(c.created_at) <= DAY(DATE_ADD(CURDATE(), INTERVAL 7 DAY)) `;
             }

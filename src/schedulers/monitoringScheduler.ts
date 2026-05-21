@@ -60,8 +60,8 @@ export class MonitoringScheduler {
             this.startPrepaidCheck();
 
             // 7. Prepaid Expiry Warnings (H-3, H-1) - Every day at 9:00 AM
-            // DISABLED: Sends expiry warnings via WhatsApp
-            // this.startPrepaidExpiryWarnings();
+            // ENABLED: Sends expiry warnings via WhatsApp
+            this.startPrepaidExpiryWarnings();
 
             // 8. Enhanced Customer Monitoring (Timeout/Recovery Detection) - Every 15 minutes
             // DISABLED: Sends timeout/recovery notifications

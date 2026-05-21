@@ -26,6 +26,7 @@ export interface AdvancedVerificationResult {
         time?: string;
         fraudIndicators: any[];
         reasoning?: string;
+        noActiveInvoices?: boolean;
     };
     actions?: {
         paymentRecorded?: boolean;

@@ -1221,18 +1221,6 @@ class PaymentController {
                 manualDiscountType: manual_discount_type,
                 dueDate: janji_bayar_date || null
             });
-            // Trigger WA Notification (Non-blocking)
-            if (result.success) {
-                Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService'))).then(({ UnifiedNotificationService }) => {
-                    if (payment_type === 'debt') {
-                        // If debt, notify specifically about debt (using first invoice as reference)
-                        UnifiedNotificationService.notifyPaymentDebt(invoiceIds[0]).catch(err => console.error('[AdminPayment] Notification failed (Debt):', err));
-                    }
-                    else if (result.paymentId) {
-                        UnifiedNotificationService.notifyPaymentReceived(result.paymentId).catch(err => console.error('[AdminPayment] Notification failed:', err));
-                    }
-                }).catch(err => console.error('[AdminPayment] Import error:', err));
-            }
             res.json(result);
         }
         catch (error) {
@@ -1349,14 +1337,14 @@ class PaymentController {
             }
             await conn.commit();
             // 4. Notifications (Non-blocking)
-            if (firstPaymentId || payment_type === 'janji_bayar' || payment_type === 'debt') {
+            if (firstPaymentId || paymentType === 'janji_bayar' || paymentType === 'debt') {
                 Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService'))).then(({ UnifiedNotificationService }) => {
-                    if (payment_type === 'janji_bayar') {
+                    if (paymentType === 'janji_bayar') {
                         // Send Janji Bayar confirmation to customer
                         UnifiedNotificationService.notifyJanjiBayar(selectedInvoiceIds[0], true)
                             .catch(err => console.error('[AdminPayment] Failed to send customer janji bayar receipt:', err));
                     }
-                    else if (payment_type === 'debt') {
+                    else if (paymentType === 'debt') {
                         // Send Debt notification to customer
                         UnifiedNotificationService.notifyPaymentDebt(selectedInvoiceIds[0], true)
                             .catch(err => console.error('[AdminPayment] Failed to send customer debt notification:', err));
@@ -1367,8 +1355,8 @@ class PaymentController {
                             .catch(err => console.error('[AdminPayment] Failed to send customer receipt:', err));
                     }
                     // Admin Broadcast
-                    if (payment_type === 'debt' || payment_type === 'janji_bayar') {
-                        const typeLabel = payment_type === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
+                    if (paymentType === 'debt' || paymentType === 'janji_bayar') {
+                        const typeLabel = paymentType === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
                         const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `📆 *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';
                         UnifiedNotificationService.broadcastToAdmins(`📌 *INFORMASI ${typeLabel} BARU (ADMIN)*\n\n` +
                             `👤 *Pelanggan ID:* ${customerId}\n` +

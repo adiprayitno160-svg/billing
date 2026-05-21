@@ -60,13 +60,17 @@ class PrepaidAdminController {
                     c.name as customer_name,
                     c.phone as customer_phone,
                     c.customer_code,
-                    pkg.name as package_name,
+                    CASE 
+                        WHEN c.connection_type = 'static_ip' THEN sp.name
+                        ELSE pp.name
+                    END as package_name,
                     pm.name as payment_method_name,
                     v.code as voucher_code,
                     v.name as voucher_name
                 FROM payment_requests pr
                 LEFT JOIN customers c ON pr.customer_id = c.id
-                LEFT JOIN prepaid_packages pkg ON pr.package_id = pkg.id
+                LEFT JOIN pppoe_packages pp ON pr.package_id = pp.id AND c.connection_type = 'pppoe'
+                LEFT JOIN static_ip_packages sp ON pr.package_id = sp.id AND c.connection_type = 'static_ip'
                 LEFT JOIN payment_methods pm ON pr.payment_method_id = pm.id
                 LEFT JOIN vouchers v ON pr.voucher_id = v.id
                 WHERE 1=1 ${statusFilter}
@@ -107,14 +111,18 @@ class PrepaidAdminController {
                     c.phone as customer_phone,
                     c.customer_code,
                     c.expiry_date as current_expiry,
-                    pkg.name as package_name,
-                    pkg.duration_days as package_duration,
+                    CASE 
+                        WHEN c.connection_type = 'static_ip' THEN sp.name
+                        ELSE pp.name
+                    END as package_name,
+                    pr.duration_days as package_duration,
                     pm.name as payment_method_name,
                     v.code as voucher_code,
                     v.discount_amount as voucher_discount_amount
                 FROM payment_requests pr
                 LEFT JOIN customers c ON pr.customer_id = c.id
-                LEFT JOIN prepaid_packages pkg ON pr.package_id = pkg.id
+                LEFT JOIN pppoe_packages pp ON pr.package_id = pp.id AND c.connection_type = 'pppoe'
+                LEFT JOIN static_ip_packages sp ON pr.package_id = sp.id AND c.connection_type = 'static_ip'
                 LEFT JOIN payment_methods pm ON pr.payment_method_id = pm.id
                 LEFT JOIN vouchers v ON pr.voucher_id = v.id
                 WHERE pr.id = ?`, [id]);
@@ -190,13 +198,18 @@ class PrepaidAdminController {
                 WHERE status = 'verified' AND ${dateFilter}`);
             // Package distribution
             const [packageStats] = await pool_1.databasePool.query(`SELECT 
-                    pkg.name as package_name,
+                    CASE 
+                        WHEN c.connection_type = 'static_ip' THEN sp.name
+                        ELSE pp.name
+                    END as package_name,
                     COUNT(*) as count,
                     SUM(pr.total_amount - pr.voucher_discount) as revenue
                 FROM payment_requests pr
-                LEFT JOIN prepaid_packages pkg ON pr.package_id = pkg.id
+                LEFT JOIN customers c ON pr.customer_id = c.id
+                LEFT JOIN pppoe_packages pp ON pr.package_id = pp.id AND c.connection_type = 'pppoe'
+                LEFT JOIN static_ip_packages sp ON pr.package_id = sp.id AND c.connection_type = 'static_ip'
                 WHERE pr.status = 'verified' AND ${dateFilter}
-                GROUP BY pkg.id, pkg.name
+                GROUP BY package_name
                 ORDER BY count DESC`);
             // Daily trend (last 30 days)
             const [dailyTrend] = await pool_1.databasePool.query(`SELECT 

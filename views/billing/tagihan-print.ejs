@@ -20,7 +20,7 @@
             --slate-900: #0f172a;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0 8mm 0 2mm; box-sizing: border-box; }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -35,7 +35,7 @@
             width: 210mm;
             min-height: 297mm;
             padding: 15mm;
-            margin: 0 auto;
+            margin: 0;
             position: relative;
             box-shadow: 0 0 50px rgba(0,0,0,0.1);
             display: none; /* Controlled by body class */
@@ -210,7 +210,7 @@
         .btn-green { background: #10b981; }
 
         /* Thermal Receipt */
-        .page-thermal { display: none; width: 58mm; background: white; padding: 10px; font-family: 'Inter', sans-serif; font-size: 10px; }
+        .page-thermal { display: none; width: 48mm; background: white; padding: 2mm 4mm 4mm 2mm; font-family: 'Inter', sans-serif; font-size: 9px; }
 
         @media print {
             .no-print-bar { display: none !important; }
@@ -246,7 +246,7 @@
                     </div>
                     <div class="invoice-meta">
                         <h2>INVOICE</h2>
-                        <div class="number">REF #<%= invoice.invoice_number %></div>
+                        <div class="number">#<%= invoice.invoice_number %></div>
                     </div>
                 </div>
 

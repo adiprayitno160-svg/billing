@@ -8,22 +8,22 @@
         body {
             background: #fff;
             color: #000;
-            width: 52mm;
-            padding: 2mm 1mm 4mm 1mm;
+            width: 48mm;
+            padding: 2mm 4mm 4mm 2mm;
             font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
-            font-size: 10px !important;
+            font-size: 9px !important;
             line-height: 1.2;
             font-weight: 600;
         }
         .header { text-align: center; margin-bottom: 1.5mm; }
-        .company-name { font-size: 12px !important; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
+        .company-name { font-size: 11px !important; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
         .sep { border-top: 1px dashed black; height: 1px; margin: 1mm 0; clear: both; }
         .sep-bold { border-top: 1px solid black; height: 1px; margin: 1mm 0; clear: both; }
         .row { clear: both; overflow: hidden; margin-bottom: 0.8mm; width: 100%; }
         .lbl { float: left; width: 35%; text-align: left; }
         .val { float: right; width: 63%; text-align: right; word-break: break-word; }
         .total-row {
-            font-size: 11px !important;
+            font-size: 10px !important;
             font-weight: bold;
             padding-top: 1.5mm;
             margin-top: 1mm;
@@ -35,7 +35,7 @@
             text-align: center; border: 1.5px solid #000; padding: 2px; margin: 2mm 0; font-weight: 900; font-size: 10pt; text-transform: uppercase;
         }
         @media print {
-            body { width: 52mm; }
+            body { width: 48mm; padding-right: 4mm; }
         }
     </style>
 </head>
@@ -49,7 +49,7 @@
 
     <div class="row">
         <div class="lbl" style="width: 30%; font-size: 8px;"><%= new Date(invoice.created_at).toLocaleDateString('id-ID') %></div>
-        <div class="val" style="width: 68%; font-size: 8px;">REF: #<%= invoice.invoice_number %></div>
+        <div class="val" style="width: 68%; font-size: 8px;">#<%= invoice.invoice_number %></div>
     </div>
 
     <div class="sep"></div>

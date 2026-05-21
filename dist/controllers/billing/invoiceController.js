@@ -102,7 +102,12 @@ class InvoiceController {
                     COALESCE(
                         (SELECT SUM(amount) FROM payments WHERE invoice_id = i.id),
                         0
-                    ) as total_paid
+                    ) as total_paid,
+                    EXISTS(
+                        SELECT 1 FROM invoice_items ii 
+                        WHERE ii.invoice_id = i.id 
+                        AND (LOWER(ii.description) LIKE '%tunggakan%' OR LOWER(ii.description) LIKE '%kekurangan%')
+                    ) as has_tunggakan
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc odc ON c.odc_id = odc.id

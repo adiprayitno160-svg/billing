@@ -3639,10 +3639,23 @@ router.post('/customers/new-static-ip', async (req, res) => {
         // Validation: ODP required only if NOT wireless mode
         if (!is_wireless && !odp_id) throw new Error('ODP wajib dipilih (kecuali Mode Wireless)');
 
-        // Validate customer_code if provided
-        if (customer_code && customer_code.trim() !== '') {
-            const conn = await databasePool.getConnection();
-            try {
+        // Validate Static IP conflict
+        const conn = await databasePool.getConnection();
+        try {
+            // Clean the IP address (remove subnet mask if present for exact matching, or match exact string)
+            // Usually the user inputs IP with subnet like 192.168.1.10/24
+            const [existingIpRows] = await conn.execute(
+                'SELECT c.name FROM static_ip_clients sic JOIN customers c ON sic.customer_id = c.id WHERE sic.ip_address = ?',
+                [ip_address.trim()]
+            );
+
+            if (Array.isArray(existingIpRows) && existingIpRows.length > 0) {
+                const existingCustomer = (existingIpRows as any)[0];
+                throw new Error(`IP Address "${ip_address}" sudah digunakan oleh pelanggan "${existingCustomer.name}". Transaksi ditolak untuk mencegah konflik IP.`);
+            }
+
+            // Validate customer_code if provided
+            if (customer_code && customer_code.trim() !== '') {
                 const [existingCodeRows] = await conn.execute(
                     'SELECT id, name FROM customers WHERE customer_code = ?',
                     [customer_code.trim()]
@@ -3652,9 +3665,9 @@ router.post('/customers/new-static-ip', async (req, res) => {
                     const existingCustomer = (existingCodeRows as any)[0];
                     throw new Error(`Kode pelanggan "${customer_code}" sudah digunakan oleh pelanggan "${existingCustomer.name}"`);
                 }
-            } finally {
-                conn.release();
             }
+        } finally {
+            conn.release();
         }
 
         // PREVENT DUPLICATE NAME (Double Submit Protection Backend)

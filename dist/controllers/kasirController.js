@@ -964,9 +964,6 @@ class KasirController {
                             UnifiedNotificationService.notifyPaymentDebt(parseInt(invIds[0])).catch(err => console.error('[KasirController] Failed to send debt notification:', err));
                         }
                     }
-                    else if (paymentResult.paymentId) {
-                        UnifiedNotificationService.notifyPaymentReceived(paymentResult.paymentId).catch(err => console.error('[KasirController] Failed to send payment notification:', err));
-                    }
                 }).catch(err => console.error('[KasirController] Failed to import NotificationService:', err));
                 // Redirect to handle print receipt popup in frontend
                 if (paymentResult.paymentId) {

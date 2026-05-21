@@ -1361,7 +1361,20 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     const staticIpUpdates: string[] = [];
                     const staticIpValues: any[] = [];
 
-                    if (req.body.ip_address) { staticIpUpdates.push('ip_address = ?'); staticIpValues.push(req.body.ip_address); }
+                    if (req.body.ip_address) { 
+                        // Validate Static IP conflict
+                        const [existingIpRows] = await conn.execute(
+                            'SELECT c.name FROM static_ip_clients sic JOIN customers c ON sic.customer_id = c.id WHERE sic.ip_address = ? AND sic.customer_id != ?',
+                            [req.body.ip_address.trim(), customerId]
+                        );
+                        if (Array.isArray(existingIpRows) && existingIpRows.length > 0) {
+                            const existingCustomer = (existingIpRows as any)[0];
+                            throw new Error(`IP Address "${req.body.ip_address}" sudah digunakan oleh pelanggan "${existingCustomer.name}". Transaksi ditolak untuk mencegah konflik IP.`);
+                        }
+
+                        staticIpUpdates.push('ip_address = ?'); 
+                        staticIpValues.push(req.body.ip_address); 
+                    }
                     if (req.body.gateway) { staticIpUpdates.push('gateway_ip = ?'); staticIpValues.push(req.body.gateway); }
                     if (req.body.interface) { staticIpUpdates.push('interface = ?'); staticIpValues.push(req.body.interface); }
                     if (req.body.static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(req.body.static_ip_package); }

@@ -200,25 +200,18 @@ export class WhatsAppHandler {
 
                         await service.sendMessage(senderJid, `✅ *PEMBAYARAN DITERIMA*\n\nTerima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.\n\nStatus: *${statusStr}* 🎉`);
 
-                        console.log(`[AutoApprove] Preparing PDF for invoice ID: ${result.data.invoiceId}`);
-                        if (result.data.invoiceId) {
-                            try {
-                                const { InvoicePdfService } = await import('../../services/invoice/InvoicePdfService');
-                                console.log('[AutoApprove] Generating PDF...');
-                                const pdfPath = await InvoicePdfService.generateInvoicePdf(result.data.invoiceId);
-                                console.log(`[AutoApprove] PDF generated at ${pdfPath}. Sending...`);
-                                
-                                const sendResult = await service.sendDocument(senderJid, pdfPath, `Invoice-${result.data.invoiceNumber || result.data.invoiceId}-LUNAS.pdf`, '📄 *Bukti Pembayaran Lunas*');
-                                console.log(`[AutoApprove] PDF send result: ${JSON.stringify(sendResult)}`);
-                            } catch (error: any) {
-                                console.error('[AutoApprove] CRITICAL PDF Generation / Sending Error:', error);
-                            }
-                        } else {
-                            console.warn('[AutoApprove] No invoiceId attached to verification result. PDF will not be sent.');
-                        }
+                        // PDF akan dikirim otomatis oleh UnifiedNotificationService melalui background job
+                        console.log(`[AutoApprove] Quick reply sent. PDF receipt will be handled by UnifiedNotificationService.`);
                     } else {
                         // Manual Review
                         let reason = result.error || 'Bukti tidak dapat dibaca otomatis.';
+
+                        // Cek jika pengguna tidak memiliki tagihan aktif
+                        if (result.data?.noActiveInvoices || reason === 'Tidak ada tagihan atau permintaan pembayaran yang aktif') {
+                            await service.sendMessage(senderJid, `✅ Bukti pembayaran diterima.\n\nNamun, saat ini Anda *tidak memiliki tagihan aktif* yang perlu dibayar (Mungkin sudah lunas atau diproses).\n\nJika ini adalah kesalahan, silakan hubungi admin.`);
+                            return;
+                        }
+
                         if (result.data?.amountMatch === 'mismatch' && result.data?.expectedAmount) {
                             reason = `Nominal terbaca (Rp ${result.data.extractedAmount?.toLocaleString('id-ID')}) tidak sesuai dengan tagihan (Rp ${result.data.expectedAmount.toLocaleString('id-ID')}).`;
                         } else if (result.data && result.data.confidence > 50) {
@@ -645,30 +638,20 @@ Ketik *Menu* untuk memulai.`);
 
 Terima kasih, pembayaran sebesar *Rp ${amountStr}* untuk *${invStr}* telah berhasil diverifikasi otomatis.
 
-Status: *LUNAS* 🎉
+Status: *LUNAS* 🎉`);
 
-_Invoice lunas dilampirkan dibawah ini..._`);
-
-                        // 2. Generate and Send PDF with Stamp
-                        if (result.data.invoiceId) {
-                            try {
-                                const { InvoicePdfService } = await import('../../services/invoice/InvoicePdfService');
-                                const pdfPath = await InvoicePdfService.generateInvoicePdf(result.data.invoiceId);
-
-                                await service.sendDocument(
-                                    senderJid,
-                                    pdfPath,
-                                    `Invoice-${result.data.invoiceNumber}-LUNAS.pdf`,
-                                    '📄 *Bukti Pembayaran Lunas*'
-                                );
-                            } catch (pdfErr) {
-                                console.error('Failed to generate/send PDF:', pdfErr);
-                                await service.sendMessage(senderJid, '⚠️ Gagal membuat PDF invoice, namun pembayaran sudah tercatat lunas di sistem.');
-                            }
-                        }
+                        // PDF akan dikirim otomatis oleh UnifiedNotificationService melalui background job
+                        console.log(`[AutoApprove] Quick reply sent. PDF receipt will be handled by UnifiedNotificationService.`);
                     } else {
                         // Failed / Manual Review Needed
                         let reason = result.error || 'Bukti tidak dapat dibaca otomatis/Nominal tidak sesuai.';
+
+                        // Cek jika pengguna tidak memiliki tagihan aktif
+                        if (result.data?.noActiveInvoices || reason === 'Tidak ada tagihan atau permintaan pembayaran yang aktif') {
+                            await service.sendMessage(senderJid, `✅ Bukti pembayaran diterima.\n\nNamun, saat ini Anda *tidak memiliki tagihan aktif* yang perlu dibayar (Mungkin sudah lunas atau diproses).\n\nJika ini adalah kesalahan, silakan hubungi admin.`);
+                            return;
+                        }
+
                         if (result.data && result.data.confidence > 50) {
                             reason = 'Menunggu verifikasi admin (Manual Review).';
                         }

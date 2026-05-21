@@ -43,7 +43,7 @@ class TechnicianController {
     // Dashboard
     static async dashboard(req, res) {
         try {
-            // Use req.user which is set by isAuthenticated middleware
+            // Use (req as any).user which is set by isAuthenticated middleware
             const user = req.user;
             const userId = user?.id;
             const userRole = user?.role;

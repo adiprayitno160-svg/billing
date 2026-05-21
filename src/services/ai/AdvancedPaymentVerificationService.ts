@@ -32,6 +32,7 @@ export interface AdvancedVerificationResult {
         time?: string;
         fraudIndicators: any[];
         reasoning?: string;
+        noActiveInvoices?: boolean;
     };
     actions?: {
         paymentRecorded?: boolean;
@@ -147,7 +148,8 @@ export class AdvancedPaymentVerificationService {
                         confidence: matchResult.confidence,
                         riskLevel: 'medium',
                         riskScore: 50,
-                        fraudIndicators: []
+                        fraudIndicators: [],
+                        noActiveInvoices: matchResult.details?.noActiveInvoices
                     }
                 };
             }
@@ -534,7 +536,8 @@ PENTING:
                     details: {
                         error: 'Tidak ada tagihan atau permintaan pembayaran yang aktif',
                         invoiceCount: 0,
-                        requestCount: 0
+                        requestCount: 0,
+                        noActiveInvoices: true
                     },
                     warnings: []
                 };

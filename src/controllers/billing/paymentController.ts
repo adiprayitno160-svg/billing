@@ -1425,22 +1425,6 @@ export class PaymentController {
                 dueDate: janji_bayar_date || null
             });
 
-            // Trigger WA Notification (Non-blocking)
-            if (result.success) {
-                import('../../services/notification/UnifiedNotificationService').then(({ UnifiedNotificationService }) => {
-                    if (payment_type === 'debt') {
-                        // If debt, notify specifically about debt (using first invoice as reference)
-                        UnifiedNotificationService.notifyPaymentDebt(invoiceIds[0]).catch(err => 
-                            console.error('[AdminPayment] Notification failed (Debt):', err)
-                        );
-                    } else if (result.paymentId) {
-                        UnifiedNotificationService.notifyPaymentReceived(result.paymentId).catch(err => 
-                            console.error('[AdminPayment] Notification failed:', err)
-                        );
-                    }
-                }).catch(err => console.error('[AdminPayment] Import error:', err));
-            }
-
             res.json(result);
 
         } catch (error: any) {

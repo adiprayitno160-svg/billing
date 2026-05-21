@@ -19,6 +19,7 @@ export interface NotificationData {
     send_immediately?: boolean;
 }
 export declare class UnifiedNotificationService {
+    private static processingPayments;
     /**
      * Queue notification for sending
      */
