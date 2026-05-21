@@ -38,7 +38,7 @@
     <% if (invoices && invoices.length > 0) {
         invoices.forEach(invoice => { %>
             <div class="checklist-item">
-                <div class="row"><span>[ ] LUNAS</span><span class="val">#<%= invoice.invoice_number %></span></div>
+                <div class="row"><span>[ ] LUNAS</span><span class="val"><%= invoice.invoice_number %></span></div>
                 <div class="row"><span>Nama:</span><span class="val"><%= invoice.customer_name %></span></div>
                 <div class="row"><span>Total:</span><span class="val">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span></div>
             </div>

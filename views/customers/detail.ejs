@@ -311,7 +311,7 @@
                                     <tbody class="divide-y divide-slate-50">
                                         <% invoices.forEach(invoice => { %>
                                             <tr class="hover:bg-slate-50/30 transition-colors">
-                                                <td class="px-8 py-5 font-mono font-bold text-slate-800">#<%= invoice.invoice_number %></td>
+                                                <td class="px-8 py-5 font-mono font-bold text-slate-800"><%= invoice.invoice_number %></td>
                                                 <td class="px-8 py-5 text-slate-600 font-medium"><%= invoice.period %></td>
                                                 <td class="px-8 py-5 text-right font-black text-slate-900 font-mono">
                                                     Rp <%= parseFloat(invoice.total_amount).toLocaleString('id-ID') %>

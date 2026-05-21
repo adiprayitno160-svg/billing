@@ -16,7 +16,7 @@
 <body>
     <div style="text-align: center; font-weight: bold; font-size: 10pt; margin-bottom: 2mm;"><%= company.company_name %></div>
     <div class="row"><span>Nama:</span><span class="val"><%= invoice.customer_name %></span></div>
-    <div class="row"><span>Ref:</span><span class="val">#<%= invoice.invoice_number %></span></div>
+    <div class="row"><span>Ref:</span><span class="val"><%= invoice.invoice_number %></span></div>
     <hr style="border: none; border-top: 1px dashed #000; margin: 2mm 0;">
     <div class="row"><span>Internet:</span><span class="val">Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span></div>
     <div class="total"><span>TOTAL</span><span>Rp <%= new Intl.NumberFormat('id-ID').format(invoice.total_amount) %></span></div>
