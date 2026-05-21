@@ -427,6 +427,14 @@ async function start() {
             // Initialize Backup Scheduler
             const { BackupScheduler } = await Promise.resolve().then(() => __importStar(require('./services/backup/BackupScheduler')));
             BackupScheduler.init();
+            // Initialize Auto-Update Scheduler
+            try {
+                const { autoUpdateScheduler } = await Promise.resolve().then(() => __importStar(require('./schedulers/autoUpdateScheduler')));
+                autoUpdateScheduler.start();
+            }
+            catch (error) {
+                console.error('⚠️ Error initializing Auto Update Scheduler:', error);
+            }
             // Initialize Media Cleanup Service
             const { MediaCleanupService } = await Promise.resolve().then(() => __importStar(require('./services/cron/MediaCleanupService')));
             MediaCleanupService.startScheduler(90); // 90 days retention

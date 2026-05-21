@@ -5,7 +5,7 @@
 
 import cron from 'node-cron';
 import { checkForUpdates, getUpdateSettings, performFullUpdate } from '../services/aboutService';
-import { AppError } from '../middleware/errorHandler';
+
 
 export class AutoUpdateScheduler {
     private job: cron.ScheduledTask | null = null;
@@ -39,7 +39,7 @@ export class AutoUpdateScheduler {
 
         } catch (error) {
             console.error('[AutoUpdateScheduler] Failed to start:', error);
-            throw new AppError(500, 'Failed to start auto-update scheduler');
+            throw new Error('Failed to start auto-update scheduler');
         }
     }
 

@@ -314,6 +314,12 @@ router.get('/print-all', async (req, res) => {
                 }
             }
 
+            // Get company info
+            const [companyRows] = await conn.query(
+                'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
+            ) as any;
+            const companyInfo = (companyRows || [])[0] || {};
+
             // Choose view based on format
             const viewName = format === 'thermal'
                 ? 'billing/tagihan-print-all'
@@ -322,6 +328,7 @@ router.get('/print-all', async (req, res) => {
             res.render(viewName, {
                 title: 'Print Semua Tagihan',
                 invoices,
+                companyInfo,
                 filters: { status, odc_id, search, period },
                 format: format || 'thermal',
                 layout: false  // No layout for print pages

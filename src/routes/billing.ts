@@ -644,6 +644,12 @@ router.get('/tagihan/print-all', async (req, res) => {
                 }
             }
 
+            // Get company info
+            const [companyRows] = await conn.query(
+                'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
+            ) as any;
+            const companyInfo = (companyRows || [])[0] || {};
+
             // Choose view based on format parameter
             const viewName = format === 'thermal'
                 ? 'billing/tagihan-print-all'
@@ -652,6 +658,7 @@ router.get('/tagihan/print-all', async (req, res) => {
             res.render(viewName, {
                 title: 'Print Semua Tagihan',
                 invoices,
+                companyInfo,
                 filters: { status, odc_id, search, period },
                 format: format || 'thermal',
                 layout: false
@@ -801,12 +808,11 @@ router.get('/tagihan/:id/print', async (req, res) => {
             invoice.items = items || [];
             invoice.discounts = discounts || [];
 
-            // Get company info for thermal print
+            // Get company info for print
             const [companyRows] = await conn.query(
-                "SELECT * FROM settings WHERE setting_key IN ('company_name', 'company_phone', 'company_address', 'company_website', 'company_logo') ORDER BY setting_key"
+                'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
             ) as any;
-            const companyInfo: any = {};
-            (companyRows || []).forEach((row: any) => { companyInfo[row.setting_key] = row.setting_value; });
+            const companyInfo = (companyRows || [])[0] || {};
 
             const template = req.query.format === 'thermal' ? 'billing/tagihan-print-thermal' : 'billing/tagihan-print';
             res.render(template, {
@@ -875,11 +881,18 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
             invoice.items = items || [];
             invoice.discounts = discounts || [];
 
+            // Get company info for thermal print
+            const [companyRows] = await conn.query(
+                'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
+            ) as any;
+            const companyInfo = (companyRows || [])[0] || {};
+
             res.render('billing/tagihan-print-thermal', {
                 title: `Print Thermal ${invoice.invoice_number}`,
                 invoice,
                 items,
                 discounts,
+                companyInfo,
                 layout: false
             });
         } finally {
