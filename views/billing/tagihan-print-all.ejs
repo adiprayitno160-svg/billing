@@ -12,10 +12,8 @@
         
         body {
             font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif !important;
-            font-size: 9px !important;
-            width: 48mm;
-            margin: 0 auto;
-            padding: 0 2mm;
+            font-size: 10px !important;
+            width: 50mm; margin: 0 auto; padding-left: 2mm; padding-right: 2mm;
             background: white;
             line-height: 1.2;
             font-weight: 600;
@@ -24,7 +22,7 @@
         .no-print { display: block; text-align: center; padding: 15px; background: #EEE; border-bottom: 1px solid #CCC; margin-bottom: 10px; width: auto !important; }
         @media print { 
             .no-print { display: none !important; } 
-            body { width: 48mm; margin: 0 auto; padding: 0 2mm; }
+            body { width: 50mm; margin: 0 auto; padding-left: 2mm; padding-right: 2mm; }
         }
 
         .receipt {
@@ -36,20 +34,20 @@
         }
 
         .header { text-align: center; margin-bottom: 1.5mm; }
-        .company-name { font-size: 11px !important; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: -0.3px; }
-        .company-info { font-size: 8px !important; font-weight: normal; }
+        .company-name { font-size: 12px !important; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; letter-spacing: -0.3px; }
+        .company-info { font-size: 9px !important; font-weight: normal; }
 
         /* FLOAT-BASED ROWS - ANTI TERPOTONG */
-        .row { clear: both; overflow: hidden; margin-bottom: 0.8mm; border-bottom: none; width: 100%; font-size: 9px !important; }
-        .lbl { float: left; width: 35%; text-align: left; font-weight: 600; font-size: 9px !important; }
-        .val { float: right; width: 63%; text-align: right; font-weight: 600; font-size: 9px !important; word-break: break-word; }
+        .row { clear: both; overflow: hidden; margin-bottom: 0.8mm; border-bottom: none; width: 100%; font-size: 10px !important; }
+        .lbl { float: left; width: 35%; text-align: left; font-weight: 600; font-size: 10px !important; }
+        .val { float: right; width: 63%; text-align: right; font-weight: 600; font-size: 10px !important; word-break: break-word; }
         
         /* HR / SEPARATOR */
         .sep { border-top: 1px dashed black; height: 1px; margin: 1mm 0; clear: both; }
         .sep-bold { border-top: 1px solid black; height: 1px; margin: 1mm 0; clear: both; }
 
         .total-row {
-            font-size: 10px !important;
+            font-size: 11px !important;
             font-weight: bold;
             padding-top: 1.5mm;
             margin-top: 1mm;
@@ -57,8 +55,8 @@
             clear: both;
             overflow: hidden;
         }
-        .total-row .lbl { font-size: 10px !important; font-weight: bold; }
-        .total-row .val { font-size: 10px !important; font-weight: bold; }
+        .total-row .lbl { font-size: 11px !important; font-weight: bold; }
+        .total-row .val { font-size: 11px !important; font-weight: bold; }
 
         @media screen {
             body { background: #f0f0f0; padding: 20px; width: auto; max-width: 400px; margin: 0 auto; }
