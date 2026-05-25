@@ -1251,7 +1251,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                         name: finalUsername,
                                         password: finalPassword || '',
                                         profile: pkg.profile_name || pkg.name,
-                                        comment: `[BILLING] ${name || oldName}`
+                                        comment: name || oldName
                                     };
 
                                     if (secretId) {
@@ -1527,7 +1527,100 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 })();
             }
 
-            // Network map sync also disabled to be safe if requested, but let's keep it unless it crashes too. 
+            // ========== STATUS SYNC TO MIKROTIK (AUTO-DISABLE) ==========
+            if (newStatus && newStatus !== oldStatus) {
+                console.log(`[Status Sync] Status changed from ${oldStatus} to ${newStatus}. Syncing to MikroTik...`);
+                (async () => {
+                    try {
+                        const targetConnType = connection_type || oldCustomer.connection_type;
+                        const config = await getMikrotikConfig();
+                        if (!config) return;
+                        
+                        const isDisabled = newStatus === 'inactive';
+
+                        if (targetConnType === 'pppoe') {
+                            const pppoeUser = req.body.pppoe_username || oldPppoeUsername;
+                            if (pppoeUser) {
+                                const { RouterOSAPI } = require('routeros-api');
+                                const api = new RouterOSAPI({
+                                    host: config.host,
+                                    port: config.port,
+                                    user: config.username,
+                                    password: config.password,
+                                    timeout: 5000
+                                });
+
+                                await api.connect();
+                                const secrets = await api.write('/ppp/secret/print', [`?name=${pppoeUser}`]);
+                                if (Array.isArray(secrets) && secrets.length > 0) {
+                                    const secretId = secrets[0]['.id'];
+                                    await api.write('/ppp/secret/set', [
+                                        `.id=${secretId}`,
+                                        `disabled=${isDisabled ? 'yes' : 'no'}`
+                                    ]);
+                                    console.log(`[Status Sync] ✅ PPPoE Secret ${pppoeUser} disabled=${isDisabled}`);
+
+                                    if (isDisabled) {
+                                        const activeConns = await api.write('/ppp/active/print', [`?name=${pppoeUser}`]);
+                                        if (Array.isArray(activeConns)) {
+                                            for (const conn of activeConns) {
+                                                await api.write('/ppp/active/remove', [`.id=${conn['.id']}`]);
+                                            }
+                                        }
+                                    }
+                                }
+                                api.close();
+                            }
+                        } else if (targetConnType === 'static_ip') {
+                            const cleanupConn = await databasePool.getConnection();
+                            try {
+                                const [staticClients] = await cleanupConn.query<RowDataPacket[]>(
+                                    'SELECT ip_address FROM static_ip_clients WHERE customer_id = ?',
+                                    [customerId]
+                                );
+
+                                if (staticClients && staticClients.length > 0) {
+                                    const clientIp = staticClients[0].ip_address;
+                                    if (clientIp) {
+                                        const { findIpAddressId, updateIpAddress } = await import('../services/mikrotikService');
+                                        let targetIp = clientIp;
+
+                                        const [ipOnly, prefixStr] = String(clientIp).split('/');
+                                        const prefix = Number(prefixStr || '0');
+                                        if (prefix === 30) {
+                                            const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                                            const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+
+                                            const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                                            const networkInt = ipToInt(ipOnly) & mask;
+                                            const firstHost = networkInt + 1;
+                                            const secondHost = networkInt + 2;
+                                            const ipInt = ipToInt(ipOnly);
+
+                                            const gwIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+                                            targetIp = `${gwIp}/${prefix}`;
+                                        }
+
+                                        let ipId = await findIpAddressId(config, targetIp);
+                                        if (!ipId) ipId = await findIpAddressId(config, targetIp.split('/')[0]);
+
+                                        if (ipId) {
+                                            await updateIpAddress(config, ipId, { disabled: isDisabled });
+                                            console.log(`[Status Sync] ✅ Static IP ${targetIp} status disabled=${isDisabled}`);
+                                        }
+                                    }
+                                }
+                            } finally {
+                                cleanupConn.release();
+                            }
+                        }
+                    } catch (syncErr) {
+                        console.error('[Status Sync] ⚠️ Failed to sync status to MikroTik:', syncErr);
+                    }
+                })();
+            }
+
+            // Network map sync also disabled to be safe if requested, but let's keep it unless it crashes too.
             // Usually internal DB sync is fine.
             try {
                 await NetworkMonitoringService.syncCustomerDevices();
@@ -1872,133 +1965,15 @@ export const bulkDeleteCustomers = async (req: Request, res: Response) => {
                         continue;
                     }
 
-                    // Send notification before deletion (must be done before customer is deleted)
-                    // Wrap in try-catch to ensure deletion continues even if notification fails
-                    try {
-                        console.log(`[BulkDelete] Attempting to send notification for customer ${customerId}...`);
-                        if (customer.phone) {
-                            try {
-                                const { NotificationTemplateService } = await import('../services/notification/NotificationTemplateService');
-                                const { whatsappService } = await import('../services/whatsapp');
-                                
-                                const template = await NotificationTemplateService.getTemplate('customer_deleted', 'whatsapp');
-                                if (template && template.is_active) {
-                                    const message = NotificationTemplateService.replaceVariables(template.message_template, {
-                                        customer_name: customer.name || 'Pelanggan',
-                                        customer_code: customer.customer_code || `#${customerId}`
-                                    });
-                                    await whatsappService.sendMessage(customer.phone, message);
-                                    console.log(`✅ [BulkDelete] Notification sent directly for customer deletion: ${customer.name} (${customer.phone})`);
-                                }
-                            } catch (queueNotifError: any) {
-                                console.error(`[BulkDelete] ⚠️ Failed to send notification (non-critical, continuing deletion):`, queueNotifError.message);
-                                // Continue with deletion even if notification fails
-                            }
-                        } else {
-                            console.log(`⚠️ No phone number for customer ${customerId} (${customer.name}), skipping notification`);
+                    // Prepare data for background cleanup
+                    if (customer.connection_type === 'static_ip') {
+                        const [staticIpClients] = await conn.query<RowDataPacket[]>(
+                            'SELECT id, client_name, ip_address, interface FROM static_ip_clients WHERE customer_id = ?',
+                            [customerId]
+                        );
+                        if (staticIpClients && staticIpClients.length > 0) {
+                            customer.staticIpData = staticIpClients[0];
                         }
-                    } catch (notifError: any) {
-                        console.error(`❌ Failed to send deletion notification for customer ${customerId} (non-critical, continuing deletion):`, notifError.message);
-                        // Continue with deletion even if notification fails - this is non-critical
-                    }
-
-                    // Delete from MikroTik based on connection type
-                    try {
-                        const { getMikrotikConfig } = await import('../services/pppoeService');
-                        const {
-                            deletePppoeSecret,
-                            removeIpAddress,
-                            removeMangleRulesForClient,
-                            deleteClientQueuesByClientName
-                        } = await import('../services/mikrotikService');
-
-                        const config = await getMikrotikConfig();
-
-                        if (config) {
-                            if (customer.connection_type === 'pppoe') {
-                                // Delete PPPoE secret from MikroTik
-                                if (customer.pppoe_username) {
-                                    try {
-                                        await deletePppoeSecret(config, customer.pppoe_username);
-                                        console.log(`✅ PPPoE secret "${customer.pppoe_username}" berhasil dihapus dari MikroTik`);
-                                    } catch (mikrotikError: any) {
-                                        console.error(`⚠️ Gagal menghapus PPPoE secret dari MikroTik:`, mikrotikError.message);
-                                        // Continue deletion even if MikroTik deletion fails
-                                    }
-                                }
-                            } else if (customer.connection_type === 'static_ip') {
-                                // Get static IP client data
-                                const [staticIpClients] = await conn.query<RowDataPacket[]>(
-                                    'SELECT id, client_name, ip_address, interface FROM static_ip_clients WHERE customer_id = ?',
-                                    [customerId]
-                                );
-
-                                if (staticIpClients && staticIpClients.length > 0) {
-                                    const staticIpClient = staticIpClients[0]!;
-
-                                    try {
-                                        // Delete client IP address from MikroTik
-                                        if (staticIpClient.ip_address) {
-                                            try {
-                                                await removeIpAddress(config, staticIpClient.ip_address);
-                                                console.log(`✅ Client IP "${staticIpClient.ip_address}" berhasil dihapus dari MikroTik`);
-                                            } catch (e: any) { console.warn(`⚠️ Client IP delete fail: ${e.message}`); }
-                                        }
-
-                                        // Calculate peer IP and marks for mangle deletion
-                                        const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-                                        const intToIp = (int: number) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-
-                                        if (staticIpClient.ip_address) {
-                                            const [ipOnlyRaw, prefixStrRaw] = String(staticIpClient.ip_address || '').split('/');
-                                            const ipOnly: string = ipOnlyRaw || '';
-                                            const prefix: number = Number(prefixStrRaw || '0');
-                                            const mask = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                                            const networkInt = ipOnly ? (ipToInt(ipOnly) & mask) : 0;
-                                            let peerIp = ipOnly;
-
-                                            if (prefix === 30) {
-                                                const firstHost = networkInt + 1;
-                                                const secondHost = networkInt + 2;
-                                                const ipInt = ipOnly ? ipToInt(ipOnly) : firstHost;
-                                                peerIp = (ipInt === firstHost) ? intToIp(secondHost) : (ipInt === secondHost ? intToIp(firstHost) : intToIp(secondHost));
-
-                                                // Delete gateway IP from MikroTik
-                                                const gatewayWithPrefix = `${peerIp}/${prefix}`;
-                                                try {
-                                                    await removeIpAddress(config, gatewayWithPrefix);
-                                                    console.log(`✅ Gateway IP "${gatewayWithPrefix}" berhasil dihapus dari MikroTik`);
-                                                } catch (e: any) { console.warn(`⚠️ Gateway IP delete fail: ${e.message}`); }
-
-                                                // Also try without prefix
-                                                try {
-                                                    await removeIpAddress(config, peerIp);
-                                                } catch (e: any) { /* ignore */ }
-                                            }
-
-                                            const downloadMark: string = peerIp;
-                                            const uploadMark: string = `UP-${peerIp}`;
-
-                                            // Delete firewall mangle rules
-                                            await removeMangleRulesForClient(config, { peerIp, downloadMark, uploadMark });
-                                            console.log(`✅ Firewall mangle rules untuk "${peerIp}" berhasil dihapus dari MikroTik`);
-
-                                            // Delete queue trees
-                                            if (staticIpClient.client_name) {
-                                                await deleteClientQueuesByClientName(config, staticIpClient.client_name);
-                                                console.log(`✅ Queue trees untuk "${staticIpClient.client_name}" berhasil dihapus dari MikroTik`);
-                                            }
-                                        }
-                                    } catch (mikrotikError: any) {
-                                        console.error(`⚠️ Gagal menghapus static IP resources dari MikroTik:`, mikrotikError.message);
-                                        // Continue deletion even if MikroTik deletion fails
-                                    }
-                                }
-                            }
-                        }
-                    } catch (mikrotikError: any) {
-                        console.error(`⚠️ Error saat menghapus dari MikroTik untuk customer ${customerId}:`, mikrotikError.message);
-                        // Continue deletion even if MikroTik deletion fails
                     }
 
                     // Delete related data first
