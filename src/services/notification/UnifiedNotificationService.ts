@@ -472,11 +472,11 @@ export class UnifiedNotificationService {
 
       let processedInThisBatch = 0;
       for (const notif of notifications) {
-        // Anti-spam: Random delay between 15-45 seconds for mass notifications
+        // Anti-spam: Fixed delay 15 seconds for mass notifications to achieve 4 msgs/minute
         if (processedInThisBatch > 0) {
-          const randomDelay = Math.floor(Math.random() * (45000 - 15000 + 1)) + 15000;
-          console.log(`[UnifiedNotification] ⏳ Waiting ${Math.round(randomDelay / 1000)} seconds before next message (Anti-Ban Dynamic Delay)...`);
-          await this.delay(randomDelay);
+          const delay = 15000;
+          console.log(`[UnifiedNotification] ⏳ Waiting ${Math.round(delay / 1000)} seconds before next message (Anti-Ban 15s Delay)...`);
+          await this.delay(delay);
         }
 
         console.log(`[UnifiedNotification] 🔍 Processing notification ID: ${notif.id}`, {
