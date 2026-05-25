@@ -221,13 +221,13 @@ export class KasirController {
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_count,
+                         AND status IN ('sent', 'overdue')) as pending_count,
                         (SELECT GROUP_CONCAT(period SEPARATOR ', ') FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_periods,
+                         AND status IN ('sent', 'overdue')) as pending_periods,
                         (SELECT SUM(total_amount - paid_amount) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as total_pending,
+                         AND status IN ('sent', 'overdue')) as total_pending,
                         (SELECT COUNT(*) FROM payment_verifications pv
                          WHERE pv.customer_id = c.id 
                          AND pv.status = 'approved' 
@@ -236,7 +236,7 @@ export class KasirController {
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     WHERE (SELECT COUNT(*) FROM invoices 
                            WHERE customer_id = c.id 
-                           AND status IN ('sent', 'partial', 'overdue', 'hutang')
+                           AND status IN ('sent', 'overdue')
                 `;
 
                 const queryParams: any[] = [];
@@ -296,10 +296,10 @@ export class KasirController {
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_count,
+                         AND status IN ('sent', 'overdue')) as pending_count,
                         (SELECT GROUP_CONCAT(period SEPARATOR ', ') FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'partial', 'overdue', 'hutang')) as pending_periods
+                         AND status IN ('sent', 'overdue')) as pending_periods
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     WHERE (c.customer_code LIKE ? 
@@ -308,7 +308,7 @@ export class KasirController {
                        OR c.pppoe_username LIKE ?)
                        AND (SELECT COUNT(*) FROM invoices 
                             WHERE customer_id = c.id 
-                            AND status IN ('sent', 'partial', 'overdue', 'hutang')) > 0
+                            AND status IN ('sent', 'overdue')) > 0
                     LIMIT 20
                 `, [`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`]);
 
@@ -341,7 +341,7 @@ export class KasirController {
                 } else if (status === 'all') {
                     // No filter
                 } else {
-                    query += " AND status IN ('sent', 'partial', 'overdue', 'hutang')";
+                    query += " AND status IN ('sent', 'overdue')";
                 }
 
                 // Default to DESC (newest first) but support ASC (oldest first for payment selection)
@@ -432,7 +432,7 @@ export class KasirController {
                 const [invoices] = await conn.query<RowDataPacket[]>(
                     `SELECT id, invoice_number, total_amount, paid_amount, period, due_date 
                      FROM invoices 
-                     WHERE customer_id = ? AND status IN ('sent', 'partial', 'overdue')
+                     WHERE customer_id = ? AND status IN ('sent', 'overdue')
                      ORDER BY period DESC LIMIT 1`,
                     [customerId]
                 );
@@ -544,7 +544,7 @@ export class KasirController {
 
                 // Calculate total debt
                 const [debtResult] = await conn.query<RowDataPacket[]>(
-                    "SELECT SUM(total_amount - paid_amount) as total_debt FROM invoices WHERE customer_id = ? AND status IN ('sent', 'partial', 'overdue')",
+                    "SELECT SUM(total_amount - paid_amount) as total_debt FROM invoices WHERE customer_id = ? AND status IN ('sent', 'overdue')",
                     [customerId]
                 );
                 const totalDebt = debtResult[0]?.total_debt || 0;
@@ -603,7 +603,7 @@ export class KasirController {
                     FROM ftth_odc o
                     LEFT JOIN customers c ON c.odc_id = o.id
                     LEFT JOIN invoices i ON i.customer_id = c.id 
-                        AND i.status IN ('sent', 'partial', 'overdue')
+                        AND i.status IN ('sent', 'overdue')
                     GROUP BY o.id
                     ORDER BY o.name ASC
                 `);
@@ -615,7 +615,7 @@ export class KasirController {
                         COUNT(DISTINCT i.id) as pending_invoice_count
                     FROM customers c
                     LEFT JOIN invoices i ON i.customer_id = c.id 
-                        AND i.status IN ('sent', 'partial', 'overdue')
+                        AND i.status IN ('sent', 'overdue')
                     WHERE c.odc_id IS NULL AND c.status = 'active'
                 `);
 
@@ -646,7 +646,7 @@ export class KasirController {
                         SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue,
                         SUM(total_amount - paid_amount) as total_amount
                     FROM invoices
-                    WHERE status IN ('sent', 'partial', 'overdue')
+                    WHERE status IN ('sent', 'overdue')
                 `);
 
                 res.render('kasir/print-group', {
@@ -711,7 +711,7 @@ export class KasirController {
                             COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
                         FROM customers c
                         LEFT JOIN invoices i ON i.customer_id = c.id 
-                            AND i.status IN ('sent', 'partial', 'overdue')
+                            AND i.status IN ('sent', 'overdue')
                         WHERE c.odc_id IS NULL
                         ORDER BY c.name ASC
                     `);
@@ -748,7 +748,7 @@ export class KasirController {
                             COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
                         FROM customers c
                         LEFT JOIN invoices i ON i.customer_id = c.id 
-                            AND i.status IN ('sent', 'partial', 'overdue')
+                            AND i.status IN ('sent', 'overdue')
                         WHERE c.odc_id = ?
                         ORDER BY c.name ASC
                     `, [odc_id]);
@@ -850,7 +850,7 @@ export class KasirController {
                     SELECT period, due_date, remaining_amount, invoice_number 
                     FROM invoices 
                     WHERE customer_id = ? 
-                    AND status IN ('sent', 'partial', 'overdue')
+                    AND status IN ('sent', 'overdue')
                     ORDER BY period ASC
                 `, [mainPayment.customer_id]);
 
@@ -1105,7 +1105,7 @@ export class KasirController {
             const [pendingStats] = await conn.query<RowDataPacket[]>(`
                 SELECT COUNT(*) as pendingPayments
                 FROM invoices 
-                WHERE status IN ('sent', 'partial', 'overdue')
+                WHERE status IN ('sent', 'overdue')
             `);
 
             // Get payment method breakdown for today
@@ -1333,7 +1333,7 @@ export class KasirController {
             let invoiceQuery = `
                 SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices 
                 WHERE customer_id = ? 
-                AND status IN ('sent', 'partial', 'overdue', 'hutang')
+                AND status IN ('sent', 'overdue')
             `;
             const queryParams: any[] = [customerId];
 

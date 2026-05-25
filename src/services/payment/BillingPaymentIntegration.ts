@@ -147,7 +147,7 @@ export class BillingPaymentIntegration {
       const newPaid = currentPaid + paymentAmount;
       const newRemaining = Math.max(0, totalAmount - newPaid);
       const isFullPayment = newRemaining <= 100; // Tolerance
-      const newStatus = isFullPayment ? 'paid' : 'partial';
+      const newStatus = isFullPayment ? 'paid' : 'hutang';
 
       // Update payment transaction status
       await connection.execute(
@@ -183,6 +183,27 @@ export class BillingPaymentIntegration {
         ]
       );
       const paymentId = (paymentResult as any).insertId;
+
+      // Handle Debt Tracking for partial payments
+      if (newStatus === 'hutang' && newRemaining > 0) {
+        // Check if debt_tracking already exists for this invoice
+        const [existingDebtRows] = await connection.execute(
+          'SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"',
+          [transaction.invoice_id]
+        );
+        if ((existingDebtRows as any[]).length > 0) {
+          await connection.execute(
+            'UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?',
+            [newRemaining, (existingDebtRows as any[])[0].id]
+          );
+        } else {
+          await connection.execute(
+            `INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, status, created_at, updated_at)
+             VALUES (?, ?, ?, 'Sisa tagihan dari pembayaran sebagian', 'active', NOW(), NOW())`,
+            [transaction.customer_id, transaction.invoice_id, newRemaining]
+          );
+        }
+      }
 
       // Check if customer qualifies for auto-restore after automated payment
       try {
