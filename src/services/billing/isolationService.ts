@@ -22,7 +22,7 @@ const ISOLATION_SYSTEM_TEMPLATE = {
     notification_type: 'service_blocked_system',
     channel: 'whatsapp',
     title_template: '🚨 LAYANAN TERBLOKIR OTOMATIS',
-    message_template: '🚨 *PEMBERITAHUAN ISOLIR OTOMATIS* 🚨\n\nHalo *{customer_name}*,\n\nMohon maaf, layanan internet Anda telah *DIBLOKIR OTOMATIS* oleh *{performed_by}* karena adanya tagihan yang melewati batas jatuh tempo.\n\n📝 *DETAIL:* \n━━━━━━━━━━━━━━━\n👤 Nama: {customer_name}\n📅 Tunggakan Bulan: {unpaid_periods}\n📦 Alasan: {reason}\n{details}\n━━━━━━━━━━━━━━━\n\n💡 *SOLUSI:* \nSegera lakukan pembayaran tagihan Anda melalui menu tagihan. Layanan akan otomatis aktif kembali dalam hitungan menit setelah pembayaran diverifikasi oleh sistem.\n\nKetik *Menu* untuk cek tagihan atau bantuan lainnya.',
+    message_template: '🚨 *PEMBERITAHUAN ISOLIR OTOMATIS* 🚨\n\nHalo *{customer_name}*,\n\nMohon maaf, layanan internet Anda telah *DIBLOKIR OTOMATIS* oleh *{performed_by}* karena adanya tagihan yang melewati batas jatuh tempo.\n\n📝 *DETAIL:* \n━━━━━━━━━━━━━━━\n👤 Nama: {customer_name}\n📅 Tunggakan Bulan: {unpaid_periods}\n📦 Alasan: {reason}\n{details}\n━━━━━━━━━━━━━━━\n\n💡 *SOLUSI:* \nSegera lakukan pembayaran tagihan Anda melalui menu tagihan. Layanan akan otomatis aktif kembali dalam hitungan menit setelah pembayaran diverifikasi oleh sistem.\n\n💡 *BUTUH WAKTU TAMBAHAN?*\nJika Anda ingin mengajukan janji bayar, silakan balas pesan ini dengan mengetik: *JANJIBAYAR*\n\nKetik *Menu* untuk cek tagihan atau bantuan lainnya.',
     variables: ['customer_name', 'reason', 'details', 'performed_by', 'unpaid_periods'],
     is_active: true,
     priority: 'high'
@@ -964,7 +964,15 @@ export class IsolationService {
     }
 
     static async getIsolatedCustomers() {
-        const [result] = await databasePool.execute('SELECT c.*, il.reason, il.created_at as isolated_at FROM customers c JOIN isolation_logs il ON c.id = il.customer_id WHERE c.is_isolated = TRUE AND il.action = "isolate" ORDER BY il.created_at DESC');
+        const query = `
+            SELECT c.*, 
+                (SELECT reason FROM isolation_logs WHERE customer_id = c.id AND action = 'isolate' ORDER BY created_at DESC LIMIT 1) as reason,
+                (SELECT created_at FROM isolation_logs WHERE customer_id = c.id AND action = 'isolate' ORDER BY created_at DESC LIMIT 1) as isolated_at
+            FROM customers c 
+            WHERE c.is_isolated = TRUE OR c.status = 'inactive'
+            ORDER BY isolated_at DESC, c.name ASC
+        `;
+        const [result] = await databasePool.execute(query);
         return result;
     }
 

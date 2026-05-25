@@ -2406,7 +2406,6 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 }
             }
 
-            // Insert customer with pppoe_username
             const insertQuery = `
                 INSERT INTO customers (
                     customer_code, name, phone, email, address, odc_id, odp_id,
@@ -2414,9 +2413,19 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     pppoe_username, pppoe_password, created_at, updated_at,
                     billing_mode, expiry_date, is_taxable, 
                     use_device_rental, rental_mode, rental_cost,
-                    serial_number, activation_date, custom_payment_deadline
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    serial_number, activation_date, custom_payment_deadline,
+                    is_fup_enabled, fup_limit_gb, fup_speed_limit,
+                    is_bonus_enabled, bonus_speed_limit, bonus_start_time, bonus_end_time
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
+
+            const is_fup_enabled_val = req.body.is_fup_enabled === '1' || req.body.is_fup_enabled === 'on' || req.body.is_fup_enabled === true ? 1 : 0;
+            const fup_limit_gb_val = req.body.fup_limit_gb ? parseFloat(req.body.fup_limit_gb) : null;
+            const fup_speed_limit_val = req.body.fup_speed_limit || null;
+            const is_bonus_enabled_val = req.body.is_bonus_enabled === '1' || req.body.is_bonus_enabled === 'on' || req.body.is_bonus_enabled === true ? 1 : 0;
+            const bonus_speed_limit_val = req.body.bonus_speed_limit || null;
+            const bonus_start_time_val = req.body.bonus_start_time ? req.body.bonus_start_time + ':00' : null;
+            const bonus_end_time_val = req.body.bonus_end_time ? req.body.bonus_end_time + ':00' : null;
 
             console.log('Inserting customer with data:', {
                 customer_code,
@@ -2445,7 +2454,9 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 use_device_rental, rental_mode_val, rental_cost_val,
                 serial_number || null,
                 final_activation_date,
-                final_custom_payment_deadline
+                final_custom_payment_deadline,
+                is_fup_enabled_val, fup_limit_gb_val, fup_speed_limit_val,
+                is_bonus_enabled_val, bonus_speed_limit_val, bonus_start_time_val, bonus_end_time_val
             ]);
 
             // Log for debugging

@@ -493,6 +493,15 @@ async function start() {
 				console.error('⚠️ Error initializing Invoice Cleanup Scheduler:', error);
 			}
 
+			// Initialize FUP and Happy Hour Monitoring Service
+			try {
+				const { FupMonitoringService } = await import('./services/cron/FupMonitoringService');
+				FupMonitoringService.startFupCron();
+				console.log('✅ FUP & Happy Hour Scheduler initialized (every 15 min)');
+			} catch (error) {
+				console.error('⚠️ Error initializing FUP Monitoring Scheduler:', error);
+			}
+
 			// Initialize New Robust WhatsApp Service
 			if (process.env.DISABLE_WHATSAPP !== 'true') {
 				try {

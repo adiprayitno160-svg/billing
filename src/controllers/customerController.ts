@@ -766,7 +766,14 @@ export const updateCustomer = async (req: Request, res: Response) => {
             enable_billing,
             exclude_from_print,
             auto_pay_enabled,
-            auto_pay_date, loyalty_discount
+            auto_pay_date, loyalty_discount,
+            is_fup_enabled,
+            fup_limit_gb,
+            fup_speed_limit,
+            is_bonus_enabled,
+            bonus_speed_limit,
+            bonus_start_time,
+            bonus_end_time
         } = req.body;
 
         console.log('[DEBUG UPDATE] ODP ID from body:', odp_id);
@@ -1025,6 +1032,41 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 } else {
                     updateValues.push(null);
                 }
+            }
+
+            // Handle FUP and Bonus
+            if (is_fup_enabled !== undefined) {
+                updateFields.push('is_fup_enabled = ?');
+                updateValues.push(is_fup_enabled === '1' || is_fup_enabled === 'on' || is_fup_enabled === true ? 1 : 0);
+            } else if (isFullFormSubmit) {
+                updateFields.push('is_fup_enabled = 0');
+            }
+            if (fup_limit_gb !== undefined) {
+                updateFields.push('fup_limit_gb = ?');
+                updateValues.push(fup_limit_gb === '' ? null : parseFloat(fup_limit_gb));
+            }
+            if (fup_speed_limit !== undefined) {
+                updateFields.push('fup_speed_limit = ?');
+                updateValues.push(fup_speed_limit === '' ? null : fup_speed_limit);
+            }
+            
+            if (is_bonus_enabled !== undefined) {
+                updateFields.push('is_bonus_enabled = ?');
+                updateValues.push(is_bonus_enabled === '1' || is_bonus_enabled === 'on' || is_bonus_enabled === true ? 1 : 0);
+            } else if (isFullFormSubmit) {
+                updateFields.push('is_bonus_enabled = 0');
+            }
+            if (bonus_speed_limit !== undefined) {
+                updateFields.push('bonus_speed_limit = ?');
+                updateValues.push(bonus_speed_limit === '' ? null : bonus_speed_limit);
+            }
+            if (bonus_start_time !== undefined) {
+                updateFields.push('bonus_start_time = ?');
+                updateValues.push(bonus_start_time === '' ? null : bonus_start_time + ':00');
+            }
+            if (bonus_end_time !== undefined) {
+                updateFields.push('bonus_end_time = ?');
+                updateValues.push(bonus_end_time === '' ? null : bonus_end_time + ':00');
             }
 
 

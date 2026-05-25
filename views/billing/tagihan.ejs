@@ -476,8 +476,11 @@
                                     <td class="px-6 py-4">
                                         <div class="flex flex-col">
                                             <span
-                                                class="font-black text-slate-700 text-sm tracking-tighter group-hover:text-blue-600 transition-colors">
+                                                class="font-black text-slate-700 text-sm tracking-tighter group-hover:text-blue-600 transition-colors flex items-center gap-2">
                                                 <%= invoice.invoice_number %>
+                                                <% if (invoice.is_printed) { %>
+                                                    <i class="fas fa-print text-emerald-500 text-[10px]" title="Sudah Dicetak"></i>
+                                                <% } %>
                                             </span>
                                             <span class="text-[10px] font-black text-slate-400 flex items-center gap-1">
                                                 <i class="fas fa-map-marker-alt text-[8px]"></i>
@@ -637,8 +640,12 @@
                                 <a href="/billing/tagihan/<%= invoice.id %>" class="text-sm font-black text-slate-800 hover:text-blue-600 transition-colors leading-tight truncate">
                                     <%= invoice.customer_name %>
                                 </a>
-                                <span class="text-[10px] font-bold text-slate-400 truncate">
-                                    <%= invoice.invoice_number %> &bull; <%= invoice.odc_name || 'NO AREA' %>
+                                <span class="text-[10px] font-bold text-slate-400 truncate flex items-center gap-1">
+                                    <%= invoice.invoice_number %> 
+                                    <% if (invoice.is_printed) { %>
+                                        <i class="fas fa-print text-emerald-500 text-[8px]" title="Sudah Dicetak"></i>
+                                    <% } %>
+                                    &bull; <%= invoice.odc_name || 'NO AREA' %>
                                 </span>
                             </div>
                         </div>
@@ -1098,6 +1105,7 @@
                     // If popup blocked, use location.href as fallback
                     location.href = printUrl;
                 }
+                setTimeout(() => location.reload(), 2000);
                 break;
             case 'send-wanew':
                 const ok = await Swal.fire({
@@ -1393,7 +1401,10 @@
             case 'open-odc-print': openModal('odcPrintModal'); break;
             case 'detail': location.href = `/billing/tagihan/${id}${window.location.search}`; break;
             case 'pay': location.href = `/billing/tagihan/${id}/pay${window.location.search}`; break;
-            case 'print': window.open(`/billing/tagihan/${id}/print?format=thermal`, '_blank'); break;
+            case 'print': 
+                window.open(`/billing/tagihan/${id}/print?format=thermal`, '_blank'); 
+                setTimeout(() => location.reload(), 2000);
+                break;
 
             case 'promise':
                 document.getElementById('janjiBayarInvoiceId').value = id;
@@ -1466,11 +1477,15 @@
 
             case 'print-selected':
                 const ids = Array.from(getChecked()).map(cb => cb.value);
+                if (ids.length === 0) return;
                 const params = new URLSearchParams();
-                ids.forEach(id => params.append('ids[]', id));
+                params.append('ids', ids.join(','));
                 params.append('format', 'thermal');
                 params.append('t', Date.now().toString());
-                window.open('/billing/tagihan/print-all?' + params.toString(), '_blank');
+                window.open('/billing/tagihan/print-bulk-thermal?' + params.toString(), '_blank');
+                
+                // Refresh the page after 2 seconds so the print icons appear
+                setTimeout(() => location.reload(), 2000);
                 break;
 
             case 'print-all':

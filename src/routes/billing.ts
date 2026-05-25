@@ -369,6 +369,11 @@ router.get('/tagihan/print-no-odc', async (req, res) => {
 
             const [invoices] = await conn.query(invoicesQuery, queryParams) as any;
 
+            if (invoices.length > 0) {
+                const invoiceIds = invoices.map((inv: any) => inv.id);
+                await conn.query('UPDATE invoices SET is_printed = 1 WHERE id IN (?)', [invoiceIds]);
+            }
+
             // Get invoice items and discount details for each invoice
             for (const invoice of invoices) {
                 // Format period
@@ -481,6 +486,11 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
             invoicesQuery += ' ORDER BY c.name ASC';
 
             const [invoices] = await conn.query(invoicesQuery, queryParams) as any;
+
+            if (invoices.length > 0) {
+                const invoiceIds = invoices.map((inv: any) => inv.id);
+                await conn.query('UPDATE invoices SET is_printed = 1 WHERE id IN (?)', [invoiceIds]);
+            }
 
             // Get invoice items and discount details for each invoice
             for (const invoice of invoices) {
@@ -622,6 +632,10 @@ router.get('/tagihan/print-all', async (req, res) => {
             // Optimized FETCH ITEMS for each invoice
             if (invoices.length > 0) {
                 const invoiceIds = invoices.map((inv: any) => inv.id);
+                
+                // Mark as printed
+                await conn.query('UPDATE invoices SET is_printed = 1 WHERE id IN (?)', [invoiceIds]);
+
                 const [allItems] = await conn.query(
                     'SELECT * FROM invoice_items WHERE invoice_id IN (?) ORDER BY id',
                     [invoiceIds]
@@ -668,6 +682,84 @@ router.get('/tagihan/print-all', async (req, res) => {
         }
     } catch (error) {
         console.error('Error loading print all invoices:', error);
+        res.status(500).send('Error loading invoices');
+    }
+});
+
+// Bulk print selected invoices (Thermal)
+router.get('/tagihan/print-bulk-thermal', async (req, res) => {
+    try {
+        const idsRaw = req.query.ids as string;
+        if (!idsRaw) return res.status(400).send('No invoices selected');
+        
+        const invoiceIds = idsRaw.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+        if (invoiceIds.length === 0) return res.status(400).send('Invalid invoice IDs');
+
+        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
+        try {
+            // Get invoices
+            const [invoices] = await conn.query(
+                `SELECT 
+                    i.*,
+                    c.name as customer_name,
+                    c.phone as customer_phone,
+                    c.email as customer_email,
+                    c.address as customer_address,
+                    c.customer_code,
+                    i.period as raw_period,
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as unpaid_periods
+                FROM invoices i
+                LEFT JOIN customers c ON i.customer_id = c.id
+                WHERE i.id IN (?)`,
+                [invoiceIds]
+            ) as any;
+
+            if (invoices.length === 0) {
+                return res.status(404).send('No invoices found');
+            }
+
+            // Mark as printed
+            await conn.query('UPDATE invoices SET is_printed = 1 WHERE id IN (?)', [invoiceIds]);
+
+            // FETCH ITEMS for each invoice
+            const [allItems] = await conn.query(
+                'SELECT * FROM invoice_items WHERE invoice_id IN (?) ORDER BY id',
+                [invoiceIds]
+            ) as any;
+
+            const itemsMap = new Map<number, any[]>();
+            allItems.forEach((item: any) => {
+                if (!itemsMap.has(item.invoice_id)) {
+                    itemsMap.set(item.invoice_id, []);
+                }
+                itemsMap.get(item.invoice_id)?.push(item);
+            });
+
+            for (const invoice of invoices) {
+                if (invoice.period) {
+                    invoice.period = formatPeriodToMonth(invoice.period, invoice.due_date);
+                }
+                invoice.items = itemsMap.get(invoice.id) || [];
+            }
+
+            // Get company info
+            const [companyRows] = await conn.query(
+                'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
+            ) as any;
+            const companyInfo = (companyRows || [])[0] || {};
+
+            res.render('billing/tagihan-print-all', {
+                title: 'Print Semua Tagihan Terpilih',
+                invoices,
+                companyInfo,
+                layout: false
+            });
+        } finally {
+            conn.release();
+        }
+    } catch (error) {
+        console.error('Error loading bulk print invoices:', error);
         res.status(500).send('Error loading invoices');
     }
 });
@@ -814,6 +906,9 @@ router.get('/tagihan/:id/print', async (req, res) => {
             ) as any;
             const companyInfo = (companyRows || [])[0] || {};
 
+            // Mark as printed
+            await conn.query('UPDATE invoices SET is_printed = 1 WHERE id = ?', [req.params.id]);
+
             const template = req.query.format === 'thermal' ? 'billing/tagihan-print-thermal' : 'billing/tagihan-print';
             res.render(template, {
                 title: `Print Invoice ${invoice.invoice_number}`,
@@ -886,6 +981,9 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
                 'SELECT * FROM company_settings ORDER BY updated_at DESC LIMIT 1'
             ) as any;
             const companyInfo = (companyRows || [])[0] || {};
+
+            // Mark as printed
+            await conn.query('UPDATE invoices SET is_printed = 1 WHERE id = ?', [req.params.id]);
 
             res.render('billing/tagihan-print-thermal', {
                 title: `Print Thermal ${invoice.invoice_number}`,
@@ -1553,27 +1651,32 @@ router.get('/debts/print', async (req, res) => {
 
         const debtsQuery = `
             SELECT 
-                dt.*,
+                i.id as invoice_id,
+                i.remaining_amount as debt_amount,
+                i.due_date as debt_date,
+                i.status as invoice_status,
+                i.invoice_number,
+                i.period,
+                i.total_amount as invoice_total,
+                i.created_at,
+                c.id as customer_id,
                 c.name as customer_name,
                 c.customer_code,
                 c.phone as customer_phone,
-                i.invoice_number,
-                i.period,
-                DATEDIFF(CURRENT_DATE, dt.debt_date) as days_overdue
-            FROM debt_tracking dt
-            LEFT JOIN customers c ON dt.customer_id = c.id
-            LEFT JOIN invoices i ON dt.invoice_id = i.id
-            WHERE dt.status = 'active'
-            ORDER BY dt.debt_amount DESC
+                DATEDIFF(CURRENT_DATE, i.due_date) as days_overdue
+            FROM invoices i
+            LEFT JOIN customers c ON i.customer_id = c.id
+            WHERE i.status IN ('unpaid', 'overdue', 'partial', 'hutang') AND i.remaining_amount > 0
+            ORDER BY i.due_date ASC
         `;
 
         const summaryQuery = `
             SELECT 
-                SUM(dt.debt_amount) as total_debt,
-                COUNT(DISTINCT dt.customer_id) as customers_count,
-                COUNT(CASE WHEN DATEDIFF(CURRENT_DATE, dt.debt_date) > 30 THEN 1 END) as overdue_count
-            FROM debt_tracking dt
-            WHERE dt.status = 'active'
+                SUM(i.remaining_amount) as total_debt,
+                COUNT(DISTINCT i.customer_id) as customers_count,
+                COUNT(CASE WHEN DATEDIFF(CURRENT_DATE, i.due_date) > 30 THEN 1 END) as overdue_count
+            FROM invoices i
+            WHERE i.status IN ('unpaid', 'overdue', 'partial', 'hutang') AND i.remaining_amount > 0
         `;
 
         const [debtsResult] = await databasePool.query(debtsQuery);
@@ -1597,17 +1700,12 @@ router.get('/debts/view', async (req, res) => {
 // Debt detail
 router.get('/debts/:id', async (req, res) => {
     try {
-        const conn = await import('../db/pool').then(m => m.databasePool.getConnection());
-        try {
-            const [rows] = await conn.query('SELECT invoice_id FROM debt_tracking WHERE id = ?', [req.params.id]) as any;
-            if (rows && rows.length > 0) {
-                res.redirect(`/billing/tagihan/${rows[0].invoice_id}`);
-            } else {
-                res.status(404).send('Hutang tidak ditemukan');
-            }
-        } finally {
-            conn.release();
+        const invoiceId = parseInt(req.params.id);
+        if (isNaN(invoiceId)) {
+            res.status(400).send('ID tidak valid');
+            return;
         }
+        res.redirect(`/billing/tagihan/${invoiceId}`);
     } catch (error) {
         console.error('Error getting debt detail:', error);
         res.status(500).send('Terjadi kesalahan internal');

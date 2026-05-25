@@ -249,18 +249,93 @@ export const renderEnhancedNetworkMap = async (req: Request, res: Response) => {
 export const getMapCustomers = async (req: Request, res: Response) => {
     try {
         const { AdvancedMonitoringService } = await import('../../services/monitoring/AdvancedMonitoringService');
-        const result = await AdvancedMonitoringService.getCustomersForMap();
+        // Do not force refresh on every load to keep it fast, rely on background loop
+        const mapData = await AdvancedMonitoringService.getCustomersForMap(false);
+        res.json({ success: true, data: mapData });
+    } catch (error) {
+        console.error('Error fetching map customers:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch map data' });
+    }
+};
+
+/**
+ * Get detail for a specific customer in map popup (Distance & GenieACS Signal)
+ */
+export const getCustomerMapDetail = async (req: Request, res: Response) => {
+    try {
+        const customerId = parseInt(req.params.id);
+        if (isNaN(customerId)) {
+            return res.status(400).json({ success: false, error: 'Invalid ID' });
+        }
+
+        const { databasePool } = await import('../../db/pool');
+
+        // 1. Get Customer and ODP coordinates
+        const [customerRows] = await databasePool.query<any[]>(`
+            SELECT c.latitude, c.longitude, odp.latitude as odp_latitude, odp.longitude as odp_longitude
+            FROM customers c
+            LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
+            WHERE c.id = ?
+        `, [customerId]);
+
+        if (customerRows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Customer not found' });
+        }
+
+        const customer = customerRows[0];
+        let distanceMeters = null;
+
+        // Calculate Distance using Haversine formula
+        if (customer.latitude && customer.longitude && customer.odp_latitude && customer.odp_longitude) {
+            const R = 6371e3; // metres
+            const φ1 = (parseFloat(customer.latitude) * Math.PI) / 180;
+            const φ2 = (parseFloat(customer.odp_latitude) * Math.PI) / 180;
+            const Δφ = ((parseFloat(customer.odp_latitude) - parseFloat(customer.latitude)) * Math.PI) / 180;
+            const Δλ = ((parseFloat(customer.odp_longitude) - parseFloat(customer.longitude)) * Math.PI) / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            distanceMeters = Math.round(R * c);
+        }
+
+        // 2. Check for GenieACS device
+        let signalInfo = null;
+        try {
+            const [deviceRows] = await databasePool.query<any[]>(`
+                SELECT genieacs_serial FROM network_devices 
+                WHERE customer_id = ? AND device_type = 'ont' AND genieacs_serial IS NOT NULL 
+                LIMIT 1
+            `, [customerId]);
+
+            if (deviceRows.length > 0) {
+                const serial = deviceRows[0].genieacs_serial;
+                const { GenieacsService } = await import('../../services/genieacs/GenieacsService');
+                const genieacs = await GenieacsService.getInstanceFromDb();
+                
+                // Fetch device from GenieACS
+                const devices = await genieacs.getDevicesBySerial(serial);
+                if (devices && devices.length > 0) {
+                    const deviceInfo = genieacs.extractDeviceInfo(devices[0]);
+                    signalInfo = deviceInfo.signal;
+                }
+            }
+        } catch (e) {
+            console.error('[Map Detail] Error fetching GenieACS data:', e);
+        }
 
         res.json({
             success: true,
-            data: result
+            data: {
+                distance_meters: distanceMeters,
+                signal: signalInfo
+            }
         });
     } catch (error) {
-        console.error('Error getting map customers:', error);
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to get map customers'
-        });
+        console.error('Error fetching map customer detail:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 };
 

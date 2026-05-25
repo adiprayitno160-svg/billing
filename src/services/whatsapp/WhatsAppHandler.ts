@@ -529,14 +529,14 @@ Ketik *Menu* untuk memulai.`);
                         return;
                     }
 
-                    // 3. Check yearly limit (max 4x per year)
+                    // 3. Check yearly limit (max 4x per year) - TEMPORARILY DISABLED
                     const { DefermentService } = await import('../billing/DefermentService');
                     const yearlyCount = await DefermentService.getDefermentCountThisYear(customer.id);
 
-                    if (yearlyCount >= 4) {
-                        await service.sendMessage(senderJid, `🚫 *Batas Perpanjangan Tercapai*\n\nAnda telah menggunakan kuota perpanjangan waktu sebanyak 4x dalam tahun ini.\n\nMohon segera lakukan pembayaran atau hubungi Admin untuk bantuan lebih lanjut.`);
-                        return;
-                    }
+                    // if (yearlyCount >= 4) {
+                    //     await service.sendMessage(senderJid, `🚫 *Batas Perpanjangan Tercapai*\n\nAnda telah menggunakan kuota perpanjangan waktu sebanyak 4x dalam tahun ini.\n\nMohon segera lakukan pembayaran atau hubungi Admin untuk bantuan lebih lanjut.`);
+                    //     return;
+                    // }
 
                     // 4. Auto-approve: extend by MAX_DEFERMENT_DAYS from today
                     const deferUntil = new Date();
@@ -563,7 +563,6 @@ Ketik *Menu* untuk memulai.`);
                             `📄 Invoice: *${invoice.invoice_number}*\n` +
                             `💰 Tagihan: *Rp ${invoiceAmount}*\n` +
                             `📅 Batas Bayar Baru: *${untilDateFormatted}*\n` +
-                            `🔢 Kuota Tersisa: *${3 - yearlyCount}x* lagi tahun ini\n` +
                             `━━━━━━━━━━━━━━━\n\n` +
                             `⚠️ *PENTING:* Jika sampai tanggal *${untilDateFormatted}* belum ada pembayaran, koneksi internet Anda akan *DIPUTUS OTOMATIS* oleh sistem.\n\n` +
                             `Ketik *TAGIHAN* untuk cek detail tagihan.`
@@ -576,7 +575,7 @@ Ketik *Menu* untuk memulai.`);
                             `Pelanggan *${customer.name}* telah meminta perpanjangan waktu via Bot WA.\n` +
                             `Invoice: ${invoice.invoice_number}\n` +
                             `Batas Baru: ${untilDateFormatted}\n` +
-                            `Kuota Tahun Ini: ${yearlyCount + 1}/4`
+                            `(Batas kuota janji bayar sementara dinonaktifkan)`
                         ).catch(() => {});
                     } else {
                         await service.sendMessage(senderJid, `❌ *Gagal Memproses*\n\n${result.message}\n\nSilakan hubungi Admin untuk bantuan.`);

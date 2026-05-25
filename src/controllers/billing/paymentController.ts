@@ -80,8 +80,9 @@ export class PaymentController {
             const limit = parseInt(req.query.limit as string) || 20;
             const customer_id = req.query.customer_id as string || '';
             const payment_method = req.query.payment_method as string || '';
-            const date_from = req.query.date_from as string || '';
-            const date_to = req.query.date_to as string || '';
+            let date_from = req.query.date_from as string || '';
+            let date_to = req.query.date_to as string || '';
+            let period = req.query.period as string || '';
             const format = req.query.format as string || '';
             const search = req.query.search as string || '';
             const whereConditions: string[] = [];
@@ -106,6 +107,29 @@ export class PaymentController {
                 queryParams.push(payment_method);
             }
 
+            const formatDate = (d: Date) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            // If period is not specified and no date/search filters exist, default to current month
+            if (!period && !date_from && !date_to && !search && !customer_id) {
+                const now = new Date();
+                period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            }
+
+            // Handle period filtering
+            if (period) {
+                const [year, month] = period.split('-');
+                const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
+                const lastDay = new Date(parseInt(year), parseInt(month), 0);
+                
+                date_from = formatDate(firstDay);
+                date_to = formatDate(lastDay);
+            }
+
             if (date_from) {
                 whereConditions.push('DATE(p.payment_date) >= ?');
                 queryParams.push(date_from);
@@ -116,31 +140,10 @@ export class PaymentController {
                 queryParams.push(date_to);
             }
 
-            // Default to current month if no dates specified
-            if (!date_from && !date_to && !search && !customer_id) {
-                const now = new Date();
-                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-                const formatDate = (d: Date) => {
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    return `${year}-${month}-${day}`;
-                };
-
-                const defaultFrom = formatDate(firstDay);
-                const defaultTo = formatDate(lastDay);
-
-                whereConditions.push('DATE(p.payment_date) >= ?');
-                queryParams.push(defaultFrom);
-                whereConditions.push('DATE(p.payment_date) <= ?');
-                queryParams.push(defaultTo);
-
-                // Set for filters object in view
-                (req.query as any).date_from = defaultFrom;
-                (req.query as any).date_to = defaultTo;
-            }
+            // Set for filters object in view
+            (req.query as any).date_from = date_from;
+            (req.query as any).date_to = date_to;
+            (req.query as any).period = period;
 
             const whereClause = whereConditions.length > 0
                 ? 'WHERE ' + whereConditions.join(' AND ')
@@ -225,7 +228,8 @@ export class PaymentController {
                         customer_id,
                         payment_method,
                         date_from,
-                        date_to
+                        date_to,
+                        period
                     }
                 });
                 return;
@@ -246,7 +250,8 @@ export class PaymentController {
                     customer_id,
                     payment_method,
                     date_from,
-                    date_to
+                    date_to,
+                    period
                 }
             });
         } catch (error) {
@@ -998,16 +1003,13 @@ export class PaymentController {
             const whereConditions: string[] = ['1=1'];
             const queryParams: any[] = [];
 
-            // Map status: 'unpaid' from view -> 'active' in DB
-            if (status === 'unpaid') {
-                whereConditions.push('dt.status = ?');
-                queryParams.push('active');
+            // Map status
+            if (status === 'unpaid' || status === 'active') {
+                whereConditions.push("i.status IN ('unpaid', 'overdue', 'partial', 'hutang')");
+                whereConditions.push("i.remaining_amount > 0");
             } else if (status === 'resolved') {
-                whereConditions.push('dt.status = ?');
-                queryParams.push('resolved');
-            } else if (status === 'active') { // Just in case
-                whereConditions.push('dt.status = ?');
-                queryParams.push('active');
+                whereConditions.push("i.status = 'paid'");
+                whereConditions.push("i.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"); // Only recent ones
             }
 
             if (search) {
@@ -1017,36 +1019,40 @@ export class PaymentController {
             }
 
             if (min_amount > 0) {
-                whereConditions.push('dt.debt_amount >= ?');
+                whereConditions.push('i.remaining_amount >= ?');
                 queryParams.push(min_amount);
             }
 
             const whereClause = 'WHERE ' + whereConditions.join(' AND ');
 
-            // Get debts
+            // Get unified debts
             const debtsQuery = `
                 SELECT 
-                    dt.*,
-                    c.name as customer_name,
-                    c.customer_code,
-                    c.phone as customer_phone,
+                    i.id as invoice_id,
+                    i.remaining_amount as debt_amount,
+                    i.due_date as debt_date,
+                    i.status as invoice_status,
                     i.invoice_number,
                     i.period,
                     i.total_amount as invoice_total,
-                    DATEDIFF(CURRENT_DATE, dt.debt_date) as days_overdue
-                FROM debt_tracking dt
-                LEFT JOIN customers c ON dt.customer_id = c.id
-                LEFT JOIN invoices i ON dt.invoice_id = i.id
+                    i.created_at,
+                    c.id as customer_id,
+                    c.name as customer_name,
+                    c.customer_code,
+                    c.phone as customer_phone,
+                    DATEDIFF(CURRENT_DATE, i.due_date) as days_overdue,
+                    (SELECT id FROM debt_tracking WHERE invoice_id = i.id LIMIT 1) as debt_tracking_id
+                FROM invoices i
+                LEFT JOIN customers c ON i.customer_id = c.id
                 ${whereClause}
-                ORDER BY dt.debt_date DESC, dt.created_at DESC
+                ORDER BY i.due_date ASC
                 LIMIT ? OFFSET ?
             `;
 
             const countQuery = `
                 SELECT COUNT(*) AS total
-                FROM debt_tracking dt
-                LEFT JOIN customers c ON dt.customer_id = c.id
-                LEFT JOIN invoices i ON dt.invoice_id = i.id
+                FROM invoices i
+                LEFT JOIN customers c ON i.customer_id = c.id
                 ${whereClause}
             `;
 
@@ -1057,7 +1063,8 @@ export class PaymentController {
 
             const debts = (debtsResult[0] as RowDataPacket[]).map(d => ({
                 ...d,
-                status: d.status === 'active' ? 'unpaid' : d.status
+                id: d.invoice_id, // map id to invoice_id for frontend
+                status: d.invoice_status === 'paid' ? 'resolved' : 'unpaid'
             }));
             const totalCount = (countResult[0] as RowDataPacket[])[0]?.total ?? 0;
             const totalPages = Math.ceil(totalCount / limit);
@@ -1065,13 +1072,12 @@ export class PaymentController {
             // Get summary statistics
             const summaryQuery = `
                 SELECT 
-                    SUM(CASE WHEN dt.status = 'active' THEN dt.debt_amount ELSE 0 END) as total_debt,
-                    COUNT(DISTINCT CASE WHEN dt.status = 'active' THEN dt.customer_id END) as customers_count,
-                    COUNT(CASE WHEN dt.status = 'active' AND DATEDIFF(CURRENT_DATE, dt.debt_date) > 30 THEN 1 END) as overdue_count,
-                    COUNT(CASE WHEN dt.status = 'resolved' AND MONTH(dt.resolved_at) = MONTH(CURRENT_DATE) THEN 1 END) as resolved_count
-                FROM debt_tracking dt
-                LEFT JOIN customers c ON dt.customer_id = c.id
-                LEFT JOIN invoices i ON dt.invoice_id = i.id
+                    SUM(CASE WHEN i.status != 'paid' THEN i.remaining_amount ELSE 0 END) as total_debt,
+                    COUNT(DISTINCT CASE WHEN i.status != 'paid' THEN i.customer_id END) as customers_count,
+                    COUNT(CASE WHEN i.status != 'paid' AND DATEDIFF(CURRENT_DATE, i.due_date) > 30 THEN 1 END) as overdue_count,
+                    COUNT(CASE WHEN i.status = 'paid' AND MONTH(i.updated_at) = MONTH(CURRENT_DATE) THEN 1 END) as resolved_count
+                FROM invoices i
+                LEFT JOIN customers c ON i.customer_id = c.id
                 ${whereClause}
             `;
 
@@ -1137,38 +1143,37 @@ export class PaymentController {
         try {
             await conn.beginTransaction();
 
-            const { id } = req.params;
+            const { id: invoiceId } = req.params;
             const { payment_method, reference_number, notes } = req.body;
 
-            // Get debt info
-            const [debtResult] = await conn.query<RowDataPacket[]>(`
-                SELECT dt.*, i.remaining_amount as invoice_remaining
-                FROM debt_tracking dt
-                JOIN invoices i ON dt.invoice_id = i.id
-                WHERE dt.id = ?
-            `, [id]);
+            // Get invoice info
+            const [invoiceResult] = await conn.query<RowDataPacket[]>(`
+                SELECT *
+                FROM invoices
+                WHERE id = ?
+            `, [invoiceId]);
 
-            const debt = debtResult[0];
+            const invoice = invoiceResult[0];
 
-            if (!debt) {
+            if (!invoice) {
                 res.status(404).json({
                     success: false,
-                    message: 'Hutang tidak ditemukan'
+                    message: 'Invoice tidak ditemukan'
                 });
                 await conn.rollback();
                 return;
             }
 
-            if (debt.status === 'resolved') {
+            if (invoice.status === 'paid' || invoice.remaining_amount <= 0) {
                 res.status(400).json({
                     success: false,
-                    message: 'Hutang sudah diselesaikan'
+                    message: 'Hutang / Tunggakan sudah diselesaikan'
                 });
                 await conn.rollback();
                 return;
             }
 
-            const debtAmount = parseFloat(debt.debt_amount);
+            const debtAmount = parseFloat(invoice.remaining_amount);
 
             // Create payment record
             const paymentInsertQuery = `
@@ -1179,27 +1184,21 @@ export class PaymentController {
             `;
 
             await conn.execute(paymentInsertQuery, [
-                debt.invoice_id,
+                invoice.id,
                 payment_method || 'cash',
                 debtAmount,
                 reference_number || null,
-                notes || `Pelunasan hutang - ${debt.debt_reason}`
+                notes || `Pelunasan hutang/tunggakan`
             ]);
 
-            // Mark debt as resolved
+            // Mark debt_tracking as resolved if exists
             await conn.execute(`
                 UPDATE debt_tracking 
                 SET status = 'resolved', resolved_at = NOW(), updated_at = NOW()
-                WHERE id = ?
-            `, [id]);
+                WHERE invoice_id = ? AND status = 'active'
+            `, [invoice.id]);
 
             // Update invoice if this resolves all debt
-            const [invoiceResult] = await conn.query<RowDataPacket[]>(`
-                SELECT * FROM invoices WHERE id = ?
-            `, [debt.invoice_id]);
-
-            const invoice = invoiceResult[0];
-
             if (invoice) {
                 const newPaidAmount = parseFloat(invoice.paid_amount) + debtAmount;
                 const newRemainingAmount = parseFloat(invoice.total_amount) - newPaidAmount;
@@ -1221,7 +1220,7 @@ export class PaymentController {
                         last_payment_date = NOW(),
                         updated_at = NOW()
                     WHERE id = ?
-                `, [newPaidAmount, newRemainingAmount, newStatus, debt.invoice_id]);
+                `, [newPaidAmount, newRemainingAmount, newStatus, invoice.id]);
 
                 // Check if there is a future invoice that absorbed this carry over debt
                 if (invoice.status === 'carried_over') {
