@@ -319,6 +319,44 @@ export class VerificationController {
                 [userId, notes || 'Approved', invoiceId, verificationId]
             );
 
+            // Sync with debt_tracking for partial payments
+            if (newRemaining > 0) {
+                const [existingDebt] = await connection.query<any[]>(
+                    'SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"',
+                    [invoiceId]
+                );
+
+                if (existingDebt.length > 0) {
+                    await connection.query(
+                        'UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?',
+                        [newRemaining, existingDebt[0].id]
+                    );
+                } else {
+                    await connection.query(`
+                        INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, status, created_at, updated_at)
+                        VALUES (?, ?, ?, 'Pembayaran parsial via verifikasi', 'active', NOW(), NOW())
+                    `, [invoice.customer_id, invoiceId, newRemaining]);
+                }
+
+                // Carry over for next month
+                try {
+                    const { getNextPeriod } = await import('../../utils/periodHelper');
+                    const nextPeriod = getNextPeriod(invoice.period);
+                    await connection.query(
+                        'INSERT INTO carry_over_invoices (customer_id, carry_over_amount, target_period, status) VALUES (?, ?, ?, "pending") ON DUPLICATE KEY UPDATE carry_over_amount = ?',
+                        [invoice.customer_id, newRemaining, nextPeriod, newRemaining]
+                    );
+                } catch (e) {
+                    console.warn('Carry-over insert failed (non-critical):', e);
+                }
+            } else if (newRemaining <= 0) {
+                // Resolve active debt when fully paid
+                await connection.query(
+                    'UPDATE debt_tracking SET status = "resolved", resolved_at = NOW() WHERE invoice_id = ? AND status = "active"',
+                    [invoiceId]
+                );
+            }
+
             // Get verification info for isolation removal
             const [verInfo] = await connection.query<any[]>(
                 'SELECT customer_id FROM manual_payment_verifications WHERE id = ?',

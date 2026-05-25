@@ -196,6 +196,7 @@ export class PaymentController {
             SELECT 
                 COUNT(*) as total_payments,
                 SUM(p.amount) as total_amount,
+                COUNT(DISTINCT i.customer_id) as unique_customers,
                 SUM(CASE WHEN p.payment_method = 'cash' THEN p.amount ELSE 0 END) as cash_amount,
                 SUM(CASE WHEN p.payment_method = 'transfer' THEN p.amount ELSE 0 END) as transfer_amount,
                 SUM(CASE WHEN p.payment_method = 'gateway' THEN p.amount ELSE 0 END) as gateway_amount

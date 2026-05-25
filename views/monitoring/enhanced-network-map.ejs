@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,720 +16,208 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155', 600: '#475569' }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-        }
-
-        /* Map Container */
-        #map {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 1;
-        }
-
-        /* Floating Header */
-        .header {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            border-radius: 16px;
-            padding: 12px 24px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #0f172a; }
+        
+        #map { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        
+        /* Glassmorphism utilities */
+        .glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .header-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-divider {
-            width: 1px;
-            height: 24px;
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .header-time {
-            font-size: 0.875rem;
-            color: #94a3b8;
-        }
-
-        .header-time span {
-            color: #22c55e;
-            font-weight: 600;
-        }
-
-        /* Stats Panel */
-        .stats-panel {
-            position: fixed;
-            top: 90px;
-            left: 20px;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            border-radius: 16px;
-            padding: 20px;
-            z-index: 1000;
-            min-width: 260px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .stats-title {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 16px;
-        }
-
-        .stat-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .stat-row:last-child {
-            border-bottom: none;
-        }
-
-        .stat-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.875rem;
-            color: #cbd5e1;
-        }
-
-        .stat-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-        }
-
-        .stat-icon.online {
-            background: rgba(34, 197, 94, 0.2);
-            color: #22c55e;
-        }
-
-        .stat-icon.offline {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-        }
-
-        .stat-icon.isolated {
-            background: rgba(249, 115, 22, 0.2);
-            color: #f97316;
-        }
-
-        .stat-icon.total {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-        }
-
-        .stat-value {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #f8fafc;
-        }
-
-        /* Control Panel */
-        .control-panel {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            z-index: 1000;
-        }
-
-        .control-btn {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.125rem;
-            transition: all 0.3s ease;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #e2e8f0;
-        }
-
-        .control-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        }
-
-        .control-btn.active {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            color: white;
-        }
-
-        .control-btn.danger {
-            background: linear-gradient(135deg, #dc2626, #ef4444);
-            color: white;
-        }
-
-        /* Offline Alert Panel */
-        .alert-panel {
-            position: fixed;
-            top: 90px;
-            right: 20px;
-            max-width: 360px;
-            max-height: calc(100vh - 120px);
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            border-radius: 16px;
-            z-index: 1000;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            display: none;
-            overflow: hidden;
-        }
-
-        .alert-panel.active {
-            display: block;
-        }
-
-        .alert-header {
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
-            border-bottom: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        .alert-header h3 {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            color: #ef4444;
-        }
-
-        .alert-count {
-            background: #ef4444;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-
-        .alert-list {
-            max-height: 400px;
-            overflow-y: auto;
-            padding: 8px;
-        }
-
-        .alert-item {
-            padding: 12px 16px;
-            border-radius: 10px;
-            background: rgba(239, 68, 68, 0.1);
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .alert-item:hover {
-            background: rgba(239, 68, 68, 0.2);
-            transform: translateX(4px);
-        }
-
-        .alert-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .alert-customer-name {
-            font-weight: 600;
-            color: #f8fafc;
-            margin-bottom: 4px;
-        }
-
-        .alert-customer-code {
-            font-size: 0.75rem;
-            color: #94a3b8;
-        }
-
-        .alert-type-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.75rem;
-            padding: 3px 8px;
-            border-radius: 4px;
-            margin-top: 8px;
-        }
-
-        .alert-type-badge.pppoe {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-        }
-
-        .alert-type-badge.static_ip {
-            background: rgba(139, 92, 246, 0.2);
-            color: #8b5cf6;
-        }
-
-        /* Audio Control */
-        .audio-control {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            padding: 12px 20px;
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .audio-toggle {
-            width: 42px;
-            height: 24px;
-            background: #374151;
-            border-radius: 12px;
-            position: relative;
-            cursor: pointer;
-            transition: background 0.3s ease;
-        }
-
-        .audio-toggle.active {
-            background: #22c55e;
-        }
-
-        .audio-toggle::after {
-            content: '';
-            position: absolute;
-            width: 18px;
-            height: 18px;
-            background: white;
+        /* Marker Styles - Simple & Clean */
+        .simple-marker {
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            top: 3px;
-            left: 3px;
-            transition: transform 0.3s ease;
-        }
-
-        .audio-toggle.active::after {
-            transform: translateX(18px);
-        }
-
-        .audio-label {
-            font-size: 0.875rem;
-            color: #94a3b8;
-        }
-
-        /* Custom Leaflet Popup */
-        .custom-popup .leaflet-popup-content-wrapper {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 0;
-        }
-
-        .custom-popup .leaflet-popup-content {
-            margin: 0;
-            min-width: 260px;
-        }
-
-        .custom-popup .leaflet-popup-tip {
-            background: rgba(15, 23, 42, 0.98);
-        }
-
-        .popup-header {
-            padding: 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .popup-name {
-            font-weight: 700;
-            font-size: 1rem;
-            color: #f8fafc;
-            margin-bottom: 4px;
-        }
-
-        .popup-code {
-            font-size: 0.75rem;
-            color: #94a3b8;
-        }
-
-        .popup-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-
-        .popup-status.online {
-            background: rgba(34, 197, 94, 0.2);
-            color: #22c55e;
-        }
-
-        .popup-status.offline {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-        }
-
-        .popup-status.isolated {
-            background: rgba(249, 115, 22, 0.2);
-            color: #f97316;
-        }
-
-        .popup-body {
-            padding: 12px 16px;
-        }
-
-        .popup-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.8125rem;
-            color: #cbd5e1;
-            margin-bottom: 8px;
-        }
-
-        .popup-info i {
-            width: 16px;
-            color: #64748b;
-        }
-
-        .popup-actions {
-            padding: 12px 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            gap: 8px;
-        }
-
-        .popup-btn {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .popup-btn.primary {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-        }
-
-        .popup-btn.primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
-
-        .popup-btn.secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #e2e8f0;
-        }
-
-        .popup-btn.secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        /* Custom Marker Styles */
-        .custom-marker {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-size: 0.875rem;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
             transition: transform 0.2s ease;
         }
-
-        .custom-marker:hover {
-            transform: scale(1.2);
+        .simple-marker:hover { transform: scale(1.3); }
+        .simple-marker.online { background-color: #22c55e; }
+        .simple-marker.isolated { background-color: #f97316; }
+        .simple-marker.offline {
+            background-color: #ef4444;
+            animation: pulse-red 2s infinite;
         }
 
-        .custom-marker.online {
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-            color: white;
-            border: 3px solid rgba(255, 255, 255, 0.5);
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        .custom-marker.offline {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
-            border: 3px solid rgba(255, 255, 255, 0.5);
-            animation: pulse 2s infinite;
+        /* Cluster Markers overrides */
+        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+            background: rgba(59, 130, 246, 0.4) !important;
+            border: 2px solid #3b82f6 !important;
+            border-radius: 50%;
         }
-
-        .custom-marker.isolated {
-            background: linear-gradient(135deg, #f97316, #ea580c);
-            color: white;
-            border: 3px solid rgba(255, 255, 255, 0.5);
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
-            }
-
-            50% {
-                box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
-            }
-        }
-
-        /* Cluster Marker Styles */
-        .marker-cluster-small,
-        .marker-cluster-medium,
-        .marker-cluster-large {
-            background: rgba(59, 130, 246, 0.2) !important;
-            border: 3px solid #3b82f6 !important;
-        }
-
-        .marker-cluster-small div,
-        .marker-cluster-medium div,
-        .marker-cluster-large div {
+        .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
             background: #3b82f6 !important;
             color: white !important;
             font-family: 'Inter', sans-serif !important;
             font-weight: 600 !important;
         }
 
-        /* Loading Overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.9);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-        }
-
-        .loading-spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid rgba(59, 130, 246, 0.2);
-            border-top-color: #3b82f6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .loading-text {
-            color: #94a3b8;
-            font-size: 0.875rem;
-        }
-
-        /* Toast Notification */
-        .toast {
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            max-width: 360px;
-            padding: 16px 20px;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            backdrop-filter: blur(20px);
+        /* Custom Popup */
+        .leaflet-popup-content-wrapper {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(8px);
+            color: #f8fafc;
+            border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            z-index: 9999;
-            transform: translateX(400px);
-            opacity: 0;
-            transition: all 0.3s ease;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
-
-        .toast.show {
-            transform: translateX(0);
-            opacity: 1;
-        }
-
-        .toast.success {
-            border-left: 4px solid #22c55e;
-        }
-
-        .toast.error {
-            border-left: 4px solid #ef4444;
-        }
-
-        .toast.warning {
-            border-left: 4px solid #f59e0b;
-        }
+        .leaflet-popup-tip { background: rgba(30, 41, 59, 0.95); }
+        .leaflet-popup-content { margin: 0; min-width: 280px; }
+        .leaflet-container a.leaflet-popup-close-button { color: #94a3b8; right: 10px; top: 10px; }
+        .leaflet-container a.leaflet-popup-close-button:hover { color: #fff; }
 
         /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
     </style>
 </head>
+<body class="text-slate-200 antialiased font-sans">
 
-<body>
     <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Memuat peta monitoring...</div>
+    <div id="loadingOverlay" class="fixed inset-0 bg-dark-900/90 z-[9999] flex flex-col items-center justify-center transition-opacity duration-300">
+        <div class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+        <div class="text-slate-400 text-sm">Memuat peta monitoring...</div>
     </div>
 
     <!-- Map Container -->
     <div id="map"></div>
 
-    <!-- Floating Header -->
-    <div class="header">
-        <span class="header-title">
-            <i class="fas fa-satellite-dish"></i>
-            Network Monitoring
-        </span>
-        <div class="header-divider"></div>
-        <div class="header-time">
-            <span id="currentTime">--:--:--</span>
-            | Refresh: <span id="lastRefresh">-</span>
-        </div>
-    </div>
+    <!-- UI Overlay Layer -->
+    <div class="fixed inset-0 pointer-events-none z-[1000] flex flex-col">
+        
+        <!-- Top Bar: Title & Stats -->
+        <div class="w-full p-4 flex justify-center">
+            <div class="glass rounded-2xl p-2 px-4 shadow-lg pointer-events-auto flex items-center gap-6 max-w-5xl w-full mx-auto">
+                
+                <!-- Logo/Title -->
+                <div class="flex items-center gap-3 pr-6 border-r border-slate-700/50">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-inner">
+                        <i class="fas fa-network-wired text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">Monitoring Map</h1>
+                        <div class="text-xs text-slate-400 flex items-center gap-1">
+                            <i class="far fa-clock"></i> <span id="currentTime">--:--:--</span>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- Stats Panel -->
-    <div class="stats-panel">
-        <div class="stats-title">
-            <i class="fas fa-chart-pie"></i>
-            Overview Status
-        </div>
-        <div class="stat-row">
-            <div class="stat-label">
-                <div class="stat-icon total"><i class="fas fa-users"></i></div>
-                Total Pelanggan
+                <!-- Stats -->
+                <div class="flex-1 flex justify-around items-center gap-2">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Total</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <span class="text-xl font-bold text-white" id="statTotal">0</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Online</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                            <span class="text-xl font-bold text-green-400" id="statOnline">0</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Offline</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                            <span class="text-xl font-bold text-red-400" id="statOffline">0</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Isolir</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-orange-500"></div>
+                            <span class="text-xl font-bold text-orange-400" id="statIsolated">0</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-value" id="statTotal">0</div>
         </div>
-        <div class="stat-row">
-            <div class="stat-label">
-                <div class="stat-icon online"><i class="fas fa-check-circle"></i></div>
-                Online
+
+        <div class="flex-1 relative">
+            <!-- Offline Alert Panel (Slide Over) -->
+            <div id="alertPanel" class="absolute top-0 right-4 w-80 max-h-[calc(100vh-140px)] glass rounded-2xl shadow-2xl pointer-events-auto transform translate-x-[120%] opacity-0 transition-all duration-300 flex flex-col overflow-hidden border border-red-500/20">
+                <div class="bg-gradient-to-r from-red-900/40 to-dark-800/80 p-4 border-b border-red-500/20 flex justify-between items-center">
+                    <h3 class="font-semibold text-red-400 flex items-center gap-2">
+                        <i class="fas fa-exclamation-circle"></i> Offline Alerts
+                    </h3>
+                    <span id="alertCount" class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">0</span>
+                </div>
+                <div id="alertList" class="overflow-y-auto p-2 flex-1">
+                    <!-- Populated by JS -->
+                </div>
             </div>
-            <div class="stat-value" id="statOnline" style="color: #22c55e;">0</div>
         </div>
-        <div class="stat-row">
-            <div class="stat-label">
-                <div class="stat-icon offline"><i class="fas fa-times-circle"></i></div>
-                Offline
+
+        <!-- Bottom Controls Dock -->
+        <div class="w-full p-6 flex justify-center pb-8">
+            <div class="glass rounded-full px-6 py-3 shadow-2xl pointer-events-auto flex items-center gap-4">
+                
+                <button onclick="refreshData()" class="group relative w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 transition-all flex items-center justify-center text-slate-300 hover:text-white" title="Refresh Data">
+                    <i id="refreshIcon" class="fas fa-sync-alt"></i>
+                </button>
+                
+                <button onclick="fitAllMarkers()" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 transition-all flex items-center justify-center text-slate-300 hover:text-white" title="Fit Semua">
+                    <i class="fas fa-expand"></i>
+                </button>
+                
+                <div class="w-px h-8 bg-slate-700"></div>
+                
+                <button onclick="toggleAlertPanel()" id="alertToggle" class="relative w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 transition-all flex items-center justify-center text-slate-300 hover:text-red-400" title="Offline Alerts">
+                    <i class="fas fa-bell"></i>
+                    <span id="alertBadge" class="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-slate-800 rounded-full hidden"></span>
+                </button>
+
+                <button onclick="toggleHeatMap()" id="heatMapToggle" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 transition-all flex items-center justify-center text-slate-300 hover:text-orange-400" title="Heatmap Offline">
+                    <i class="fas fa-fire"></i>
+                </button>
+
+                <div class="w-px h-8 bg-slate-700"></div>
+
+                <!-- Audio Toggle -->
+                <button onclick="toggleAudio()" id="audioToggleBtn" class="flex items-center gap-3 px-4 h-12 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 transition-all text-slate-400">
+                    <i class="fas fa-volume-mute" id="audioIcon"></i>
+                    <span class="text-sm font-medium" id="audioText">Alarm Off</span>
+                </button>
             </div>
-            <div class="stat-value" id="statOffline" style="color: #ef4444;">0</div>
-        </div>
-        <div class="stat-row">
-            <div class="stat-label">
-                <div class="stat-icon isolated"><i class="fas fa-ban"></i></div>
-                Isolir
-            </div>
-            <div class="stat-value" id="statIsolated" style="color: #f97316;">0</div>
         </div>
     </div>
 
-    <!-- Control Panel -->
-    <div class="control-panel">
-        <button class="control-btn" onclick="refreshData()" title="Refresh Data">
-            <i class="fas fa-sync-alt"></i>
-        </button>
-        <button class="control-btn" onclick="toggleAlertPanel()" id="alertToggle" title="Toggle Alert Panel">
-            <i class="fas fa-bell"></i>
-        </button>
-        <button class="control-btn" onclick="toggleHeatMap()" id="heatMapToggle" title="Toggle Heat Map">
-            <i class="fas fa-fire"></i>
-        </button>
-        <button class="control-btn" onclick="fitAllMarkers()" title="Show All">
-            <i class="fas fa-expand-arrows-alt"></i>
-        </button>
-        <button class="control-btn" onclick="flyToOffline()" title="Go to Nearest Offline">
-            <i class="fas fa-location-arrow"></i>
-        </button>
-
-    </div>
-
-    <!-- Offline Alert Panel -->
-    <div class="alert-panel" id="alertPanel">
-        <div class="alert-header">
-            <h3><i class="fas fa-exclamation-triangle"></i> Offline Alerts</h3>
-            <span class="alert-count" id="alertCount">0</span>
-        </div>
-        <div class="alert-list" id="alertList">
-            <!-- Alert items will be populated here -->
-        </div>
-    </div>
-
-    <!-- Audio Control -->
-    <div class="audio-control">
-        <span class="audio-label">
-            <i class="fas fa-volume-up"></i>
-            Alarm Offline
-        </span>
-        <div class="audio-toggle" id="audioToggle" onclick="toggleAudio()"></div>
-    </div>
-
-    <!-- Audio Element for Notifications -->
+    <!-- Audio Element -->
     <audio id="alertSound" preload="auto">
         <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
     </audio>
@@ -738,426 +225,210 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-    <!-- Leaflet Heat -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 
     <script>
-        // Initial Data from Server (Instant Load disabled for reliability)
-        const initialMapData = null;
+        // Server injected data!
+        const initialMapData = <%- initialData || 'null' %>;
 
         // State
         let map;
         let markerClusterGroup;
+        let connectionLayerGroup;
         let heatLayer = null;
         let isHeatMapEnabled = false;
         let allCustomers = [];
         let offlineAlerts = [];
         let isAudioEnabled = false;
         let audioInterval = null;
-        let refreshInterval = null;
-        let connectionLayerGroup = null;
+        let isFirstLoad = true;
+        const markersMap = new Map();
 
-        // Default center (Magelang, Indonesia)
-        const DEFAULT_CENTER = [-7.4700, 110.2177];
-        const DEFAULT_ZOOM = 13;
-
-        // Manual Refresh Wrapper
-        function refreshData() {
-            loadMapData(false);
-        }
-
-        // Initialize map
+        const DEFAULT_CENTER = [-7.4700, 110.2177]; // Magelang
+        
         function initMap() {
             map = L.map('map', {
                 center: DEFAULT_CENTER,
-                zoom: DEFAULT_ZOOM,
-                zoomControl: false
+                zoom: 13,
+                zoomControl: false // hide default zoom
             });
 
-            // Add tile layer (Dark theme)
+            // Clean dark theme tiles
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                attribution: '&copy; CARTO',
                 maxZoom: 19
             }).addTo(map);
 
-            // Add zoom control to bottom right
+            // Add custom styled zoom control to bottom right
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-            // Initialize marker cluster group
+            // Setup Marker Cluster
             markerClusterGroup = L.markerClusterGroup({
                 showCoverageOnHover: false,
-                maxClusterRadius: 60,
+                maxClusterRadius: 50,
                 spiderfyOnMaxZoom: true,
-                disableClusteringAtZoom: 17,
-                iconCreateFunction: function (cluster) {
-                    const childCount = cluster.getChildCount();
-                    let size = 'small';
-                    if (childCount > 50) size = 'large';
-                    else if (childCount > 10) size = 'medium';
-
-                    return L.divIcon({
-                        html: '<div>' + childCount + '</div>',
-                        className: 'marker-cluster marker-cluster-' + size,
-                        iconSize: L.point(40, 40)
-                    });
-                }
+                disableClusteringAtZoom: 16
             });
-
             map.addLayer(markerClusterGroup);
 
-            // Layer for connection lines
+            // Connection Lines Layer
             connectionLayerGroup = L.layerGroup().addTo(map);
 
-            // Check for initial data (INSTANT LOAD & AUTO FIT)
+            // Handle Data
             if (initialMapData) {
-                console.log('Using initial map data');
-                // Use processMapData if defined, or define logic inline for now then refactor?
-                // I will define processMapData later, but I must ensure it exists before initMap runs.
-                // Wait, processMapData is hoisting? Function declarations are hoisted. YES.
                 processMapData(initialMapData);
-
-                // Auto fit bounds immediately
-                if (allCustomers.length > 0) {
-                    setTimeout(() => {
-                        try {
-                            const bounds = markerClusterGroup.getBounds();
-                            if (bounds.isValid()) {
-                                map.fitBounds(bounds, { padding: [50, 50] });
-                            }
-                        } catch (e) { console.error("Fit bounds error", e); }
-                    }, 100);
-                }
-                // Hide loading immediately
-                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('loadingOverlay').style.opacity = '0';
+                setTimeout(() => document.getElementById('loadingOverlay').style.display = 'none', 300);
             } else {
-                // Load data via fetch (Fallback)
-                loadMapData(false);
+                loadMapData();
             }
 
-            // Update time display
-            updateTime();
+            // Clocks & Auto Refresh
             setInterval(updateTime, 1000);
-
-            // Auto refresh every 60 seconds (Silent)
-            refreshInterval = setInterval(() => loadMapData(true), 60000);
-
-            // Hide loading if used fetch (delayed)
-            if (!initialMapData) {
-                setTimeout(() => {
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                }, 1000);
-            }
+            updateTime();
+            setInterval(() => loadMapData(true), 60000); // 1 min auto refresh
         }
 
-        // Toggle Heat Map
-        function toggleHeatMap() {
-            isHeatMapEnabled = !isHeatMapEnabled;
-            const btn = document.getElementById('heatMapToggle');
-
-            if (isHeatMapEnabled) {
-                btn.classList.add('active');
-                renderHeatMap();
-            } else {
-                btn.classList.remove('active');
-                if (heatLayer) {
-                    map.removeLayer(heatLayer);
-                    heatLayer = null;
+        async function loadMapData(isAuto = false) {
+            if (!isAuto) document.getElementById('refreshIcon').classList.add('fa-spin');
+            
+            try {
+                const res = await fetch('/monitoring/api/map-customers');
+                const data = await res.json();
+                if (data.success) {
+                    processMapData(data.data);
                 }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (!isAuto) document.getElementById('refreshIcon').classList.remove('fa-spin');
             }
         }
 
-        // Render Heat Map
-        function renderHeatMap() {
-            if (heatLayer) {
-                map.removeLayer(heatLayer);
-            }
-
-            // Filter only offline customers for the heatmap
-            const heatPoints = allCustomers
-                .filter(c => c.status === 'offline' && c.latitude && c.longitude)
-                .map(c => [c.latitude, c.longitude, 1.0]); // 1.0 is intensity
-
-            if (heatPoints.length > 0) {
-                heatLayer = L.heatLayer(heatPoints, {
-                    radius: 25,
-                    blur: 15,
-                    maxZoom: 17,
-                    gradient: {
-                        0.4: 'blue',
-                        0.6: 'cyan',
-                        0.7: 'lime',
-                        0.8: 'yellow',
-                        1.0: 'red'
-                    }
-                }).addTo(map);
-            } else {
-                if (isHeatMapEnabled) showToast('Tidak ada data offline untuk Heat Map', 'warning');
-            }
-        }
-
-        let isFirstLoad = true;
-
-        // Process Map Data (Common Logic)
         function processMapData(data) {
             if (!data || !data.customers) return;
-
             allCustomers = data.customers;
-            updateStats(data.stats);
-
-            if (isHeatMapEnabled) {
-                renderHeatMap();
-            }
+            
+            // Update Stats UI
+            document.getElementById('statTotal').textContent = data.stats.total;
+            document.getElementById('statOnline').textContent = data.stats.online;
+            document.getElementById('statOffline').textContent = data.stats.offline;
+            document.getElementById('statIsolated').textContent = data.stats.isolated;
 
             renderMarkers(allCustomers);
             renderConnections(allCustomers);
             updateOfflineAlerts(allCustomers);
+            
+            if (isHeatMapEnabled) renderHeatMap();
 
-            // Auto-focus on markers during initial load
             if (isFirstLoad && allCustomers.length > 0) {
-                const bounds = markerClusterGroup.getBounds();
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-                }
+                fitAllMarkers();
                 isFirstLoad = false;
             }
-
-            document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString('id-ID');
         }
 
-        // Load map data
-        async function loadMapData(isAutoRefresh = false) {
-            try {
-                // Show loading indicator only if manual refresh
-                if (!isAutoRefresh) {
-                    document.getElementById('loadingOverlay').style.display = 'flex';
-                } else {
-                    // Update refresh icon to spin for feedback
-                    const uniqueBtn = document.querySelector('button[onclick="refreshData()"] i');
-                    if (uniqueBtn) uniqueBtn.classList.add('fa-spin');
-                }
-
-                const response = await fetch('/monitoring/api/map-customers');
-                const data = await response.json();
-
-                if (data.success) {
-                    processMapData(data.data);
-                }
-            } catch (error) {
-                console.error('Error loading map data:', error);
-                if (!isAutoRefresh) showToast('Gagal memuat data', 'error');
-            } finally {
-                if (!isAutoRefresh) {
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                } else {
-                    const uniqueBtn = document.querySelector('button[onclick="refreshData()"] i');
-                    if (uniqueBtn) uniqueBtn.classList.remove('fa-spin');
-                }
-            }
-        }
-
-        // Update statistics
-        function updateStats(stats) {
-            document.getElementById('statTotal').textContent = stats.total;
-            document.getElementById('statOnline').textContent = stats.online;
-            document.getElementById('statOffline').textContent = stats.offline;
-            document.getElementById('statIsolated').textContent = stats.isolated;
-        }
-
-        // Map to cache marker instances
-        const markersMap = new Map();
-
-        // Optimized Render Markers
         function renderMarkers(customers) {
             const currentIds = new Set();
-            let hasChanges = false;
-
+            
             customers.forEach(customer => {
                 if (!customer.latitude || !customer.longitude) return;
+                currentIds.add(customer.id);
+                
+                const lat = parseFloat(customer.latitude);
+                const lng = parseFloat(customer.longitude);
+                const status = customer.status; // online, offline, isolated
 
-                const id = customer.id;
-                currentIds.add(id);
-
-                const newStatus = customer.status;
-                const newLat = parseFloat(customer.latitude);
-                const newLng = parseFloat(customer.longitude);
-
-                if (markersMap.has(id)) {
-                    // Update existing marker
-                    const markerData = markersMap.get(id);
-                    const marker = markerData.marker;
-
-                    // Only redraw icon if status changed
-                    if (markerData.status !== newStatus) {
-                        const newIcon = L.divIcon({
-                            className: `custom-marker ${newStatus}`,
-                            html: getMarkerIcon(customer.connection_type),
-                            iconSize: [36, 36],
-                            iconAnchor: [18, 36],
-                            popupAnchor: [0, -36]
-                        });
-                        marker.setIcon(newIcon);
-                        markerData.status = newStatus;
-
-                        // Update popup as well
-                        const popupContent = createPopupContent(customer);
-                        marker.setPopupContent(popupContent);
-                        hasChanges = true;
+                if (markersMap.has(customer.id)) {
+                    const cache = markersMap.get(customer.id);
+                    if (cache.status !== status) {
+                        cache.marker.setIcon(L.divIcon({
+                            className: `simple-marker ${status}`,
+                            iconSize: [14, 14]
+                        }));
+                        cache.status = status;
+                        cache.marker.setPopupContent(createPopupContent(customer));
                     }
-
-                    // Only move if position changed
-                    if (markerData.lat !== newLat || markerData.lng !== newLng) {
-                        marker.setLatLng([newLat, newLng]);
-                        markerData.lat = newLat;
-                        markerData.lng = newLng;
-                        hasChanges = true;
+                    if (cache.lat !== lat || cache.lng !== lng) {
+                        cache.marker.setLatLng([lat, lng]);
+                        cache.lat = lat; cache.lng = lng;
                     }
-
                 } else {
-                    // Create new marker
                     const icon = L.divIcon({
-                        className: `custom-marker ${newStatus}`,
-                        html: getMarkerIcon(customer.connection_type),
-                        iconSize: [36, 36],
-                        iconAnchor: [18, 36],
-                        popupAnchor: [0, -36]
+                        className: `simple-marker ${status}`,
+                        iconSize: [14, 14]
                     });
-
-                    const marker = L.marker([newLat, newLng], { icon: icon });
-                    marker.bindPopup(createPopupContent(customer), {
-                        className: 'custom-popup',
-                        maxWidth: 300
-                    });
-
+                    const marker = L.marker([lat, lng], { icon });
+                    marker.bindPopup(createPopupContent(customer));
                     markerClusterGroup.addLayer(marker);
-
-                    // Cache it
-                    markersMap.set(id, {
-                        marker,
-                        status: newStatus,
-                        lat: newLat,
-                        lng: newLng
-                    });
-
-                    hasChanges = true;
+                    
+                    markersMap.set(customer.id, { marker, status, lat, lng });
                 }
             });
 
-            // Remove markers that are no longer in the list
-            for (const [id, markerData] of markersMap) {
+            // Cleanup removed
+            for (const [id, cache] of markersMap) {
                 if (!currentIds.has(id)) {
-                    markerClusterGroup.removeLayer(markerData.marker);
+                    markerClusterGroup.removeLayer(cache.marker);
                     markersMap.delete(id);
-                    hasChanges = true;
                 }
             }
         }
 
-        // Optimized Connection Lines with Canvas Renderer
         const lineRenderer = L.canvas({ padding: 0.5 });
-
         function renderConnections(customers) {
-            if (!connectionLayerGroup) return;
             connectionLayerGroup.clearLayers();
-
-            // Skip rendering lines if zoomed out too far for better performance
-            if (map.getZoom() < 12) return;
-
+            
+            // Draw lines for all zoomed levels to ensure visibility
             customers.forEach(customer => {
-                // Draw lines for ANY customer that has ODP links (PPPoE or Static IP)
                 if (customer.odp_latitude && customer.odp_longitude && customer.latitude && customer.longitude) {
-                    const status = customer.status;
-                    let color = '#3b82f6'; // Default Blue
+                    let color = '#3b82f6'; // online
                     let weight = 1;
-                    let opacity = 0.5;
+                    let opacity = 0.4;
+                    
+                    if (customer.status === 'offline') { color = '#ef4444'; opacity = 0.6; weight = 1.5; }
+                    else if (customer.status === 'isolated') { color = '#f97316'; opacity = 0.4; }
 
-                    if (status === 'offline') {
-                        color = '#ef4444'; // Red
-                        weight = 2;
-                        opacity = 0.8;
-                    } else if (status === 'isolated') {
-                        color = '#f97316'; // Orange
-                    } else {
-                        color = '#22c55e'; // Green
-                    }
-
-                    const latlngs = [
+                    L.polyline([
                         [parseFloat(customer.odp_latitude), parseFloat(customer.odp_longitude)],
                         [parseFloat(customer.latitude), parseFloat(customer.longitude)]
-                    ];
-
-                    L.polyline(latlngs, {
-                        color: color,
-                        weight: weight,
-                        opacity: opacity,
-                        smoothFactor: 1.5,
+                    ], {
+                        color, weight, opacity,
                         renderer: lineRenderer,
-                        interactive: false // Lines don't need to be clickable for performance
+                        interactive: false // Ignore pointer events
                     }).addTo(connectionLayerGroup);
                 }
             });
         }
 
-        // Get marker icon based on type
-        function getMarkerIcon(type) {
-            if (type === 'pppoe') return '<i class="fas fa-user"></i>';
-            if (type === 'static_ip') return '<i class="fas fa-server"></i>';
-            return '<i class="fas fa-question"></i>';
-        }
-
-        // Create popup HTML
         function createPopupContent(customer) {
-            const statusLabel = customer.status.charAt(0).toUpperCase() + customer.status.slice(1);
-            let technicalInfo = '';
-
-            if (customer.connection_type === 'pppoe') {
-                technicalInfo = `
-                    <div class="popup-info">
-                        <i class="fas fa-id-card"></i> PPPoE: <b>${customer.pppoe_username || '-'}</b>
-                    </div>
-                `;
-            } else if (customer.connection_type === 'static_ip') {
-                technicalInfo = `
-                    <div class="popup-info">
-                        <i class="fas fa-server"></i> Static IP: <b>${customer.static_ip || '-'}</b>
-                    </div>
-                `;
-            }
-
+            const isOffline = customer.status === 'offline';
+            const statusColor = isOffline ? 'text-red-400' : (customer.status === 'isolated' ? 'text-orange-400' : 'text-green-400');
+            const statusBg = isOffline ? 'bg-red-500/20' : (customer.status === 'isolated' ? 'bg-orange-500/20' : 'bg-green-500/20');
+            
             return `
-                <div class="popup-header">
-                    <div class="popup-name">${customer.name}</div>
-                    <div class="popup-code">${customer.customer_code}</div>
-                    <div class="popup-status ${customer.status}">
-                        <i class="fas fa-circle"></i> ${statusLabel}
+                <div class="p-4 border-b border-slate-700">
+                    <h3 class="font-bold text-lg mb-1">${customer.name}</h3>
+                    <div class="text-xs text-slate-400">${customer.customer_code}</div>
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${statusBg} ${statusColor} text-xs font-semibold mt-3 capitalize">
+                        <div class="w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-red-400 animate-pulse' : 'bg-current'}"></div>
+                        ${customer.status}
                     </div>
                 </div>
-                <div class="popup-body">
-                    <div class="popup-info">
-                        <i class="fas fa-map-marker-alt"></i> Area: ${customer.area || 'Unknown'}
-                    </div>
-                    ${customer.odp_name ? `
-                    <div class="popup-info">
-                        <i class="fas fa-box"></i> ODP: ${customer.odp_name}
-                    </div>` : ''}
-                    ${technicalInfo}
-                    ${customer.package_name ? `
-                    <div class="popup-info">
-                        <i class="fas fa-tachometer-alt"></i> Paket: ${customer.package_name}
-                    </div>` : ''}
+                <div class="p-4 space-y-2 text-sm text-slate-300">
+                    <div class="flex items-center gap-2"><i class="fas fa-map-marker-alt w-4 text-slate-500"></i> ${customer.area || '-'}</div>
+                    ${customer.odp_name ? `<div class="flex items-center gap-2"><i class="fas fa-box w-4 text-slate-500"></i> ${customer.odp_name}</div>` : ''}
+                    <div class="flex items-center gap-2"><i class="fas fa-network-wired w-4 text-slate-500"></i> ${customer.connection_type.toUpperCase()}</div>
+                    <div class="flex items-center gap-2"><i class="fas fa-tachometer-alt w-4 text-slate-500"></i> ${customer.package_name || '-'}</div>
                 </div>
-                <div class="popup-actions">
-                    <button class="popup-btn primary" onclick="viewCustomer('${customer.id}')">
-                        Detail Pelanggan
-                    </button>
+                <div class="p-3 bg-slate-800/50 flex gap-2">
+                    <a href="/customers/${customer.id}" target="_blank" class="flex-1 text-center bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg text-xs font-semibold transition-colors">Detail</a>
                     ${customer.phone ? `
-                    <a href="https://wa.me/${formatPhone(customer.phone)}" target="_blank" class="popup-btn secondary" style="text-align:center; text-decoration:none; display:block; margin-top:5px;">
-                        <i class="fab fa-whatsapp"></i> Chat WhatsApp
-                    </a>` : ''}
+                        <a href="https://wa.me/${formatPhone(customer.phone)}" target="_blank" class="flex-1 text-center bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-xs font-semibold transition-colors"><i class="fab fa-whatsapp"></i> Chat</a>
+                    ` : ''}
                 </div>
             `;
         }
 
-        // Helper to format phone number
         function formatPhone(phone) {
             if (!phone) return '';
             let p = phone.replace(/\D/g, '');
@@ -1166,94 +437,96 @@
             return p;
         }
 
-        // Update offline alert panel and trigger sound
         function updateOfflineAlerts(customers) {
-            // Filter offline AND not isolated
             offlineAlerts = customers.filter(c => c.status === 'offline' && !c.is_isolated);
-
-            const alertList = document.getElementById('alertList');
-            const alertCount = document.getElementById('alertCount');
-
-            alertCount.textContent = offlineAlerts.length;
-            alertList.innerHTML = '';
+            const list = document.getElementById('alertList');
+            document.getElementById('alertCount').textContent = offlineAlerts.length;
+            
+            const badge = document.getElementById('alertBadge');
+            if (offlineAlerts.length > 0) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
 
             if (offlineAlerts.length === 0) {
-                alertList.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8;">Tidak ada pelanggan offline</div>';
-                stopAlertSound();
+                list.innerHTML = '<div class="p-6 text-center text-slate-500 text-sm">Semua sistem normal. Tidak ada yang offline.</div>';
                 return;
             }
 
-            offlineAlerts.forEach(customer => {
-                const item = document.createElement('div');
-                item.className = 'alert-item';
-                item.onclick = () => flyToCustomer(customer.latitude, customer.longitude);
-
-                item.innerHTML = `
-                    <div class="alert-customer-name">${customer.name}</div>
-                    <div class="alert-customer-code">${customer.customer_code}</div>
-                    <div class="alert-type-badge ${customer.connection_type}">
-                        ${customer.connection_type === 'pppoe' ? 'PPPoE' : 'Static IP'}
+            list.innerHTML = offlineAlerts.map(c => `
+                <div class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 p-3 rounded-xl mb-2 cursor-pointer transition-colors" onclick="map.flyTo([${c.latitude}, ${c.longitude}], 18)">
+                    <div class="font-semibold text-slate-200">${c.name}</div>
+                    <div class="text-xs text-slate-400 mt-1 flex justify-between">
+                        <span>${c.area || '-'}</span>
+                        <span class="text-red-400">${c.connection_type.toUpperCase()}</span>
                     </div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">
-                        <i class="fas fa-map-marker-alt"></i> ${customer.area || '-'}
-                    </div>
-                `;
-
-                alertList.appendChild(item);
-            });
+                </div>
+            `).join('');
         }
 
-        // Audio Control Logic
-        function toggleAudio() {
-            isAudioEnabled = !isAudioEnabled;
-            const toggle = document.getElementById('audioToggle');
-            const label = document.querySelector('.audio-label');
-
-            if (isAudioEnabled) {
-                toggle.classList.add('active');
-                label.style.color = '#22c55e';
-
-                // Start Interval
-                if (offlineAlerts.length > 0) playAlertSound();
-
-                audioInterval = setInterval(() => {
-                    if (offlineAlerts.length > 0) {
-                        playAlertSound();
-                    }
-                }, 60000); // Repeat every 1 minute
-
-                showToast('Alarm suara diaktifkan', 'success');
-            } else {
-                toggle.classList.remove('active');
-                label.style.color = '#94a3b8';
-
-                // Stop Interval
-                if (audioInterval) clearInterval(audioInterval);
-                audioInterval = null;
-                stopAlertSound();
-
-                showToast('Alarm suara dinonaktifkan', 'warning');
-            }
-        }
-
-        function playAlertSound() {
-            const audio = document.getElementById('alertSound');
-            audio.play().catch(e => console.log('Audio play failed (interaction needed):', e));
-        }
-
-        function stopAlertSound() {
-            const audio = document.getElementById('alertSound');
-            audio.pause();
-            audio.currentTime = 0;
-        }
-
-        // UI Interactions
         function toggleAlertPanel() {
             const panel = document.getElementById('alertPanel');
             const btn = document.getElementById('alertToggle');
+            
+            if (panel.classList.contains('translate-x-[120%]')) {
+                panel.classList.remove('translate-x-[120%]', 'opacity-0');
+                btn.classList.add('bg-blue-600', 'border-blue-500', 'text-white');
+                btn.classList.remove('text-red-400');
+            } else {
+                panel.classList.add('translate-x-[120%]', 'opacity-0');
+                btn.classList.remove('bg-blue-600', 'border-blue-500', 'text-white');
+                btn.classList.add('text-red-400');
+            }
+        }
 
-            panel.classList.toggle('active');
-            btn.classList.toggle('active');
+        function toggleHeatMap() {
+            isHeatMapEnabled = !isHeatMapEnabled;
+            const btn = document.getElementById('heatMapToggle');
+            
+            if (isHeatMapEnabled) {
+                btn.classList.add('bg-orange-600', 'text-white');
+                btn.classList.remove('text-orange-400');
+                renderHeatMap();
+            } else {
+                btn.classList.remove('bg-orange-600', 'text-white');
+                btn.classList.add('text-orange-400');
+                if (heatLayer) map.removeLayer(heatLayer);
+            }
+        }
+
+        function renderHeatMap() {
+            if (heatLayer) map.removeLayer(heatLayer);
+            const points = allCustomers
+                .filter(c => c.status === 'offline' && c.latitude)
+                .map(c => [c.latitude, c.longitude, 1.0]);
+                
+            if (points.length > 0) {
+                heatLayer = L.heatLayer(points, { radius: 25, blur: 15, maxZoom: 17, gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' } }).addTo(map);
+            }
+        }
+
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const btn = document.getElementById('audioToggleBtn');
+            const icon = document.getElementById('audioIcon');
+            const text = document.getElementById('audioText');
+            const audio = document.getElementById('alertSound');
+            
+            if (isAudioEnabled) {
+                btn.classList.add('bg-green-600/20', 'border-green-500/50', 'text-green-400');
+                btn.classList.remove('bg-slate-800', 'text-slate-400');
+                icon.className = 'fas fa-volume-up';
+                text.textContent = 'Alarm On';
+                
+                if (offlineAlerts.length > 0) audio.play().catch(console.error);
+                audioInterval = setInterval(() => { if (offlineAlerts.length > 0) audio.play(); }, 60000);
+            } else {
+                btn.classList.remove('bg-green-600/20', 'border-green-500/50', 'text-green-400');
+                btn.classList.add('bg-slate-800', 'text-slate-400');
+                icon.className = 'fas fa-volume-mute';
+                text.textContent = 'Alarm Off';
+                
+                if (audioInterval) clearInterval(audioInterval);
+                audio.pause(); audio.currentTime = 0;
+            }
         }
 
         function fitAllMarkers() {
@@ -1262,60 +535,15 @@
             }
         }
 
-        function flyToOffline() {
-            if (offlineAlerts.length > 0) {
-                // Find nearest or just the first one
-                // Simple implementation: cycle through or go to first
-                const target = offlineAlerts[0];
-                if (target.latitude && target.longitude) {
-                    flyToCustomer(target.latitude, target.longitude);
-                    showToast(`Menuju ke ${target.name}`, 'warning');
-                }
-            } else {
-                showToast('Tidak ada pelanggan offline', 'success');
-            }
-        }
-
-        function flyToCustomer(lat, lng) {
-            map.flyTo([lat, lng], 18, {
-                duration: 1.5
-            });
-        }
-
-        function viewCustomer(id) {
-            window.open(`/customers/${id}`, '_blank');
-        }
-
-        function checkConnection(id) {
-            // Implement simple ping check via API if needed
-            showToast('Memeriksa koneksi...', 'info');
-        }
-
         function updateTime() {
-            const now = new Date();
-            document.getElementById('currentTime').textContent = now.toLocaleTimeString('id-ID');
+            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString('id-ID');
         }
 
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-
-            // Trigger reflow
-            toast.offsetHeight;
-
-            setTimeout(() => toast.classList.add('show'), 10);
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+        function refreshData() {
+            loadMapData(false);
         }
 
-        // Start
-        initMap();
+        window.onload = initMap;
     </script>
 </body>
-
 </html>

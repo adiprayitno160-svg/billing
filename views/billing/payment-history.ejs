@@ -528,12 +528,13 @@
 
         const totalAmount = parseFloat(stats.total_amount || 0);
         const totalCount = parseInt(stats.total_payments || 0);
+        const uniqueCustomers = parseInt(stats.unique_customers || 0);
         const cashAmount = parseFloat(stats.cash_amount || 0);
-        const avg = totalCount > 0 ? totalAmount / totalCount : 0;
+        const avg = uniqueCustomers > 0 ? totalAmount / uniqueCustomers : 0;
 
         document.getElementById('total-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(totalAmount);
         document.getElementById('total-count').textContent = totalCount;
-        document.getElementById('avg-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(avg);
+        document.getElementById('avg-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(avg));
         document.getElementById('cash-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(cashAmount);
         document.getElementById('result-count').textContent = `${totalCount} records`;
     }

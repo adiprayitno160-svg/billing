@@ -1546,6 +1546,49 @@ router.post('/payments/:id/upload-proof', paymentController.uploadPaymentProof.b
 // Debt tracking
 router.get('/debts', paymentController.getDebtTrackingList.bind(paymentController));
 
+// Debt print page
+router.get('/debts/print', async (req, res) => {
+    try {
+        const { databasePool } = await import('../db/pool');
+
+        const debtsQuery = `
+            SELECT 
+                dt.*,
+                c.name as customer_name,
+                c.customer_code,
+                c.phone as customer_phone,
+                i.invoice_number,
+                i.period,
+                DATEDIFF(CURRENT_DATE, dt.debt_date) as days_overdue
+            FROM debt_tracking dt
+            LEFT JOIN customers c ON dt.customer_id = c.id
+            LEFT JOIN invoices i ON dt.invoice_id = i.id
+            WHERE dt.status = 'active'
+            ORDER BY dt.debt_amount DESC
+        `;
+
+        const summaryQuery = `
+            SELECT 
+                SUM(dt.debt_amount) as total_debt,
+                COUNT(DISTINCT dt.customer_id) as customers_count,
+                COUNT(CASE WHEN DATEDIFF(CURRENT_DATE, dt.debt_date) > 30 THEN 1 END) as overdue_count
+            FROM debt_tracking dt
+            WHERE dt.status = 'active'
+        `;
+
+        const [debtsResult] = await databasePool.query(debtsQuery);
+        const [summaryResult] = await databasePool.query(summaryQuery);
+
+        res.render('billing/debt-print', {
+            debts: debtsResult,
+            summary: (summaryResult as any[])[0]
+        });
+    } catch (error: any) {
+        console.error('Error generating debt print:', error);
+        res.status(500).send('Gagal memuat rekap hutang: ' + error.message);
+    }
+});
+
 // Debt tracking view
 router.get('/debts/view', async (req, res) => {
     res.render('billing/debt-tracking', { title: 'Pelacakan Hutang' });
