@@ -58,7 +58,7 @@ export class InvoicePdfService {
             await page.setViewport({ width: 800, height: 1200, deviceScaleFactor: 2 });
 
             console.log(`[InvoicePdf] Rendering content...`);
-            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 20000 });
+            await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
 
             console.log(`[InvoicePdf] Capturing high-quality screenshot...`);
             const screenshotBuffer = await page.screenshot({ 
@@ -88,7 +88,7 @@ export class InvoicePdfService {
             });
 
         } catch (err: any) {
-            console.error(`[InvoicePdf] ❌ Error generating PDF for invoice ${invoiceId}:`, err.message);
+            console.error(`[InvoicePdf] ❌ Error generating PDF for invoice ${invoiceId}:`, err);
             
             if (browser) {
                 try { await browser.close(); } catch (e) { }
