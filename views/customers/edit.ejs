@@ -626,7 +626,7 @@
 
         <!-- Infrastructure Card -->
         <div
-            class="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+            class="rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
             <div class="px-8 py-5 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-2xl bg-cyan-100 text-cyan-600 flex items-center justify-center">
@@ -1115,7 +1115,7 @@
                             <div class="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-light" 
                                      onclick="selOdp('${o.id}', '${o.odp_name}', '${o.olt_id}', '${o.olt_name}')">
                                     <div class="font-bold text-slate-800 text-sm">${o.odp_name}</div>
-                                    <div class="text-[10px] text-slate-500">Free: ${o.available_ports} Ports</div>
+                                    <div class="text-[10px] text-slate-500">Port Kosong: ${(o.total_ports || 0) - (o.used_ports || 0)} / ${o.total_ports || 0} Port</div>
                                 </div>
                             `).join('');
                                 odpResults.classList.remove('hidden');

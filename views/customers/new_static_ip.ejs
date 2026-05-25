@@ -448,7 +448,7 @@
                                 <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 text-sm" 
                                      data-item='${JSON.stringify(item)}'>
                                     <div class="font-bold text-slate-800">${item.name || item.odp_name}</div>
-                                    <div class="text-[10px] text-slate-400">${item.location || item.available_ports + ' Ports' || ''}</div>
+                                    <div class="text-[10px] text-slate-400">${item.location ? item.location : (item.total_ports !== undefined && item.used_ports !== undefined ? 'Port Kosong: ' + ((item.total_ports || 0) - (item.used_ports || 0)) + ' / ' + (item.total_ports || 0) + ' Port' : '')}</div>
                                 </div>
                             `).join('');
                             results.classList.remove('hidden');

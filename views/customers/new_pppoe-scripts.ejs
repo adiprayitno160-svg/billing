@@ -49,7 +49,8 @@
                                 const name = item.name || item.odp_name || item.username || '';
                                 let sub = '';
                                 if (item.location) sub = item.location;
-                                else if (item.available_ports !== undefined) sub = item.available_ports + ' Ports';
+                                else if (item.total_ports !== undefined && item.used_ports !== undefined) sub = `Port Kosong: ${(item.total_ports || 0) - (item.used_ports || 0)} / ${item.total_ports || 0} Port`;
+                                else if (item.available_ports !== undefined) sub = item.available_ports + ' Ports'; // Fallback
                                 else if (item.profile) sub = item.profile; // PPPoE Profile
 
                                 return `
