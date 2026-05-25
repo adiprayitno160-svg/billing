@@ -301,6 +301,7 @@ router.use(async (req, res, next) => {
     if (req.path.startsWith('/kasir') ||
         req.path.startsWith('/auth') ||
         req.path.startsWith('/api') ||
+        req.path.startsWith('/monitoring/public') ||
         req.path.startsWith('/notification') ||
         req.path.startsWith('/technician') ||
         req.path === '/login' ||

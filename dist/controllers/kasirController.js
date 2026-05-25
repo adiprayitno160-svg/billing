@@ -1337,7 +1337,16 @@ class KasirController {
                     newStat = 'paid';
                 }
                 else if (paymentType === 'debt') {
-                    newStat = 'hutang';
+                    // Do not set to hutang immediately, wait for WA confirmation
+                    if (newPaidTotal > 0) {
+                        newStat = 'partial';
+                    }
+                    else if (new Date(invoice.due_date) < new Date()) {
+                        newStat = 'overdue';
+                    }
+                    else {
+                        newStat = 'sent';
+                    }
                 }
                 else if (newPaidTotal > 0) {
                     newStat = 'partial';
@@ -1351,15 +1360,51 @@ class KasirController {
                 `, [newPaidTotal, newRem, newStat, newStat, invoice.id]);
                 // Sync with debt_tracking for Admin visibility
                 if (newRem > 0) {
-                    const [existingDebt] = await conn.query('SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"', [invoice.id]);
-                    if (existingDebt.length > 0) {
-                        await conn.query('UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?', [newRem, existingDebt[0].id]);
+                    if (paymentType === 'debt') {
+                        // Insert into payment_confirmations instead of processing debt tracking directly
+                        await conn.query(`
+                                INSERT INTO payment_confirmations (customer_id, invoice_id, amount, type, status, kasir_name, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, 'pending', ?, NOW(), NOW())
+                            `, [customerId, invoice.id, newRem, 'debt', 'Kasir ' + kasirId]);
+                        // Notify user for confirmation
+                        try {
+                            const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../services/notification/UnifiedNotificationService')));
+                            await UnifiedNotificationService.queueNotification({
+                                customer_id: customerId,
+                                invoice_id: invoice.id,
+                                notification_type: 'payment_debt', // We repurpose this or use a new template
+                                channels: ['whatsapp'],
+                                variables: {
+                                    customer_name: customer.name || 'Pelanggan',
+                                    debt_amount: newRem.toLocaleString('id-ID'),
+                                },
+                                priority: 'high',
+                                send_immediately: true
+                            });
+                            // Also send the specific confirmation message
+                            const { WhatsAppService } = await Promise.resolve().then(() => __importStar(require('../services/whatsapp/WhatsAppService')));
+                            const waService = WhatsAppService.getInstance();
+                            if (customer.phone) {
+                                let phone = customer.phone.replace(/^0/, '62').replace(/\D/g, '');
+                                const confirmMsg = `Halo *${customer.name}*,\n\nAdmin telah mencatat permohonan *Hutang* Anda sebesar *Rp ${newRem.toLocaleString('id-ID')}*.\n\nUntuk menyetujui dan mengaktifkan kembali layanan internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika tidak membalas SETUJU, maka permohonan tidak akan diproses)_`;
+                                await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
+                            }
+                        }
+                        catch (notifErr) {
+                            console.error('[KasirController] Failed to send WA confirmation:', notifErr);
+                        }
                     }
                     else {
-                        await conn.query(`
-                            INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, status, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, NOW(), NOW())
-                        `, [customerId, invoice.id, newRem, paymentType === 'debt' ? 'Hutang penuh' : 'Pembayaran parsial', 'active']);
+                        const [existingDebt] = await conn.query('SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"', [invoice.id]);
+                        if (existingDebt.length > 0) {
+                            await conn.query('UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?', [newRem, existingDebt[0].id]);
+                        }
+                        else {
+                            await conn.query(`
+                                    INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, status, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                                `, [customerId, invoice.id, newRem, 'Pembayaran parsial', 'active']);
+                        }
                     }
                     // Carry over for next month logic (mirroring PaymentController)
                     const { getNextPeriod } = await Promise.resolve().then(() => __importStar(require('../utils/periodHelper')));

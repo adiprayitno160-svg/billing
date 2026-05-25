@@ -297,7 +297,70 @@ class WhatsAppHandler {
                 await this.handleRegistration(service, senderJid, senderPhone, '', session, locationData);
                 return;
             }
-            // 3. Advanced Keyword Matching (Menu / Greetings)
+            // 3. Handle WA Confirmations (Hutang / Janji Bayar)
+            if (keyword === 'setuju' && customer) {
+                try {
+                    // Check if there is an active pending confirmation for this customer
+                    const [confirms] = await pool_1.databasePool.query('SELECT * FROM payment_confirmations WHERE customer_id = ? AND status = "pending" ORDER BY created_at ASC LIMIT 1', [customer.id]);
+                    if (confirms && confirms.length > 0) {
+                        const confirmation = confirms[0];
+                        const invId = confirmation.invoice_id;
+                        const confType = confirmation.type; // 'debt' or 'janji_bayar'
+                        const confAmount = confirmation.amount;
+                        // Approve the confirmation
+                        await pool_1.databasePool.query('UPDATE payment_confirmations SET status = "approved", updated_at = NOW() WHERE id = ?', [confirmation.id]);
+                        // Update invoice status
+                        const newStatus = confType === 'janji_bayar' ? 'janji_bayar' : 'hutang';
+                        if (confType === 'janji_bayar' && confirmation.due_date) {
+                            await pool_1.databasePool.query('UPDATE invoices SET status = ?, due_date = ?, updated_at = NOW() WHERE id = ?', [newStatus, confirmation.due_date, invId]);
+                        }
+                        else {
+                            await pool_1.databasePool.query('UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ?', [newStatus, invId]);
+                        }
+                        // Sync with debt_tracking
+                        const [existingDebt] = await pool_1.databasePool.query('SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"', [invId]);
+                        if (existingDebt && existingDebt.length > 0) {
+                            await pool_1.databasePool.query('UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?', [confAmount, existingDebt[0].id]);
+                        }
+                        else {
+                            await pool_1.databasePool.query(`INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, debt_date, status, notes, created_at, updated_at) 
+                                 VALUES (?, ?, ?, ?, NOW(), 'active', ?, NOW(), NOW())`, [customer.id, invId, confAmount, 'Pencatatan ' + newStatus, 'Dikonfirmasi via WA']);
+                        }
+                        // Trigger IsolationService to UN-ISOLATE immediately!
+                        try {
+                            const { IsolationService } = await Promise.resolve().then(() => __importStar(require('../../services/billing/isolationService')));
+                            await IsolationService.restoreIfQualified(customer.id);
+                        }
+                        catch (isoErr) {
+                            console.error('[WhatsAppHandler] Failed to auto-restore after confirmation:', isoErr);
+                        }
+                        // Send success reply to customer
+                        const typeName = confType === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
+                        await service.sendMessage(senderJid, `✅ *Permohonan ${typeName} Disetujui!*\n\nTerima kasih, permohonan Anda untuk tagihan sebesar *Rp ${parseFloat(confAmount).toLocaleString('id-ID')}* telah berhasil diproses.\n\n🌐 Layanan internet Anda akan segera diaktifkan kembali secara otomatis dalam beberapa menit.`);
+                        // Admin Broadcast
+                        try {
+                            const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
+                            UnifiedNotificationService.broadcastToAdmins(`✅ *KONFIRMASI PELANGGAN*\n\n` +
+                                `👤 *Nama:* ${customer.name}\n` +
+                                `📝 *Tipe:* ${typeName}\n` +
+                                `💰 *Sisa Tagihan:* Rp ${parseFloat(confAmount).toLocaleString('id-ID')}\n\n` +
+                                `Pelanggan telah membalas SETUJU. Sistem telah memproses status dan melakukan un-isolir.`).catch(e => console.error(e));
+                        }
+                        catch (e) { }
+                        return;
+                    }
+                    else {
+                        // It's 'setuju' but no pending confirmations
+                        // Maybe they just said setuju out of context. Fall through or reply.
+                        await service.sendMessage(senderJid, 'ℹ️ Anda tidak memiliki permohonan Janji Bayar atau Hutang yang menunggu konfirmasi saat ini.');
+                        return;
+                    }
+                }
+                catch (err) {
+                    console.error('[WhatsAppHandler] Error processing SETUJU confirmation:', err);
+                }
+            }
+            // 4. Advanced Keyword Matching (Menu / Greetings)
             const isGreeting = /^(halo|hallo|hai|hi|p|tes|test|ping|assalamualaikum|selamat|pagi|siang|sore|malam)/.test(cleanText);
             const isMenu = /^(menu|info|help|bantuan|\/menu|\.menu|batal|cancel|exit)/.test(cleanText);
             if (isGreeting || isMenu) {
@@ -450,13 +513,13 @@ Ketik *Menu* untuk memulai.`);
                         await service.sendMessage(senderJid, `⚠️ *Janji Bayar Sudah Aktif*\n\nAnda sudah memiliki perpanjangan waktu untuk tagihan ini.\nBatas waktu: *${untilDate}*\n\nMohon lunasi sebelum tanggal tersebut.`);
                         return;
                     }
-                    // 3. Check yearly limit (max 4x per year)
+                    // 3. Check yearly limit (max 4x per year) - TEMPORARILY DISABLED
                     const { DefermentService } = await Promise.resolve().then(() => __importStar(require('../billing/DefermentService')));
                     const yearlyCount = await DefermentService.getDefermentCountThisYear(customer.id);
-                    if (yearlyCount >= 4) {
-                        await service.sendMessage(senderJid, `🚫 *Batas Perpanjangan Tercapai*\n\nAnda telah menggunakan kuota perpanjangan waktu sebanyak 4x dalam tahun ini.\n\nMohon segera lakukan pembayaran atau hubungi Admin untuk bantuan lebih lanjut.`);
-                        return;
-                    }
+                    // if (yearlyCount >= 4) {
+                    //     await service.sendMessage(senderJid, `🚫 *Batas Perpanjangan Tercapai*\n\nAnda telah menggunakan kuota perpanjangan waktu sebanyak 4x dalam tahun ini.\n\nMohon segera lakukan pembayaran atau hubungi Admin untuk bantuan lebih lanjut.`);
+                    //     return;
+                    // }
                     // 4. Auto-approve: extend by MAX_DEFERMENT_DAYS from today
                     const deferUntil = new Date();
                     deferUntil.setDate(deferUntil.getDate() + MAX_DEFERMENT_DAYS);
@@ -478,7 +541,6 @@ Ketik *Menu* untuk memulai.`);
                             `📄 Invoice: *${invoice.invoice_number}*\n` +
                             `💰 Tagihan: *Rp ${invoiceAmount}*\n` +
                             `📅 Batas Bayar Baru: *${untilDateFormatted}*\n` +
-                            `🔢 Kuota Tersisa: *${3 - yearlyCount}x* lagi tahun ini\n` +
                             `━━━━━━━━━━━━━━━\n\n` +
                             `⚠️ *PENTING:* Jika sampai tanggal *${untilDateFormatted}* belum ada pembayaran, koneksi internet Anda akan *DIPUTUS OTOMATIS* oleh sistem.\n\n` +
                             `Ketik *TAGIHAN* untuk cek detail tagihan.`);
@@ -488,7 +550,7 @@ Ketik *Menu* untuk memulai.`);
                             `Pelanggan *${customer.name}* telah meminta perpanjangan waktu via Bot WA.\n` +
                             `Invoice: ${invoice.invoice_number}\n` +
                             `Batas Baru: ${untilDateFormatted}\n` +
-                            `Kuota Tahun Ini: ${yearlyCount + 1}/4`).catch(() => { });
+                            `(Batas kuota janji bayar sementara dinonaktifkan)`).catch(() => { });
                     }
                     else {
                         await service.sendMessage(senderJid, `❌ *Gagal Memproses*\n\n${result.message}\n\nSilakan hubungi Admin untuk bantuan.`);

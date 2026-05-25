@@ -54,7 +54,7 @@ class InvoicePdfService {
             // A4 is roughly 794x1123 at 96dpi. We use 2x scale.
             await page.setViewport({ width: 800, height: 1200, deviceScaleFactor: 2 });
             console.log(`[InvoicePdf] Rendering content...`);
-            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 20000 });
+            await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
             console.log(`[InvoicePdf] Capturing high-quality screenshot...`);
             const screenshotBuffer = await page.screenshot({
                 fullPage: true,
@@ -77,7 +77,7 @@ class InvoicePdfService {
             });
         }
         catch (err) {
-            console.error(`[InvoicePdf] ❌ Error generating PDF for invoice ${invoiceId}:`, err.message);
+            console.error(`[InvoicePdf] ❌ Error generating PDF for invoice ${invoiceId}:`, err);
             if (browser) {
                 try {
                     await browser.close();

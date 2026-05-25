@@ -536,7 +536,7 @@ class UnifiedNotificationService {
                 try {
                     let attachmentPath = notification.attachment_path;
                     // Generate PDF on the fly if missing for invoice or payment notifications
-                    if (!attachmentPath && notification.invoice_id && (notification.notification_type === 'invoice_created' || notification.notification_type === 'invoice_reminder' || notification.notification_type === 'payment_received' || notification.notification_type === 'payment_partial')) {
+                    if (!attachmentPath && notification.invoice_id && (notification.notification_type === 'invoice_reminder' || notification.notification_type === 'payment_received' || notification.notification_type === 'payment_partial')) {
                         try {
                             console.log(`[UnifiedNotification] 🧙 Generating missing PDF for notification ${notification.id} (invoice: ${notification.invoice_id}) on the fly...`);
                             attachmentPath = await UnifiedNotificationService.generateInvoicePdf(notification.invoice_id);
@@ -668,7 +668,7 @@ class UnifiedNotificationService {
                     bank_list: bank.bankListText,
                     notes: invoice.notes || ''
                 },
-                attachment_path: await this.generateInvoicePdf(invoiceId),
+                attachment_path: undefined, // No PDF for new invoices
                 send_immediately: sendImmediately
             });
             return ids;

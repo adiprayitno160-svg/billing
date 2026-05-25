@@ -50,6 +50,10 @@ export declare const renderEnhancedNetworkMap: (req: Request, res: Response) => 
  */
 export declare const getMapCustomers: (req: Request, res: Response) => Promise<void>;
 /**
+ * Get detail for a specific customer in map popup (Distance & GenieACS Signal)
+ */
+export declare const getCustomerMapDetail: (req: Request, res: Response) => Promise<Response<any, Record<string, any>>>;
+/**
  * Get offline alerts (excluding isolated customers)
  */
 export declare const getOfflineAlerts: (req: Request, res: Response) => Promise<void>;

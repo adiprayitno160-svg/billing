@@ -239,6 +239,30 @@ async function ensureInitialSchema() {
         await addCol(`ALTER TABLE customers ADD COLUMN last_connection_loss DATETIME NULL AFTER expiry_date`);
         await addCol(`ALTER TABLE customers ADD COLUMN monitoring_state VARCHAR(50) DEFAULT 'monitor' AFTER last_connection_loss`);
         await addCol(`ALTER TABLE customers ADD COLUMN connection_loss_detected_at DATETIME NULL AFTER monitoring_state`);
+        // Add FUP and Bonus Speed (Happy Hour) columns to customers
+        await addCol(`ALTER TABLE customers ADD COLUMN is_fup_enabled TINYINT(1) DEFAULT 0`);
+        await addCol(`ALTER TABLE customers ADD COLUMN fup_limit_gb INT NULL`);
+        await addCol(`ALTER TABLE customers ADD COLUMN fup_speed_limit VARCHAR(50) NULL COMMENT 'e.g. 5M/5M'`);
+        await addCol(`ALTER TABLE customers ADD COLUMN is_bonus_enabled TINYINT(1) DEFAULT 0`);
+        await addCol(`ALTER TABLE customers ADD COLUMN bonus_speed_limit VARCHAR(50) NULL COMMENT 'e.g. 40M/40M'`);
+        await addCol(`ALTER TABLE customers ADD COLUMN bonus_start_time TIME NULL`);
+        await addCol(`ALTER TABLE customers ADD COLUMN bonus_end_time TIME NULL`);
+        // Create customer_traffic_usage table for FUP tracking
+        await conn.query(`CREATE TABLE IF NOT EXISTS customer_traffic_usage (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			period VARCHAR(7) NOT NULL COMMENT 'Format YYYY-MM',
+			total_bytes_download BIGINT DEFAULT 0,
+			total_bytes_upload BIGINT DEFAULT 0,
+			last_mikrotik_tx BIGINT DEFAULT 0,
+			last_mikrotik_rx BIGINT DEFAULT 0,
+			is_fup_applied TINYINT(1) DEFAULT 0,
+			fup_applied_at DATETIME NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE KEY unique_customer_period (customer_id, period),
+			CONSTRAINT fk_traffic_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
         // Remove old parent_queue_name column if it exists
         try {
             await conn.query(`ALTER TABLE static_ip_packages DROP COLUMN parent_queue_name`);
@@ -600,6 +624,28 @@ async function ensureInitialSchema() {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_invoice_id (invoice_id),
 			CONSTRAINT fk_discount_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+        try {
+            await addCol(`ALTER TABLE invoices ADD COLUMN is_printed TINYINT(1) DEFAULT 0 AFTER notes`);
+        }
+        catch (e) {
+            console.log('[DB] Note: Error adding is_printed column (might already exist)');
+        }
+        // Create payment_confirmations table for Janji Bayar / Hutang WA confirmations
+        await conn.query(`CREATE TABLE IF NOT EXISTS payment_confirmations (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT NOT NULL,
+			invoice_id INT NOT NULL,
+			amount DECIMAL(15,2) NOT NULL,
+			type ENUM('debt', 'janji_bayar') NOT NULL,
+			status ENUM('pending', 'approved', 'expired', 'rejected') DEFAULT 'pending',
+			due_date DATE DEFAULT NULL,
+			notes TEXT,
+			kasir_name VARCHAR(255),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+			FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
         // Ensure discounts table has correct columns (for existing installations)
         try {

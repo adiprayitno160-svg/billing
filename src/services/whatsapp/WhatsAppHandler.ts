@@ -325,7 +325,97 @@ export class WhatsAppHandler {
                 return;
             }
 
-            // 3. Advanced Keyword Matching (Menu / Greetings)
+            // 3. Handle WA Confirmations (Hutang / Janji Bayar)
+            if (keyword === 'setuju' && customer) {
+                try {
+                    // Check if there is an active pending confirmation for this customer
+                    const [confirms]: any = await databasePool.query(
+                        'SELECT * FROM payment_confirmations WHERE customer_id = ? AND status = "pending" ORDER BY created_at ASC LIMIT 1',
+                        [customer.id]
+                    );
+
+                    if (confirms && confirms.length > 0) {
+                        const confirmation = confirms[0];
+                        const invId = confirmation.invoice_id;
+                        const confType = confirmation.type; // 'debt' or 'janji_bayar'
+                        const confAmount = confirmation.amount;
+
+                        // Approve the confirmation
+                        await databasePool.query(
+                            'UPDATE payment_confirmations SET status = "approved", updated_at = NOW() WHERE id = ?',
+                            [confirmation.id]
+                        );
+
+                        // Update invoice status
+                        const newStatus = confType === 'janji_bayar' ? 'janji_bayar' : 'hutang';
+                        if (confType === 'janji_bayar' && confirmation.due_date) {
+                            await databasePool.query(
+                                'UPDATE invoices SET status = ?, due_date = ?, updated_at = NOW() WHERE id = ?',
+                                [newStatus, confirmation.due_date, invId]
+                            );
+                        } else {
+                            await databasePool.query(
+                                'UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ?',
+                                [newStatus, invId]
+                            );
+                        }
+
+                        // Sync with debt_tracking
+                        const [existingDebt]: any = await databasePool.query(
+                            'SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"',
+                            [invId]
+                        );
+
+                        if (existingDebt && existingDebt.length > 0) {
+                            await databasePool.query(
+                                'UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?',
+                                [confAmount, existingDebt[0].id]
+                            );
+                        } else {
+                            await databasePool.query(
+                                `INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, debt_date, status, notes, created_at, updated_at) 
+                                 VALUES (?, ?, ?, ?, NOW(), 'active', ?, NOW(), NOW())`,
+                                [customer.id, invId, confAmount, 'Pencatatan ' + newStatus, 'Dikonfirmasi via WA']
+                            );
+                        }
+
+                        // Trigger IsolationService to UN-ISOLATE immediately!
+                        try {
+                            const { IsolationService } = await import('../../services/billing/isolationService');
+                            await IsolationService.restoreIfQualified(customer.id);
+                        } catch (isoErr) {
+                            console.error('[WhatsAppHandler] Failed to auto-restore after confirmation:', isoErr);
+                        }
+
+                        // Send success reply to customer
+                        const typeName = confType === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
+                        await service.sendMessage(senderJid, `✅ *Permohonan ${typeName} Disetujui!*\n\nTerima kasih, permohonan Anda untuk tagihan sebesar *Rp ${parseFloat(confAmount).toLocaleString('id-ID')}* telah berhasil diproses.\n\n🌐 Layanan internet Anda akan segera diaktifkan kembali secara otomatis dalam beberapa menit.`);
+
+                        // Admin Broadcast
+                        try {
+                            const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                            UnifiedNotificationService.broadcastToAdmins(
+                                `✅ *KONFIRMASI PELANGGAN*\n\n` +
+                                `👤 *Nama:* ${customer.name}\n` +
+                                `📝 *Tipe:* ${typeName}\n` +
+                                `💰 *Sisa Tagihan:* Rp ${parseFloat(confAmount).toLocaleString('id-ID')}\n\n` +
+                                `Pelanggan telah membalas SETUJU. Sistem telah memproses status dan melakukan un-isolir.`
+                            ).catch(e => console.error(e));
+                        } catch(e) {}
+
+                        return;
+                    } else {
+                        // It's 'setuju' but no pending confirmations
+                        // Maybe they just said setuju out of context. Fall through or reply.
+                        await service.sendMessage(senderJid, 'ℹ️ Anda tidak memiliki permohonan Janji Bayar atau Hutang yang menunggu konfirmasi saat ini.');
+                        return;
+                    }
+                } catch (err) {
+                    console.error('[WhatsAppHandler] Error processing SETUJU confirmation:', err);
+                }
+            }
+
+            // 4. Advanced Keyword Matching (Menu / Greetings)
             const isGreeting = /^(halo|hallo|hai|hi|p|tes|test|ping|assalamualaikum|selamat|pagi|siang|sore|malam)/.test(cleanText);
             const isMenu = /^(menu|info|help|bantuan|\/menu|\.menu|batal|cancel|exit)/.test(cleanText);
 

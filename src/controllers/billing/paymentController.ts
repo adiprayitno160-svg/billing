@@ -1529,9 +1529,10 @@ export class PaymentController {
                 if (invPayment > 0 || invDiscount > 0 || paymentType === 'debt' || paymentType === 'janji_bayar') {
                     // Record payment if cash was spent OR if it's a debt to ensure history is updated
                     if (invPayment > 0 || paymentType === 'debt' || paymentType === 'janji_bayar') {
+                        const defaultNotes = (paymentType === 'debt' || paymentType === 'janji_bayar') ? 'Dialihkan ke Hutang/Janji Bayar' : 'Pembayaran Kasir';
                         const [pResult] = await conn.execute<ResultSetHeader>(
                             'INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, kasir_name, created_at) VALUES (?, ?, ?, ?, "completed", ?, ?, NOW())',
-                            [invId, (paymentType === 'debt' || paymentType === 'janji_bayar') && invPayment === 0 ? paymentType : paymentMethod, invPayment, paymentDateStr, notes || 'Dialihkan ke Hutang/Janji Bayar', kasirName]
+                            [invId, (paymentType === 'debt' || paymentType === 'janji_bayar') && invPayment === 0 ? paymentType : paymentMethod, invPayment, paymentDateStr, notes || defaultNotes, kasirName]
                         );
                         if (!firstPaymentId) firstPaymentId = pResult.insertId;
                     }
@@ -1549,9 +1550,23 @@ export class PaymentController {
                     }
 
                     if (paymentType === 'debt' && newRemaining > 0) {
-                        newStatus = 'hutang';
+                        // Do not set hutang immediately, wait for WA confirmation
+                        if (newPaid > 0) {
+                            newStatus = 'partial';
+                        } else if (new Date(inv.due_date) < new Date()) {
+                            newStatus = 'overdue';
+                        } else {
+                            newStatus = 'sent';
+                        }
                     } else if (paymentType === 'janji_bayar' && newRemaining > 0) {
-                        newStatus = 'janji_bayar';
+                        // Do not set janji_bayar immediately, wait for WA confirmation
+                        if (newPaid > 0) {
+                            newStatus = 'partial';
+                        } else if (new Date(inv.due_date) < new Date()) {
+                            newStatus = 'overdue';
+                        } else {
+                            newStatus = 'sent';
+                        }
                     }
 
                     await conn.execute(
@@ -1572,30 +1587,28 @@ export class PaymentController {
                             "UPDATE debt_tracking SET status = 'resolved', resolved_at = NOW() WHERE invoice_id = ?",
                             [invId]
                         );
-                    } else if (paymentType === 'debt') {
-                        // Update or insert debt tracking with new remaining
-                        const [existingDebt] = await conn.query<RowDataPacket[]>(
-                            'SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"',
-                            [invId]
-                        );
+                    } else if (paymentType === 'debt' || paymentType === 'janji_bayar') {
+                        // Insert into payment_confirmations instead of processing debt tracking directly
+                        await conn.query(`
+                            INSERT INTO payment_confirmations (customer_id, invoice_id, amount, type, status, due_date, notes, kasir_name, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, NOW(), NOW())
+                        `, [customerId, invId, newRemaining, paymentType, dueDate || null, notes || 'Dilakukan via System', kasirName]);
 
-                        if (existingDebt.length > 0) {
-                            await conn.query(
-                                'UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?',
-                                [newRemaining, existingDebt[0].id]
-                            );
-                        } else {
-                            await conn.query(
-                                `INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, debt_date, status, notes, created_at, updated_at) 
-                                 VALUES (?, ?, ?, ?, NOW(), 'active', ?, NOW(), NOW())`,
-                                [customerId, invId, newRemaining, 'Pencatatan hutang pelanggan', notes || 'Dilakukan via Kasir Digital']
-                            );
+                        // Send WA confirmation
+                        try {
+                            const [cust] = await conn.query<RowDataPacket[]>('SELECT name, phone FROM customers WHERE id = ?', [customerId]);
+                            if (cust.length > 0 && cust[0].phone) {
+                                const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
+                                const waService = WhatsAppService.getInstance();
+                                let phone = cust[0].phone.replace(/^0/, '62').replace(/\D/g, '');
+                                const typeName = paymentType === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
+                                const dueTxt = dueDate ? `\n\nJanji dibayar pada: *${new Date(dueDate).toLocaleDateString('id-ID')}*` : '';
+                                const confirmMsg = `Halo *${cust[0].name}*,\n\nAdmin telah mencatat permohonan *${typeName}* Anda untuk tagihan sebesar *Rp ${newRemaining.toLocaleString('id-ID')}*${dueTxt}.\n\nUntuk menyetujui dan mengaktifkan kembali layanan internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika tidak membalas SETUJU, maka permohonan tidak akan diproses)_`;
+                                await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
+                            }
+                        } catch (notifErr) {
+                            console.error('[PaymentController] Failed to send WA confirmation:', notifErr);
                         }
-                    }
-                    
-                    // Juga update invoice due_date jika itu janji bayar
-                    if (dueDate && paymentType === 'janji_bayar') {
-                        await conn.query("UPDATE invoices SET due_date = ? WHERE id = ?", [dueDate, invId]);
                     }
                 }
             }
@@ -1619,24 +1632,15 @@ export class PaymentController {
 
             await conn.commit();
 
-            // 4. Notifications (Non-blocking)
             if (firstPaymentId || paymentType === 'janji_bayar' || paymentType === 'debt') {
                 import('../../services/notification/UnifiedNotificationService').then(({ UnifiedNotificationService }) => {
-                    if (paymentType === 'janji_bayar') {
-                        // Send Janji Bayar confirmation to customer
-                        UnifiedNotificationService.notifyJanjiBayar(selectedInvoiceIds[0], true)
-                            .catch(err => console.error('[AdminPayment] Failed to send customer janji bayar receipt:', err));
-                    } else if (paymentType === 'debt') {
-                        // Send Debt notification to customer
-                        UnifiedNotificationService.notifyPaymentDebt(selectedInvoiceIds[0], true)
-                            .catch(err => console.error('[AdminPayment] Failed to send customer debt notification:', err));
-                    } else if (firstPaymentId) {
+                    if (firstPaymentId) {
                         // Send Regular/Partial receipt to customer
                         UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true)
                             .catch(err => console.error('[AdminPayment] Failed to send customer receipt:', err));
                     }
 
-                    // Admin Broadcast
+                    // Admin Broadcast (No need to broadcast customer notifications if we wait for WA reply)
                     if (paymentType === 'debt' || paymentType === 'janji_bayar') {
                         const typeLabel = paymentType === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
                         const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `📆 *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';

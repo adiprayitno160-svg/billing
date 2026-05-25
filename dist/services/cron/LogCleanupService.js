@@ -68,6 +68,19 @@ async function cleanupLogs() {
     catch (e) {
         console.error('[LogCleanup] ❌ Database cleanup failed:', e.message);
     }
+    // 3. Cleanup processed payment verifications from previous months
+    try {
+        const [verResult] = await pool_1.databasePool.query(`DELETE FROM manual_payment_verifications 
+             WHERE status IN ('approved', 'rejected') 
+             AND created_at < DATE_FORMAT(NOW(), '%Y-%m-01 00:00:00')`);
+        const verDeleted = verResult.affectedRows || 0;
+        if (verDeleted > 0) {
+            console.log(`[LogCleanup] 🗑️ Deleted ${verDeleted} processed verifications from previous months.`);
+        }
+    }
+    catch (e) {
+        console.error('[LogCleanup] ❌ Verification cleanup failed:', e.message);
+    }
     return { filesDeleted, dbRowsDeleted };
 }
 let cleanupTask = null;

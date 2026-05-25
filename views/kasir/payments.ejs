@@ -740,8 +740,8 @@
         document.getElementById('selectedInvoiceInputs').innerHTML = '';
     }
 
-    // Auto-open Receipt if payment success
-    window.onload = function() {
+    // Move this logic to DOMContentLoaded (which we will place just inside the existing one, or just add a new DOMContentLoaded listener here)
+    document.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('success_payment_id');
         if (paymentId) {
@@ -763,7 +763,7 @@
                 window.history.replaceState({}, document.title, newUrl);
             });
         }
-    };
+    });
 
     // Handle Form Submit
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {

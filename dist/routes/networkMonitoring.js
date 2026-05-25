@@ -59,6 +59,7 @@ router.post('/api/sync/links', networkMonitoringController.autoCreateLinks);
 router.get('/public/enhanced-network-map', networkMonitoringController.renderEnhancedNetworkMap);
 // API for enhanced monitoring
 router.get('/api/map-customers', networkMonitoringController.getMapCustomers);
+router.get('/api/customer-detail/:id', networkMonitoringController.getCustomerMapDetail);
 router.get('/api/offline-alerts', networkMonitoringController.getOfflineAlerts);
 router.get('/api/nearby-customers', networkMonitoringController.getNearbyCustomers);
 router.post('/api/refresh-monitoring', networkMonitoringController.refreshMonitoring);
