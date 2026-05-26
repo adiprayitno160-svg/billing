@@ -1219,9 +1219,7 @@ router.get('/payments', paymentController.getPaymentHistory.bind(paymentControll
 // Resend notification
 router.post('/payments/:id/resend-notification', paymentController.resendNotification.bind(paymentController));
 // Payment history view
-router.get('/payments/history', async (req, res) => {
-    res.render('billing/payment-history', { title: 'Riwayat Pembayaran' });
-});
+router.get('/payments/history', paymentController.getPaymentHistory.bind(paymentController));
 // Payment detail
 router.get('/payments/:id', async (req, res) => {
     // Will be implemented with PaymentController
