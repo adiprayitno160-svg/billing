@@ -1596,14 +1596,28 @@ export class PaymentController {
 
                         // Send WA confirmation
                         try {
-                            const [cust] = await conn.query<RowDataPacket[]>('SELECT name, phone FROM customers WHERE id = ?', [customerId]);
-                            if (cust.length > 0 && cust[0].phone) {
+                            const [custData] = await conn.query<RowDataPacket[]>(
+                                'SELECT c.name, c.phone, i.due_date as inv_due FROM customers c JOIN invoices i ON c.id = i.customer_id WHERE c.id = ? AND i.id = ?', 
+                                [customerId, invId]
+                            );
+                            if (custData.length > 0 && custData[0].phone) {
                                 const { WhatsAppService } = await import('../../services/whatsapp/WhatsAppService');
                                 const waService = WhatsAppService.getInstance();
-                                let phone = cust[0].phone.replace(/^0/, '62').replace(/\D/g, '');
+                                let phone = custData[0].phone.replace(/^0/, '62').replace(/\D/g, '');
                                 const typeName = paymentType === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
-                                const dueTxt = dueDate ? `\n\nBatas akhir pembayaran (Jatuh Tempo): *${new Date(dueDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}*` : '';
-                                const confirmMsg = `Halo *${cust[0].name}*,\n\nAdmin kami telah mencatat permohonan *${typeName}* Anda untuk tagihan internet sebesar *Rp ${newRemaining.toLocaleString('id-ID')}*.${dueTxt}\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi akan terisolir sesuai jadwal tunggakan)_.`;
+                                
+                                // Format the requested Janji Bayar due date
+                                const requestedDueTxt = dueDate ? `\n\nTanggal Janji Bayar yang diminta: *${new Date(dueDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}*` : '';
+                                
+                                // Format the original isolation date (invoice.due_date + 1 day)
+                                let isolirTxt = 'sesuai jadwal tunggakan awal';
+                                if (custData[0].inv_due) {
+                                    const isoDate = new Date(custData[0].inv_due);
+                                    isoDate.setDate(isoDate.getDate() + 1);
+                                    isolirTxt = `pada tanggal *${isoDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}* (karena batas akhir tagihan awal adalah ${new Date(custData[0].inv_due).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })})`;
+                                }
+
+                                const confirmMsg = `Halo *${custData[0].name}*,\n\nAdmin kami telah mencatat permohonan *${typeName}* Anda untuk tagihan internet sebesar *Rp ${newRemaining.toLocaleString('id-ID')}*.${requestedDueTxt}\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi Anda akan diisolir ${isolirTxt})_.`;
                                 await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
                             }
                         } catch (notifErr) {
