@@ -1082,16 +1082,14 @@ export class UnifiedNotificationService {
 
       console.log(`[UnifiedNotification] Payment ${paymentId}: isPaid=${isPaid}, NotificationType=${notificationType}`);
 
-      // Generate PDF for payment receipt/invoice (ONLY for full payments)
+      // Generate PDF for payment receipt/invoice (for both full and partial payments)
       let attachmentPath = undefined;
-      if (notificationType === 'payment_received') {
-        try {
-          attachmentPath = await this.generateInvoicePdf(payment.invoice_id);
-          console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
-        } catch (pdfError) {
-          console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
-          // Continue without attachment
-        }
+      try {
+        attachmentPath = await this.generateInvoicePdf(payment.invoice_id);
+        console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
+      } catch (pdfError) {
+        console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
+        // Continue without attachment
       }
 
       // Format billing month
