@@ -222,6 +222,7 @@
         let heatLayer = null;
         let isHeatMapEnabled = false;
         let allCustomers = [];
+        let odcOltLinks = [];
         let offlineAlerts = [];
         let isAudioEnabled = false;
         let audioInterval = null;
@@ -346,6 +347,7 @@
         function processMapData(data) {
             if (!data || !data.customers) return;
             allCustomers = data.customers;
+            odcOltLinks = data.odc_olt_links || [];
             
             // Update Stats UI
             document.getElementById('statTotal').textContent = data.stats.total;
@@ -355,6 +357,7 @@
 
             renderMarkers(allCustomers);
             renderConnections(allCustomers);
+            renderOdcOltConnections(odcOltLinks);
             updateOfflineAlerts(allCustomers);
             
             if (isHeatMapEnabled) renderHeatMap();
@@ -420,21 +423,53 @@
             // Draw lines for all zoomed levels to ensure visibility
             customers.forEach(customer => {
                 if (customer.odp_latitude && customer.odp_longitude && customer.latitude && customer.longitude) {
-                    let color = '#3b82f6'; // online
-                    let weight = 1;
-                    let opacity = 0.4;
+                    let color = '#22c55e'; // default green (online)
+                    let weight = 1.5;
+                    let opacity = 0.6;
+                    let dashArray = '5, 5'; // dashed green for online
                     
-                    if (customer.status === 'offline') { color = '#ef4444'; opacity = 0.6; weight = 1.5; }
-                    else if (customer.status === 'isolated') { color = '#f97316'; opacity = 0.4; }
+                    if (customer.status === 'offline') { 
+                        color = '#ef4444'; // solid red for offline
+                        opacity = 0.8; 
+                        weight = 2; 
+                        dashArray = null; 
+                    } else if (customer.status === 'isolated') { 
+                        color = '#f97316'; 
+                        opacity = 0.4; 
+                        dashArray = '5, 5'; 
+                    }
 
-                    L.polyline([
-                        [parseFloat(customer.odp_latitude), parseFloat(customer.odp_longitude)],
-                        [parseFloat(customer.latitude), parseFloat(customer.longitude)]
-                    ], {
-                        color, weight, opacity,
+                    const latlng1 = L.latLng(parseFloat(customer.odp_latitude), parseFloat(customer.odp_longitude));
+                    const latlng2 = L.latLng(parseFloat(customer.latitude), parseFloat(customer.longitude));
+                    const distanceStr = Math.round(latlng1.distanceTo(latlng2)) + ' m';
+
+                    const polyline = L.polyline([latlng1, latlng2], {
+                        color, weight, opacity, dashArray,
                         renderer: lineRenderer,
-                        interactive: false // Ignore pointer events
+                        interactive: true // MUST BE TRUE for tooltip
                     }).addTo(connectionLayerGroup);
+                    
+                    polyline.bindTooltip(\`<div class="text-xs text-center"><div class="font-bold">\${distanceStr}</div><div class="text-[10px] text-slate-400">ODP ke Client</div></div>\`, { sticky: true, className: 'bg-slate-800 text-white border border-slate-700' });
+                }
+            });
+        }
+
+        function renderOdcOltConnections(links) {
+            links.forEach(link => {
+                if (link.odc_lat && link.odc_lng && link.olt_lat && link.olt_lng) {
+                    const latlng1 = L.latLng(parseFloat(link.olt_lat), parseFloat(link.olt_lng));
+                    const latlng2 = L.latLng(parseFloat(link.odc_lat), parseFloat(link.odc_lng));
+                    const distanceStr = Math.round(latlng1.distanceTo(latlng2)) + ' m';
+
+                    const polyline = L.polyline([latlng1, latlng2], {
+                        color: '#a855f7', // purple
+                        weight: 3, 
+                        opacity: 0.8,
+                        renderer: lineRenderer,
+                        interactive: true
+                    }).addTo(connectionLayerGroup);
+                    
+                    polyline.bindTooltip(\`<div class="text-xs text-center"><div class="font-bold text-purple-400">\${distanceStr}</div><div class="text-[10px] text-slate-400">OLT \${link.olt_name} ke ODC \${link.odc_name}</div></div>\`, { sticky: true, className: 'bg-slate-800 text-white border border-slate-700' });
                 }
             });
         }
