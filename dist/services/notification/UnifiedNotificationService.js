@@ -349,11 +349,11 @@ class UnifiedNotificationService {
             }
             let processedInThisBatch = 0;
             for (const notif of notifications) {
-                // Anti-spam: Random delay between 15-45 seconds for mass notifications
+                // Anti-spam: Fixed delay 15 seconds for mass notifications to achieve 4 msgs/minute
                 if (processedInThisBatch > 0) {
-                    const randomDelay = Math.floor(Math.random() * (45000 - 15000 + 1)) + 15000;
-                    console.log(`[UnifiedNotification] ⏳ Waiting ${Math.round(randomDelay / 1000)} seconds before next message (Anti-Ban Dynamic Delay)...`);
-                    await this.delay(randomDelay);
+                    const delay = 15000;
+                    console.log(`[UnifiedNotification] ⏳ Waiting ${Math.round(delay / 1000)} seconds before next message (Anti-Ban 15s Delay)...`);
+                    await this.delay(delay);
                 }
                 console.log(`[UnifiedNotification] 🔍 Processing notification ID: ${notif.id}`, {
                     customer_id: notif.customer_id,
@@ -536,7 +536,7 @@ class UnifiedNotificationService {
                 try {
                     let attachmentPath = notification.attachment_path;
                     // Generate PDF on the fly if missing for invoice or payment notifications
-                    if (!attachmentPath && notification.invoice_id && (notification.notification_type === 'invoice_reminder' || notification.notification_type === 'payment_received' || notification.notification_type === 'payment_partial')) {
+                    if (!attachmentPath && notification.invoice_id && (notification.notification_type === 'invoice_reminder' || notification.notification_type === 'payment_received')) {
                         try {
                             console.log(`[UnifiedNotification] 🧙 Generating missing PDF for notification ${notification.id} (invoice: ${notification.invoice_id}) on the fly...`);
                             attachmentPath = await UnifiedNotificationService.generateInvoicePdf(notification.invoice_id);
@@ -857,15 +857,17 @@ class UnifiedNotificationService {
             const isPaid = remainingAmount <= 100;
             const notificationType = isPaid ? 'payment_received' : 'payment_partial';
             console.log(`[UnifiedNotification] Payment ${paymentId}: isPaid=${isPaid}, NotificationType=${notificationType}`);
-            // Generate PDF for payment receipt/invoice
+            // Generate PDF for payment receipt/invoice (ONLY for full payments)
             let attachmentPath = undefined;
-            try {
-                attachmentPath = await this.generateInvoicePdf(payment.invoice_id);
-                console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
-            }
-            catch (pdfError) {
-                console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
-                // Continue without attachment
+            if (notificationType === 'payment_received') {
+                try {
+                    attachmentPath = await this.generateInvoicePdf(payment.invoice_id);
+                    console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
+                }
+                catch (pdfError) {
+                    console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
+                    // Continue without attachment
+                }
             }
             // Format billing month
             const billingMonth = getBillingMonth(payment.period, paymentDate, payment.due_date);

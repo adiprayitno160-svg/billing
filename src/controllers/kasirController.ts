@@ -1465,13 +1465,7 @@ export class KasirController {
 
                 // Apply debt (no cash, but still marks as partial/overdue)
                 if (paymentType === 'debt' && (appliedFromBalance + appliedFromCash) < invoiceRemaining) {
-                    // Create a 0 amount payment record so it shows in history and triggers notifications
-                    const [pResult] = await conn.query<ResultSetHeader>(`
-                        INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, created_by, created_at)
-                        VALUES (?, 'debt', 0, NOW(), 'completed', ?, ?, NOW())
-                    `, [invoice.id, notes || 'Dialihkan ke Hutang Kasir', kasirId]);
-                    
-                    if (!firstPaymentId) firstPaymentId = pResult.insertId;
+                    // Do NOT create a 0 amount payment record here to avoid premature receipts
                 }
 
                 const totalAppliedToInv = appliedFromBalance + appliedFromCash;
@@ -1512,27 +1506,14 @@ export class KasirController {
                                 VALUES (?, ?, ?, ?, 'pending', ?, NOW(), NOW())
                             `, [customerId, invoice.id, newRem, 'debt', 'Kasir ' + kasirId]);
 
-                            // Notify user for confirmation
+                            // Notify user for confirmation ONLY via WA
                             try {
-                                const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
-                                await UnifiedNotificationService.queueNotification({
-                                    customer_id: customerId,
-                                    invoice_id: invoice.id,
-                                    notification_type: 'payment_debt', // We repurpose this or use a new template
-                                    channels: ['whatsapp'],
-                                    variables: {
-                                        customer_name: customer.name || 'Pelanggan',
-                                        debt_amount: newRem.toLocaleString('id-ID'),
-                                    },
-                                    priority: 'high',
-                                    send_immediately: true
-                                });
-                                // Also send the specific confirmation message
                                 const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
                                 const waService = WhatsAppService.getInstance();
                                 if (customer.phone) {
                                     let phone = customer.phone.replace(/^0/, '62').replace(/\D/g, '');
-                                    const confirmMsg = `Halo *${customer.name}*,\n\nAdmin telah mencatat permohonan *Hutang* Anda sebesar *Rp ${newRem.toLocaleString('id-ID')}*.\n\nUntuk menyetujui dan mengaktifkan kembali layanan internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika tidak membalas SETUJU, maka permohonan tidak akan diproses)_`;
+                                    const dueTxt = invoice.due_date ? `\n\nBatas akhir pembayaran (Jatuh Tempo): *${new Date(invoice.due_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}*` : '';
+                                    const confirmMsg = `Halo *${customer.name}*,\n\nAdmin kami telah mencatat permohonan *Hutang* Anda untuk tagihan internet sebesar *Rp ${newRem.toLocaleString('id-ID')}*.${dueTxt}\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi akan terisolir sesuai jadwal tunggakan)_.`;
                                     await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
                                 }
                             } catch (notifErr) {

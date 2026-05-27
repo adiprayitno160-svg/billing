@@ -1527,12 +1527,12 @@ export class PaymentController {
                 remainingPool -= invPayment;
 
                 if (invPayment > 0 || invDiscount > 0 || paymentType === 'debt' || paymentType === 'janji_bayar') {
-                    // Record payment if cash was spent OR if it's a debt to ensure history is updated
-                    if (invPayment > 0 || paymentType === 'debt' || paymentType === 'janji_bayar') {
-                        const defaultNotes = (paymentType === 'debt' || paymentType === 'janji_bayar') ? 'Dialihkan ke Hutang/Janji Bayar' : 'Pembayaran Kasir';
+                    // Record payment ONLY if actual cash was spent
+                    if (invPayment > 0) {
+                        const defaultNotes = 'Pembayaran Kasir';
                         const [pResult] = await conn.execute<ResultSetHeader>(
                             'INSERT INTO payments (invoice_id, payment_method, amount, payment_date, gateway_status, notes, kasir_name, created_at) VALUES (?, ?, ?, ?, "completed", ?, ?, NOW())',
-                            [invId, (paymentType === 'debt' || paymentType === 'janji_bayar') && invPayment === 0 ? paymentType : paymentMethod, invPayment, paymentDateStr, notes || defaultNotes, kasirName]
+                            [invId, paymentMethod, invPayment, paymentDateStr, notes || defaultNotes, kasirName]
                         );
                         if (!firstPaymentId) firstPaymentId = pResult.insertId;
                     }
@@ -1602,8 +1602,8 @@ export class PaymentController {
                                 const waService = WhatsAppService.getInstance();
                                 let phone = cust[0].phone.replace(/^0/, '62').replace(/\D/g, '');
                                 const typeName = paymentType === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
-                                const dueTxt = dueDate ? `\n\nJanji dibayar pada: *${new Date(dueDate).toLocaleDateString('id-ID')}*` : '';
-                                const confirmMsg = `Halo *${cust[0].name}*,\n\nAdmin telah mencatat permohonan *${typeName}* Anda untuk tagihan sebesar *Rp ${newRemaining.toLocaleString('id-ID')}*${dueTxt}.\n\nUntuk menyetujui dan mengaktifkan kembali layanan internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika tidak membalas SETUJU, maka permohonan tidak akan diproses)_`;
+                                const dueTxt = dueDate ? `\n\nBatas akhir pembayaran (Jatuh Tempo): *${new Date(dueDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}*` : '';
+                                const confirmMsg = `Halo *${cust[0].name}*,\n\nAdmin kami telah mencatat permohonan *${typeName}* Anda untuk tagihan internet sebesar *Rp ${newRemaining.toLocaleString('id-ID')}*.${dueTxt}\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi akan terisolir sesuai jadwal tunggakan)_.`;
                                 await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
                             }
                         } catch (notifErr) {

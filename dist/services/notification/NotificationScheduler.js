@@ -121,8 +121,8 @@ class NotificationScheduler {
                         // Non-critical, continue processing other notifications
                     }
                 }
-                // Limit 5 messages per minute as requested
-                const result = await UnifiedNotificationService_1.UnifiedNotificationService.sendPendingNotifications(5);
+                // Limit 4 messages per minute as requested
+                const result = await UnifiedNotificationService_1.UnifiedNotificationService.sendPendingNotifications(4);
                 if (result.sent > 0 || result.failed > 0) {
                     this.totalSentInCycle += result.sent;
                     console.log(`[NotificationScheduler] 📨 Processed: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped (cycle total: ${this.totalSentInCycle})`);

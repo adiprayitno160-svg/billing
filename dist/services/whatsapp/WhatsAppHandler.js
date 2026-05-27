@@ -345,8 +345,20 @@ class WhatsAppHandler {
                                 `📝 *Tipe:* ${typeName}\n` +
                                 `💰 *Sisa Tagihan:* Rp ${parseFloat(confAmount).toLocaleString('id-ID')}\n\n` +
                                 `Pelanggan telah membalas SETUJU. Sistem telah memproses status dan melakukan un-isolir.`).catch(e => console.error(e));
+                            // Queue formal notification to customer
+                            await UnifiedNotificationService.queueNotification({
+                                customer_id: customer.id,
+                                invoice_id: invId,
+                                notification_type: confType === 'janji_bayar' ? 'payment_janji_bayar' : 'payment_debt',
+                                channels: ['whatsapp'],
+                                variables: { debt_amount: parseFloat(confAmount).toLocaleString('id-ID') },
+                                priority: 'high',
+                                send_immediately: false // Let background worker handle it
+                            });
                         }
-                        catch (e) { }
+                        catch (e) {
+                            console.error('[WhatsAppHandler] Failed to queue formal notification:', e);
+                        }
                         return;
                     }
                     else {

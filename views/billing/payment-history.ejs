@@ -1,3 +1,4 @@
+<% const activeFilters = (typeof filters !== 'undefined' && filters) ? filters : {}; %>
 <div class="space-y-6 max-w-[1600px] mx-auto pb-10">
     <!-- Header Section -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fadeInUp">
@@ -51,11 +52,11 @@
                 class="mt-4 flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg w-fit">
                 <% 
                     let periodText = 'Bulan Ini';
-                    if (filters.period) {
+                    if (activeFilters.period) {
                         const now = new Date();
                         const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                        if (filters.period !== currentPeriod) {
-                            const [yyyy, mm] = filters.period.split('-');
+                        if (activeFilters.period !== currentPeriod) {
+                            const [yyyy, mm] = activeFilters.period.split('-');
                             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
                             periodText = `${monthNames[parseInt(mm)-1]} ${yyyy}`;
                         }
@@ -169,7 +170,7 @@
             <div>
                 <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Periode Bulan</label>
                 <div class="relative group">
-                    <input type="month" name="period" id="period-select" value="<%= filters.period || '' %>"
+                    <input type="month" name="period" id="period-select" value="<%= activeFilters.period || '' %>"
                         class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none font-medium text-slate-700">
                     <div
                         class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">

@@ -139,7 +139,7 @@ class BillingPaymentIntegration {
             const newPaid = currentPaid + paymentAmount;
             const newRemaining = Math.max(0, totalAmount - newPaid);
             const isFullPayment = newRemaining <= 100; // Tolerance
-            const newStatus = isFullPayment ? 'paid' : 'partial';
+            const newStatus = isFullPayment ? 'paid' : 'hutang';
             // Update payment transaction status
             await connection.execute('UPDATE payment_transactions SET status = "completed", paid_at = NOW() WHERE external_id = ?', [transactionId]);
             // Update invoice status and totals
@@ -162,6 +162,18 @@ class BillingPaymentIntegration {
                 `Payment via ${transaction.gateway_code}${(excessAmount > 0 ? (transaction.billing_mode === 'postpaid' ? ` (Excess Rp ${excessAmount} ignored for postpaid)` : ` (Excess Rp ${excessAmount} cached to balance)`) : '')}`
             ]);
             const paymentId = paymentResult.insertId;
+            // Handle Debt Tracking for partial payments
+            if (newStatus === 'hutang' && newRemaining > 0) {
+                // Check if debt_tracking already exists for this invoice
+                const [existingDebtRows] = await connection.execute('SELECT id FROM debt_tracking WHERE invoice_id = ? AND status = "active"', [transaction.invoice_id]);
+                if (existingDebtRows.length > 0) {
+                    await connection.execute('UPDATE debt_tracking SET debt_amount = ?, updated_at = NOW() WHERE id = ?', [newRemaining, existingDebtRows[0].id]);
+                }
+                else {
+                    await connection.execute(`INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, status, created_at, updated_at)
+             VALUES (?, ?, ?, 'Sisa tagihan dari pembayaran sebagian', 'active', NOW(), NOW())`, [transaction.customer_id, transaction.invoice_id, newRemaining]);
+                }
+            }
             // Check if customer qualifies for auto-restore after automated payment
             try {
                 await isolationService_1.IsolationService.restoreIfQualified(transaction.customer_id, connection);

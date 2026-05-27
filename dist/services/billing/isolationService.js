@@ -496,30 +496,43 @@ class IsolationService {
             const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
             const tomorrowDay = tomorrow.getDate();
             // Get isolation date from settings
-            // Target customers based on their specific due date/isolation schedule
-            // H-1 before deadline or custom isolation date
-            const targetIsolationDate = new Date(tomorrow);
-            const targetIsolationDisplay = targetIsolationDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-            // Disabled fixed date check
-            /*
+            let isolateDate = 1;
+            try {
+                const [settings] = await pool_1.databasePool.query("SELECT config FROM scheduler_settings WHERE task_name = 'auto_isolation'");
+                if (settings.length > 0 && settings[0].config) {
+                    let config = settings[0].config;
+                    if (typeof config === 'string' && config.trim()) {
+                        try {
+                            config = JSON.parse(config);
+                        }
+                        catch (parseError) {
+                            console.warn('[Isolation] Failed to parse config JSON', parseError);
+                            config = {};
+                        }
+                    }
+                    if (config && config.isolir_date)
+                        isolateDate = config.isolir_date;
+                }
+            }
+            catch (e) {
+                console.warn('Could not fetch isolir_date, defaulting to 1', e);
+            }
             if (tomorrowDay !== isolateDate) {
                 return { warned: 0, failed: 0, skipped: `Tomorrow (${tomorrowDay}) is not the isolation date (${isolateDate})` };
             }
-            */
             const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const prevPeriod = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
             const isolirDateDisplay = tomorrow.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            // "yang belum membayar sama sekali" means we check if they have any payment for the previous period's invoice
             const query = `
                 SELECT DISTINCT 
                     c.id, c.name, c.phone, c.customer_code,
-                    i.id as invoice_id, i.invoice_number, i.remaining_amount, i.due_date,
-                    DATEDIFF(CURDATE(), i.due_date) as days_overdue
+                    i.id as invoice_id, i.invoice_number, i.remaining_amount, i.due_date
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
-                WHERE i.status NOT IN ('paid', 'cancelled', 'hutang')
+                WHERE i.period = ?
+                AND i.status NOT IN ('paid', 'partial', 'cancelled', 'hutang')
                 AND i.remaining_amount > 0
-                AND i.due_date < CURDATE()
-                AND DATEDIFF(CURDATE(), i.due_date) BETWEEN 1 AND 2
                 AND c.is_isolated = FALSE
                 AND c.is_deferred = FALSE
                 AND c.status = 'active'
@@ -536,13 +549,9 @@ class IsolationService {
                     AND DATE(nq.created_at) = CURDATE()
                 )
             `;
-            const [customers] = await connection.query(query);
+            const [customers] = await connection.query(query, [prevPeriod]);
             for (const customer of customers) {
                 try {
-                    const daysLeft = 3 - customer.days_overdue;
-                    const isolationDate = new Date();
-                    isolationDate.setDate(isolationDate.getDate() + daysLeft);
-                    const isolirDateDisplay = isolationDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
                     await UnifiedNotificationService_1.UnifiedNotificationService.queueNotification({
                         customer_id: customer.id,
                         invoice_id: customer.invoice_id,
@@ -555,7 +564,7 @@ class IsolationService {
                             total_amount: NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
                             remaining_amount: NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(customer.remaining_amount)),
                             isolir_date: isolirDateDisplay,
-                            days_left: daysLeft
+                            days_left: '1' // Because it's tomorrow
                         },
                         attachment_path: await UnifiedNotificationService_1.UnifiedNotificationService.generateInvoicePdf(customer.invoice_id),
                         priority: 'high'

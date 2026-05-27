@@ -165,6 +165,7 @@ class StaticIpImportController {
             const [existing] = await conn.execute("SELECT id, customer_code FROM customers WHERE SUBSTRING_INDEX(ip_address, '/', 1) = ? LIMIT 1", [ipAddress]);
             let newCustomerId;
             let customerCode;
+            let isNewCustomer = false;
             if (existing.length > 0) {
                 // UPDATE EXISTING
                 const found = existing[0];
@@ -181,6 +182,7 @@ class StaticIpImportController {
             }
             else {
                 // CREATE NEW
+                isNewCustomer = true;
                 customerCode = customerIdGenerator_1.CustomerIdGenerator.generateCustomerId();
                 const [custResult] = await conn.execute(`
                     INSERT INTO customers (
@@ -249,25 +251,27 @@ class StaticIpImportController {
             await conn.commit();
             // SEND NOTIFICATION
             let notifResult = null;
-            try {
-                const [pkgRowsNotif] = await pool_1.databasePool.query('SELECT name FROM static_ip_packages WHERE id = ?', [packageId]);
-                const packageName = pkgRowsNotif[0]?.name;
-                console.log(`[Import] 📧 Attempting to send welcome notification to ${name} (${phone})`);
-                // Wait for notification to finish (or handle properly)
-                notifResult = await CustomerNotificationService_1.default.notifyNewCustomer({
-                    customerId: newCustomerId,
-                    customerName: name,
-                    customerCode: customerCode,
-                    phone: phone,
-                    connectionType: 'static_ip',
-                    address: address,
-                    packageName: packageName,
-                    createdBy: req.user?.username || 'System Import'
-                });
-                console.log(`[Import] Notification Result:`, notifResult);
-            }
-            catch (notifErr) {
-                console.error('[Import] Notification setup failed:', notifErr);
+            if (isNewCustomer) {
+                try {
+                    const [pkgRowsNotif] = await pool_1.databasePool.query('SELECT name FROM static_ip_packages WHERE id = ?', [packageId]);
+                    const packageName = pkgRowsNotif[0]?.name;
+                    console.log(`[Import] 📧 Attempting to send welcome notification to ${name} (${phone})`);
+                    // Wait for notification to finish (or handle properly)
+                    notifResult = await CustomerNotificationService_1.default.notifyNewCustomer({
+                        customerId: newCustomerId,
+                        customerName: name,
+                        customerCode: customerCode,
+                        phone: phone,
+                        connectionType: 'static_ip',
+                        address: address,
+                        packageName: packageName,
+                        createdBy: req.user?.username || 'System Import'
+                    });
+                    console.log(`[Import] Notification Result:`, notifResult);
+                }
+                catch (notifErr) {
+                    console.error('[Import] Notification setup failed:', notifErr);
+                }
             }
             res.json({
                 success: true,

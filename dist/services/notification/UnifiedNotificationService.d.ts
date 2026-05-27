@@ -3,7 +3,7 @@
  * Centralized notification service for all billing events
  * Integrated with WhatsApp and other channels
  */
-export type NotificationType = 'invoice_created' | 'invoice_sent' | 'invoice_overdue' | 'invoice_reminder' | 'payment_received' | 'payment_partial' | 'payment_failed' | 'referral_reward' | 'maintenance_scheduled' | 'service_restored' | 'service_suspended' | 'service_blocked' | 'service_blocked_system' | 'service_unblocked' | 'customer_created' | 'customer_deleted' | 'customer_migrated_to_postpaid' | 'payment_debt' | 'isolation_warning' | 'payment_shortage_warning' | 'pre_block_warning' | 'payment_reminder' | 'payment_deferment' | 'broadcast' | 'technician_job' | 'invoice_reminder_manual' | 'invoice_reminder_upcoming' | 'invoice_due_today' | 'invoice_overdue_1' | 'invoice_overdue_2' | 'invoice_overdue_monthly';
+export type NotificationType = 'invoice_created' | 'invoice_sent' | 'invoice_overdue' | 'invoice_reminder' | 'payment_received' | 'payment_partial' | 'payment_failed' | 'referral_reward' | 'maintenance_scheduled' | 'service_restored' | 'service_suspended' | 'service_blocked' | 'service_blocked_system' | 'service_unblocked' | 'customer_created' | 'customer_deleted' | 'customer_migrated_to_postpaid' | 'payment_debt' | 'payment_janji_bayar' | 'isolation_warning' | 'payment_shortage_warning' | 'pre_block_warning' | 'payment_reminder' | 'payment_deferment' | 'broadcast' | 'technician_job' | 'invoice_reminder_manual' | 'invoice_reminder_upcoming' | 'invoice_due_today' | 'invoice_overdue_1' | 'invoice_overdue_2' | 'invoice_overdue_monthly';
 export type NotificationChannel = 'whatsapp' | 'email' | 'sms' | 'push';
 export interface NotificationData {
     customer_id: number;

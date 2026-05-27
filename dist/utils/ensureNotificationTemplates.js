@@ -89,6 +89,17 @@ async function ensureNotificationTemplates() {
                 is_active: true
             },
             {
+                template_code: 'payment_janji_bayar',
+                template_name: 'Janji Bayar',
+                notification_type: 'payment_janji_bayar',
+                channel: 'whatsapp',
+                title_template: 'Permohonan Janji Bayar',
+                message_template: '📋 *Permohonan Janji Bayar*\n\nHalo {customer_name},\n\nKami memberitahukan bahwa permohonan janji bayar untuk invoice *{invoice_number}* telah disetujui.\n\n📋 *Detail:*\n• Invoice: {invoice_number}\n• Jumlah Tagihan: {total_amount}\n• Jumlah Janji Bayar: {debt_amount}\n• Tanggal Pencatatan: {debt_date}\n• Batas Akhir Pembayaran: {due_date}\n\n💡 *Informasi Penting:*\n• Pembayaran ini harus dilunasi sebelum atau pada batas akhir yang telah disepakati\n• Layanan internet Anda dapat terisolir kembali jika janji bayar tidak dipenuhi\n• Catatan: {notes}\n\nJika ada pertanyaan, jangan ragu untuk menghubungi kami.\n\nTerima kasih,\nTim Support',
+                variables: JSON.stringify(['customer_name', 'invoice_number', 'total_amount', 'debt_amount', 'debt_reason', 'debt_date', 'due_date', 'notes']),
+                priority: 'high',
+                is_active: true
+            },
+            {
                 template_code: 'isolation_warning',
                 template_name: 'Peringatan Sebelum Isolir',
                 notification_type: 'isolation_warning',

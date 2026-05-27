@@ -163,6 +163,26 @@ class SchedulerService {
         // These were causing infinite reminder loops via the retry mechanism.
         // To re-enable, uncomment the blocks below.
         console.log('[Scheduler] ⏸️ Daily reminder/warning jobs DISABLED (Manual Mode)');
+        // Added by user request: H-1 Mass Isolation Warnings
+        cron.schedule('0 9 * * *', async () => {
+            console.log('Running H-1 mass isolation warnings...');
+            try {
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const result = await IsolationService.sendIsolationH1Warnings();
+                if (result.skipped) {
+                    console.log(`H-1 mass isolation warnings skipped: ${result.skipped}`);
+                }
+                else {
+                    console.log(`H-1 mass isolation warnings sent: ${result.warned || 0} warned, ${result.failed || 0} failed`);
+                }
+            }
+            catch (error) {
+                console.error('Error sending H-1 mass isolation warnings:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
         /*
         // Send isolation warnings 3 days before isolation - daily at 09:00
         cron.schedule('0 9 * * *', async () => {

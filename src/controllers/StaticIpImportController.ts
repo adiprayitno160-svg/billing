@@ -189,6 +189,7 @@ export class StaticIpImportController {
 
             let newCustomerId;
             let customerCode;
+            let isNewCustomer = false;
 
             if ((existing as any[]).length > 0) {
                 // UPDATE EXISTING
@@ -207,6 +208,7 @@ export class StaticIpImportController {
                 console.log(`[Import] Updated Existing Customer ID: ${newCustomerId}`);
             } else {
                 // CREATE NEW
+                isNewCustomer = true;
                 customerCode = CustomerIdGenerator.generateCustomerId();
                 const [custResult] = await conn.execute(`
                     INSERT INTO customers (
@@ -294,27 +296,29 @@ export class StaticIpImportController {
 
             // SEND NOTIFICATION
             let notifResult = null;
-            try {
-                const [pkgRowsNotif] = await databasePool.query<RowDataPacket[]>('SELECT name FROM static_ip_packages WHERE id = ?', [packageId]);
-                const packageName = (pkgRowsNotif as any)[0]?.name;
+            if (isNewCustomer) {
+                try {
+                    const [pkgRowsNotif] = await databasePool.query<RowDataPacket[]>('SELECT name FROM static_ip_packages WHERE id = ?', [packageId]);
+                    const packageName = (pkgRowsNotif as any)[0]?.name;
 
-                console.log(`[Import] 📧 Attempting to send welcome notification to ${name} (${phone})`);
+                    console.log(`[Import] 📧 Attempting to send welcome notification to ${name} (${phone})`);
 
-                // Wait for notification to finish (or handle properly)
-                notifResult = await CustomerNotificationService.notifyNewCustomer({
-                    customerId: newCustomerId,
-                    customerName: name,
-                    customerCode: customerCode,
-                    phone: phone,
-                    connectionType: 'static_ip',
-                    address: address,
-                    packageName: packageName,
-                    createdBy: ((req as any).user as any)?.username || 'System Import'
-                });
-                console.log(`[Import] Notification Result:`, notifResult);
+                    // Wait for notification to finish (or handle properly)
+                    notifResult = await CustomerNotificationService.notifyNewCustomer({
+                        customerId: newCustomerId,
+                        customerName: name,
+                        customerCode: customerCode,
+                        phone: phone,
+                        connectionType: 'static_ip',
+                        address: address,
+                        packageName: packageName,
+                        createdBy: ((req as any).user as any)?.username || 'System Import'
+                    });
+                    console.log(`[Import] Notification Result:`, notifResult);
 
-            } catch (notifErr) {
-                console.error('[Import] Notification setup failed:', notifErr);
+                } catch (notifErr) {
+                    console.error('[Import] Notification setup failed:', notifErr);
+                }
             }
 
             res.json({
