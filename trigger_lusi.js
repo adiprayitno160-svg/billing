@@ -15,7 +15,7 @@ async function run() {
       database: 'billing'
     });
 
-    const [rows] = await conn.query("SELECT i.id, i.invoice_number, i.total_amount, i.remaining_amount, i.due_date, c.name, c.phone, c.id as customer_id FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE c.name LIKE '%Lusi%' ORDER BY i.id DESC LIMIT 1;");
+    const [rows] = await conn.query("SELECT i.id as inv_id, i.due_date as inv_due, i.remaining_amount, c.name, c.phone, c.id as customer_id FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE c.name LIKE '%Lusi%' ORDER BY i.id DESC LIMIT 1;");
     
     if (rows.length === 0) {
         console.log("Customer Lusi not found or no invoice");
@@ -23,16 +23,35 @@ async function run() {
     }
     
     const invoice = rows[0];
-    console.log("Found Lusi invoice:", invoice.id);
+    console.log("Found Lusi invoice:", invoice.inv_id);
     
-    // Send confirmation logic
+    const [confirms] = await conn.query("SELECT * FROM payment_confirmations WHERE customer_id = ? AND invoice_id = ? ORDER BY id DESC LIMIT 1", [invoice.customer_id, invoice.inv_id]);
+    
+    let reqDueDate = null;
+    let confAmount = invoice.remaining_amount;
+    let typeName = 'Hutang';
+    if (confirms.length > 0) {
+        reqDueDate = confirms[0].due_date;
+        confAmount = confirms[0].amount;
+        typeName = confirms[0].type === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
+    }
+
     const { WhatsAppService } = require('/var/www/billing/dist/services/whatsapp/index');
     const waService = WhatsAppService.getInstance();
     
     if (invoice.phone) {
         let phone = invoice.phone.replace(/^0/, '62').replace(/\\D/g, '');
-        const dueTxt = invoice.due_date ? "\\n\\nBatas akhir pembayaran (Jatuh Tempo): *" + new Date(invoice.due_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + "*" : "";
-        const confirmMsg = "Halo *" + invoice.name + "*,\\n\\nAdmin kami telah mencatat permohonan *Hutang/Janji Bayar* Anda untuk tagihan internet sebesar *Rp " + Number(invoice.remaining_amount).toLocaleString('id-ID') + "*." + dueTxt + "\\n\\n*PENTING (MOHON DIBACA):*\\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\\n\\n*SETUJU*\\n\\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi akan terisolir sesuai jadwal tunggakan)_.";
+        
+        const requestedDueTxt = reqDueDate ? "\\n\\nTanggal Janji Bayar yang diminta: *" + new Date(reqDueDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + "*" : "";
+        
+        let isolirTxt = 'sesuai jadwal tunggakan awal';
+        if (invoice.inv_due) {
+            const isoDate = new Date(invoice.inv_due);
+            isoDate.setDate(isoDate.getDate() + 1);
+            isolirTxt = "pada tanggal *" + isoDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + "* (karena batas akhir tagihan awal adalah " + new Date(invoice.inv_due).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) + ")";
+        }
+
+        const confirmMsg = "Halo *" + invoice.name + "*,\\n\\nAdmin kami telah mencatat permohonan *" + typeName + "* Anda untuk tagihan internet sebesar *Rp " + Number(confAmount).toLocaleString('id-ID') + "*." + requestedDueTxt + "\\n\\n*PENTING (MOHON DIBACA):*\\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\\n\\n*SETUJU*\\n\\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi Anda akan diisolir " + isolirTxt + ")_.";
         
         await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
         console.log("Sent WA confirmation message to Lusi at", phone);
