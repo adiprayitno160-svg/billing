@@ -247,14 +247,15 @@
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             // Setup Markers Layer
-            markerClusterGroup = L.layerGroup().addTo(map);
+            markerClusterGroup = L.featureGroup().addTo(map);
 
             // Connection Lines Layer
             connectionLayerGroup = L.layerGroup().addTo(map);
 
             // Fetch detail on popup open
             map.on('popupopen', async function(e) {
-                const customerId = e.popup.customerId;
+                // Access customerId from the marker (_source) that bound the popup
+                const customerId = e.popup._source ? e.popup._source.customerId : null;
                 if (!customerId) return;
                 
                 const detailContainer = document.getElementById(`popup-detail-${customerId}`);
@@ -298,9 +299,17 @@
 
             // Handle Data
             if (initialMapData) {
-                processMapData(initialMapData);
-                document.getElementById('loadingOverlay').style.opacity = '0';
-                setTimeout(() => document.getElementById('loadingOverlay').style.display = 'none', 300);
+                try {
+                    processMapData(initialMapData);
+                } catch (e) {
+                    console.error("Error in processMapData:", e);
+                    alert("Terjadi kesalahan saat merender data peta: " + e.message);
+                }
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.style.display = 'none', 300);
+                }
             } else {
                 loadMapData();
             }
@@ -324,6 +333,13 @@
                 console.error(err);
             } finally {
                 if (!isAuto) document.getElementById('refreshIcon').classList.remove('fa-spin');
+                
+                // Hide overlay on first load if it was visible
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay && overlay.style.display !== 'none') {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.style.display = 'none', 300);
+                }
             }
         }
 
@@ -440,7 +456,7 @@
                 <div class="p-4 space-y-2 text-sm text-slate-300">
                     <div class="flex items-center gap-2"><i class="fas fa-map-marker-alt w-4 text-slate-500"></i> ${customer.area || '-'}</div>
                     ${customer.odp_name ? `<div class="flex items-center gap-2"><i class="fas fa-box w-4 text-slate-500"></i> ${customer.odp_name}</div>` : ''}
-                    <div class="flex items-center gap-2"><i class="fas fa-network-wired w-4 text-slate-500"></i> ${customer.connection_type.toUpperCase()}</div>
+                    <div class="flex items-center gap-2"><i class="fas fa-network-wired w-4 text-slate-500"></i> ${(customer.connection_type || 'Unknown').toUpperCase()}</div>
                     <div class="flex items-center gap-2"><i class="fas fa-tachometer-alt w-4 text-slate-500"></i> ${customer.package_name || '-'}</div>
                     <div id="popup-detail-${customer.id}" class="mt-2 text-xs">
                         <div class="flex items-center gap-2 text-slate-500">
