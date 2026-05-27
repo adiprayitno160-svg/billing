@@ -449,7 +449,7 @@
                         interactive: true // MUST BE TRUE for tooltip
                     }).addTo(connectionLayerGroup);
                     
-                    polyline.bindTooltip(\`<div class="text-xs text-center"><div class="font-bold">\${distanceStr}</div><div class="text-[10px] text-slate-400">ODP ke Client</div></div>\`, { sticky: true, className: 'bg-slate-800 text-white border border-slate-700' });
+                    polyline.bindTooltip(`<div class="text-xs text-center"><div class="font-bold">${distanceStr}</div><div class="text-[10px] text-slate-400">ODP ke Client</div></div>`, { sticky: true, className: 'bg-slate-800 text-white border border-slate-700' });
                 }
             });
         }
@@ -469,7 +469,7 @@
                         interactive: true
                     }).addTo(connectionLayerGroup);
                     
-                    polyline.bindTooltip(\`<div class="text-xs text-center"><div class="font-bold text-purple-400">\${distanceStr}</div><div class="text-[10px] text-slate-400">OLT \${link.olt_name} ke ODC \${link.odc_name}</div></div>\`, { sticky: true, className: 'bg-slate-800 text-white border border-slate-700' });
+                    polyline.bindTooltip(`<div class="text-xs text-center"><div class="font-bold text-purple-400">${distanceStr}</div><div class="text-[10px] text-slate-400">OLT ${link.olt_name} ke ODC ${link.odc_name}</div></div>`, { sticky: true, className: 'bg-slate-800 text-white border border-slate-700' });
                 }
             });
         }
