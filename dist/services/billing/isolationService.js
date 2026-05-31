@@ -751,6 +751,7 @@ class IsolationService {
             AND i.status NOT IN ('paid', 'hutang')
             AND c.is_isolated = FALSE
             AND c.status = 'active'
+            AND c.isolation_enabled = 1
         `;
         const [customers] = await pool_1.databasePool.execute(query);
         let isolated = 0;
@@ -833,13 +834,14 @@ class IsolationService {
             }
             // Check for any TRULY unpaid and overdue invoices (excluding draft/cancelled)
             // A 'sent' invoice is only considered blocking if it's actually overdue.
+            // janji_bayar and hutang are always blocking (customer hasn't paid yet)
             const [unpaidResult] = await connection.query(`SELECT id, invoice_number, status, remaining_amount, due_date 
                  FROM invoices 
                  WHERE customer_id = ? 
                  AND status != 'paid' 
                  AND status != 'cancelled' 
                  AND remaining_amount > 0 
-                 AND (status = 'overdue' OR status = 'partial' OR (status = 'sent' AND due_date <= CURDATE()))`, [customerId]);
+                 AND (status = 'overdue' OR status = 'partial' OR status = 'janji_bayar' OR status = 'hutang' OR (status = 'sent' AND due_date <= CURDATE()))`, [customerId]);
             if (unpaidResult.length === 0) {
                 // If they have no overdue unpaid invoices, we should reset isolation_enabled = 0!
                 if (customer.isolation_enabled === 1 || customer.isolation_enabled === true) {

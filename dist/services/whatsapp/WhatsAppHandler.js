@@ -329,26 +329,43 @@ class WhatsAppHandler {
                             await pool_1.databasePool.query(`INSERT INTO debt_tracking (customer_id, invoice_id, debt_amount, debt_reason, debt_date, status, notes, created_at, updated_at) 
                                  VALUES (?, ?, ?, ?, NOW(), 'active', ?, NOW(), NOW())`, [customer.id, invId, confAmount, 'Pencatatan ' + newStatus, 'Dikonfirmasi via WA']);
                         }
-                        // Trigger IsolationService to UN-ISOLATE immediately!
-                        try {
-                            const { IsolationService } = await Promise.resolve().then(() => __importStar(require('../../services/billing/isolationService')));
-                            await IsolationService.restoreIfQualified(customer.id);
+                        // For hutang: try to restore isolation if they qualify
+                        // For janji_bayar: do NOT restore - they haven't paid yet, isolation stays active until payment
+                        if (confType === 'debt' || confType === 'hutang') {
+                            try {
+                                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('../../services/billing/isolationService')));
+                                await IsolationService.restoreIfQualified(customer.id);
+                            }
+                            catch (isoErr) {
+                                console.error('[WhatsAppHandler] Failed to auto-restore after confirmation:', isoErr);
+                            }
                         }
-                        catch (isoErr) {
-                            console.error('[WhatsAppHandler] Failed to auto-restore after confirmation:', isoErr);
+                        else {
+                            console.log(`[WhatsAppHandler] Janji bayar confirmed for ${customer.name} (#${customer.id}). Isolation stays active until payment.`);
                         }
                         // Send success reply to customer
                         const typeName = confType === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
                         const newDateStr = confirmation.due_date ? ` dengan batas akhir pembayaran baru pada tanggal *${new Date(confirmation.due_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}*` : '';
-                        await service.sendMessage(senderJid, `✅ *Permohonan ${typeName} Disetujui!*\n\nTerima kasih, permohonan Anda untuk tagihan sebesar *Rp ${parseFloat(confAmount).toLocaleString('id-ID')}*${newDateStr} telah berhasil diproses.\n\n🌐 Layanan internet Anda akan segera diaktifkan kembali secara otomatis dalam beberapa menit.`);
+                        const replyMsg = confType === 'janji_bayar'
+                            ? `✅ *Permohonan ${typeName} Disetujui!*\n\nTerima kasih, permohonan Anda untuk tagihan sebesar *Rp ${parseFloat(confAmount).toLocaleString('id-ID')}*${newDateStr} telah berhasil diproses.\n\n⚠️ Mohon segera lakukan pembayaran sebelum batas waktu. Jika melewati tanggal tersebut, koneksi internet Anda akan diputus otomatis oleh sistem.`
+                            : `✅ *Permohonan ${typeName} Disetujui!*\n\nTerima kasih, permohonan Anda untuk tagihan sebesar *Rp ${parseFloat(confAmount).toLocaleString('id-ID')}*${newDateStr} telah berhasil diproses.\n\n🌐 Layanan internet Anda akan segera diaktifkan kembali secara otomatis dalam beberapa menit.`;
+                        await service.sendMessage(senderJid, replyMsg);
                         // Admin Broadcast
                         try {
                             const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
-                            UnifiedNotificationService.broadcastToAdmins(`✅ *KONFIRMASI PELANGGAN*\n\n` +
-                                `👤 *Nama:* ${customer.name}\n` +
-                                `📝 *Tipe:* ${typeName}\n` +
-                                `💰 *Sisa Tagihan:* Rp ${parseFloat(confAmount).toLocaleString('id-ID')}\n\n` +
-                                `Pelanggan telah membalas SETUJU. Sistem telah memproses status dan melakukan un-isolir.`).catch(e => console.error(e));
+                            const adminMsg = confType === 'janji_bayar'
+                                ? `✅ *KONFIRMASI PELANGGAN*\n\n` +
+                                    `👤 *Nama:* ${customer.name}\n` +
+                                    `📝 *Tipe:* ${typeName}\n` +
+                                    `💰 *Sisa Tagihan:* Rp ${parseFloat(confAmount).toLocaleString('id-ID')}\n` +
+                                    `📅 *Batas Bayar:* ${newDateStr || 'Tidak ditentukan'}\n\n` +
+                                    `Pelanggan telah membalas SETUJU. Status invoice diupdate ke janji_bayar. Isolir aktif otomatis jika melewati batas bayar.`
+                                : `✅ *KONFIRMASI PELANGGAN*\n\n` +
+                                    `👤 *Nama:* ${customer.name}\n` +
+                                    `📝 *Tipe:* ${typeName}\n` +
+                                    `💰 *Sisa Tagihan:* Rp ${parseFloat(confAmount).toLocaleString('id-ID')}\n\n` +
+                                    `Pelanggan telah membalas SETUJU. Sistem telah memproses status dan melakukan un-isolir.`;
+                            UnifiedNotificationService.broadcastToAdmins(adminMsg).catch(e => console.error(e));
                             // Queue formal notification to customer
                             await UnifiedNotificationService.queueNotification({
                                 customer_id: customer.id,

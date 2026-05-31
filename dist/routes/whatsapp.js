@@ -436,14 +436,14 @@ router.get('/history', async (req, res) => {
         `;
         const params = [];
         if (customerId) {
-            query += ' AND whatsapp_bot_messages.customer_id = ?';
+            query += ' AND wbm.customer_id = ?';
             params.push(customerId);
         }
         if (status) {
-            query += ' AND whatsapp_bot_messages.status = ?';
+            query += ' AND wbm.status = ?';
             params.push(status);
         }
-        query += ' ORDER BY whatsapp_bot_messages.created_at DESC LIMIT ?';
+        query += ' ORDER BY wbm.created_at DESC LIMIT ?';
         params.push(limit);
         const [rows] = await pool_1.databasePool.query(query, params);
         res.json({

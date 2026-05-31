@@ -539,6 +539,32 @@ export class WhatsAppService extends EventEmitter {
               timestamp: new Date(msgTimestamp * 1000)
             });
 
+            // Log incoming message to database (whatsapp_bot_messages)
+            if (messageText) {
+              try {
+                const cleanPhone = sender.split('@')[0];
+                const { databasePool } = await import('../../db/pool');
+                
+                // Find customer_id by phone number
+                let customerId: number | null = null;
+                const [custRows]: any = await databasePool.query(
+                  "SELECT id FROM customers WHERE phone LIKE ? OR phone LIKE ? OR phone = ?",
+                  [`%${cleanPhone}`, `%${cleanPhone.replace(/^62/, '0')}`, cleanPhone]
+                );
+                if (custRows && custRows.length > 0) {
+                  customerId = custRows[0].id;
+                }
+
+                await databasePool.query(
+                  `INSERT INTO whatsapp_bot_messages (customer_id, phone_number, message_type, message_content, direction, status, created_at)
+                   VALUES (?, ?, 'text', ?, 'inbound', 'delivered', NOW())`,
+                  [customerId, cleanPhone, messageText]
+                );
+              } catch (dbErr: any) {
+                this.log('error', 'Failed to log incoming message to database:', dbErr.message);
+              }
+            }
+
             // Handle incoming message
             try {
               const { WhatsAppHandler } = await import('./WhatsAppHandler');
@@ -1046,6 +1072,36 @@ export class WhatsAppService extends EventEmitter {
       await this.sock.sendPresenceUpdate('paused', jid);
 
       this.messagesSent++;
+
+      // Log outbound message to database (whatsapp_bot_messages)
+      try {
+        const cleanPhone = jid.split('@')[0];
+        const { databasePool } = await import('../../db/pool');
+        let customerId: number | null = null;
+        
+        const [custRows]: any = await databasePool.query(
+          "SELECT id FROM customers WHERE phone LIKE ? OR phone LIKE ? OR phone = ?",
+          [`%${cleanPhone}`, `%${cleanPhone.replace(/^62/, '0')}`, cleanPhone]
+        );
+        if (custRows && custRows.length > 0) {
+          customerId = custRows[0].id;
+        }
+
+        const textContent = (content as any)?.text || (content as any)?.caption || '';
+        let msgType = 'text';
+        if ((content as any)?.image) msgType = 'image';
+        else if ((content as any)?.document) msgType = 'document';
+        else if ((content as any)?.audio) msgType = 'audio';
+        else if ((content as any)?.video) msgType = 'video';
+
+        await databasePool.query(
+          `INSERT INTO whatsapp_bot_messages (customer_id, phone_number, message_type, message_content, direction, status, created_at)
+           VALUES (?, ?, ?, ?, 'outbound', 'sent', NOW())`,
+          [customerId, cleanPhone, msgType, textContent]
+        );
+      } catch (dbErr: any) {
+        this.log('error', 'Failed to log outbound message to database:', dbErr.message);
+      }
 
       return {
         success: true,
