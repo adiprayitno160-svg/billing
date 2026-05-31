@@ -966,4 +966,38 @@ export class InvoiceService {
             connection.release();
         }
     }
+
+    /**
+     * Auto-delete invoices that are older than 4 months to prevent data accumulation.
+     */
+    static async autoDeleteOldInvoices(): Promise<{ deleted: number, failed: number }> {
+        let deleted = 0;
+        let failed = 0;
+
+        const connection = await databasePool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // Calculate the period threshold (4 months ago)
+            // If current is May 2026, 4 months ago is Jan 2026. We delete anything < '2026-02' (e.g. '2026-01' and older)
+            const query = `
+                DELETE FROM invoices 
+                WHERE period < DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 4 MONTH), '%Y-%m')
+            `;
+
+            const [result] = await connection.execute<ResultSetHeader>(query);
+            deleted = result.affectedRows;
+
+            await connection.commit();
+            console.log(`[InvoiceService] Auto-delete old invoices: ${deleted} records deleted.`);
+        } catch (error) {
+            await connection.rollback();
+            console.error(`[InvoiceService] Error deleting old invoices:`, error);
+            failed = 1;
+        } finally {
+            connection.release();
+        }
+
+        return { deleted, failed };
+    }
 }

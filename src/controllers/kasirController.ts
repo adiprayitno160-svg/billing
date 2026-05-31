@@ -133,15 +133,32 @@ export class KasirController {
         }
     }
 
+    private getAvailablePeriods(): { value: string, label: string }[] {
+        const periods = [];
+        const current = new Date();
+        for (let i = 0; i < 4; i++) {
+            const d = new Date(current.getFullYear(), current.getMonth() - i, 1);
+            const periodVal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            periods.push({
+                value: periodVal,
+                label: formatPeriodToMonth(periodVal)
+            });
+        }
+        return periods;
+    }
+
     // Dashboard kasir
     public async dashboard(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
-            const { month } = req.query;
-            const currentMonth = month === 'current';
-            const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+            const { period } = req.query;
+            const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
+            
+            // If period is not provided, default to current period (or 'all' if user explicitly selects all)
+            const selectedPeriod = (period as string) || currentPeriod;
+            const availablePeriods = this.getAvailablePeriods();
 
             // Ambil data statistik untuk dashboard kasir
-            const stats = await this.getKasirStats(currentMonth ? period : undefined);
+            const stats = await this.getKasirStats(selectedPeriod !== 'all' ? selectedPeriod : undefined);
 
             // Fetch recent transactions for shift intel
             const recentTransactionsData = await this.getTransactions(1, 10, '', '');
@@ -152,7 +169,8 @@ export class KasirController {
                 user: (req as any).user,
                 stats: stats,
                 recentTransactions: recentTransactionsData.data,
-                currentMonth: currentMonth,
+                selectedPeriod: selectedPeriod,
+                availablePeriods: availablePeriods,
                 layout: 'layouts/kasir'
             });
         } catch (error) {
@@ -199,8 +217,12 @@ export class KasirController {
     // Halaman pembayaran kasir
     public async payments(req: AuthenticatedRequest, res: Response): Promise<void> {
         try {
-            const { month } = req.query;
+            const { period } = req.query;
             const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
+            
+            // If period is not provided, default to current period
+            const selectedPeriod = (period as string) || currentPeriod;
+            const availablePeriods = this.getAvailablePeriods();
             
             const conn = await databasePool.getConnection();
             try {
@@ -221,13 +243,19 @@ export class KasirController {
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')) as pending_count,
+                         AND status IN ('sent', 'overdue')
+                         ${selectedPeriod !== 'all' ? `AND period = ?` : ''}
+                        ) as pending_count,
                         (SELECT GROUP_CONCAT(period SEPARATOR ', ') FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')) as pending_periods,
+                         AND status IN ('sent', 'overdue')
+                         ${selectedPeriod !== 'all' ? `AND period = ?` : ''}
+                        ) as pending_periods,
                         (SELECT SUM(total_amount - paid_amount) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')) as total_pending,
+                         AND status IN ('sent', 'overdue')
+                         ${selectedPeriod !== 'all' ? `AND period = ?` : ''}
+                        ) as total_pending,
                         (SELECT COUNT(*) FROM payment_verifications pv
                          WHERE pv.customer_id = c.id 
                          AND pv.status = 'approved' 
@@ -241,9 +269,12 @@ export class KasirController {
 
                 const queryParams: any[] = [];
                 
-                if (month === 'current') {
+                if (selectedPeriod !== 'all') {
+                    // 3 subqueries need the parameter
+                    queryParams.push(selectedPeriod, selectedPeriod, selectedPeriod);
+                    
                     query += ` AND period = ?`;
-                    queryParams.push(currentPeriod);
+                    queryParams.push(selectedPeriod);
                 }
 
                 query += `) > 0
@@ -263,7 +294,8 @@ export class KasirController {
                     currentPath: '/kasir/payments',
                     user: (req as any).user,
                     recentCustomers: recentCustomers,
-                    currentMonth: month === 'current',
+                    selectedPeriod: selectedPeriod,
+                    availablePeriods: availablePeriods,
                     layout: 'layouts/kasir'
                 });
             } finally {

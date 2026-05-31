@@ -33,8 +33,16 @@
 
     <!-- Filter Bar -->
     <div class="flex items-center gap-4 mb-8">
-        <a href="/kasir/payments" class="px-6 py-3 rounded-2xl <%= !currentMonth ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50' %> font-black text-xs uppercase tracking-widest transition-all">SEMUA TAGIHAN</a>
-        <a href="/kasir/payments?month=current" class="px-6 py-3 rounded-2xl <%= currentMonth ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50' %> font-black text-xs uppercase tracking-widest transition-all">BULAN BERJALAN</a>
+        <div class="flex bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm items-center">
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-3">PERIODE:</span>
+            <select onchange="window.location.href='/kasir/payments?period=' + this.value" class="bg-transparent text-indigo-600 text-xs font-black uppercase tracking-widest outline-none cursor-pointer border-none appearance-none pr-4">
+                <option value="all" <%= selectedPeriod === 'all' ? 'selected' : '' %>>SEMUA TAGIHAN</option>
+                <% availablePeriods.forEach(p => { %>
+                    <option value="<%= p.value %>" <%= selectedPeriod === p.value ? 'selected' : '' %>><%= p.label.toUpperCase() %></option>
+                <% }); %>
+            </select>
+            <i class="fas fa-chevron-down text-indigo-400 text-xs pointer-events-none"></i>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -249,8 +257,7 @@
                 
                 <!-- Category Tabs -->
                 <div class="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
-                    <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest <%= !currentMonth ? 'active' : '' %>" data-tab="pending" onclick="switchTab('pending')">PENDING</button>
-                    <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest <%= currentMonth ? 'active' : '' %>" data-tab="current" onclick="filterCurrentMonth()">BULAN INI</button>
+                    <button class="tab-btn active px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-tab="pending" onclick="switchTab('pending')">PENDING</button>
                     <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-tab="paid" onclick="switchTab('paid')">LUNAS</button>
                     <button class="tab-btn px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-tab="isolated" onclick="switchTab('isolated')">ISOLIR</button>
                 </div>
@@ -415,27 +422,12 @@
     });
 
     function switchTab(tab) {
-        if (tab === 'current') {
-            filterCurrentMonth();
-            return;
-        }
-        
-        // If we were on 'current' month filter (server-side), redirect back to base payments
-        if (window.location.search.includes('month=current')) {
-            window.location.href = '/kasir/payments';
-            return;
-        }
-
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tab);
         });
         document.querySelectorAll('.customer-row').forEach(row => {
             row.classList.toggle('hidden', row.dataset.tabType !== tab);
         });
-    }
-
-    function filterCurrentMonth() {
-        window.location.href = '/kasir/payments?month=current';
     }
 
     async function searchCustomers(query) {
@@ -759,7 +751,8 @@
                     window.open(`/kasir/receipt/${paymentId}`, '_blank', 'width=450,height=600');
                 }
                 // Clean up URL
-                const newUrl = window.location.pathname + (urlParams.get('month') ? '?month=' + urlParams.get('month') : '');
+                // Reload page while preserving query parameters (period, search)
+                const newUrl = window.location.pathname + window.location.search;
                 window.history.replaceState({}, document.title, newUrl);
             });
         }

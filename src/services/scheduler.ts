@@ -271,6 +271,20 @@ export class SchedulerService {
             console.error('[Scheduler] Failed to apply Auto Isolation schedule from DB:', err);
         });
 
+        // Auto-delete invoices older than 4 months - daily at 03:30
+        cron.schedule('30 3 * * *', async () => {
+            console.log('[Scheduler] Running auto-delete old invoices (> 4 months)...');
+            try {
+                const { InvoiceService } = await import('./billing/invoiceService');
+                const result = await InvoiceService.autoDeleteOldInvoices();
+                console.log(`[Scheduler] Auto-delete old invoices: ${result.deleted} deleted, ${result.failed} failed`);
+            } catch (error) {
+                console.error('[Scheduler] Error running auto-delete old invoices:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
 
         // Auto delete blocked customers (> 7 days) - daily at 03:00
         cron.schedule('0 3 * * *', async () => {
