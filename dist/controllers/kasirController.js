@@ -1366,8 +1366,13 @@ class KasirController {
                             const waService = WhatsAppService.getInstance();
                             if (customer.phone) {
                                 let phone = customer.phone.replace(/^0/, '62').replace(/\D/g, '');
-                                const dueTxt = invoice.due_date ? `\n\nBatas akhir pembayaran (Jatuh Tempo): *${new Date(invoice.due_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}*` : '';
-                                const confirmMsg = `Halo *${customer.name}*,\n\nAdmin kami telah mencatat permohonan *Hutang* Anda untuk tagihan internet sebesar *Rp ${newRem.toLocaleString('id-ID')}*.${dueTxt}\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi akan terisolir sesuai jadwal tunggakan)_.`;
+                                let isolirTxt = 'sesuai jadwal tunggakan awal';
+                                if (invoice.due_date) {
+                                    const isoDate = new Date(invoice.due_date);
+                                    isoDate.setDate(isoDate.getDate() + 1);
+                                    isolirTxt = `pada tanggal *${isoDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}* (karena batas akhir tagihan awal adalah ${new Date(invoice.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })})`;
+                                }
+                                const confirmMsg = `Halo *${customer.name}*,\n\nAdmin kami telah mencatat permohonan *Hutang/Janji Bayar* Anda untuk tagihan internet sebesar *Rp ${newRem.toLocaleString('id-ID')}*.\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi Anda akan diisolir ${isolirTxt})_.`;
                                 await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
                             }
                         }

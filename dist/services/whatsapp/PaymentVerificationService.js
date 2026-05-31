@@ -97,7 +97,7 @@ class PaymentVerificationService {
             // 2. Find unpaid invoices
             const [invoices] = await pool_1.databasePool.query(`SELECT * FROM invoices
                  WHERE customer_id = ?
-                 AND status IN ('sent', 'partial', 'overdue')
+                 AND status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
                  AND remaining_amount > 0
                  ORDER BY due_date ASC, created_at DESC`, [customerId]);
             if (invoices.length === 0) {

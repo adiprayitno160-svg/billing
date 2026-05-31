@@ -353,8 +353,8 @@ class InvoiceService {
                     // Calculate Due Date
                     const periodYear = parseInt(period.split('-')[0]);
                     const periodMonth = parseInt(period.split('-')[1]);
-                    // Prioritize custom_payment_deadline if set (1-31)
-                    const billingDay = subscription.custom_payment_deadline || subscription.billing_day || new Date(subscription.start_date).getDate();
+                    // Prioritize custom_payment_deadline if set, otherwise default to 28 (as per new billing flow) to avoid February issues
+                    const billingDay = subscription.custom_payment_deadline || 28;
                     const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
                     const targetDay = Math.min(billingDay, daysInMonth);
                     let dueDate = new Date(periodYear, periodMonth - 1, targetDay);
@@ -548,13 +548,7 @@ class InvoiceService {
                     await connection.beginTransaction();
                     const periodYear = parseInt(period.split('-')[0] || new Date().getFullYear().toString());
                     const periodMonth = parseInt(period.split('-')[1] || (new Date().getMonth() + 1).toString());
-                    let baseDay = 1; // Default to 1 if we can't figure it out
-                    if (customer.custom_payment_deadline) {
-                        baseDay = customer.custom_payment_deadline;
-                    }
-                    else if (customer.created_at) {
-                        baseDay = new Date(customer.created_at).getDate();
-                    }
+                    let baseDay = customer.custom_payment_deadline || 28; // Default to 28 to avoid February issues
                     const daysInMonth = new Date(periodYear, periodMonth, 0).getDate();
                     const targetDayFallback = Math.min(baseDay, daysInMonth);
                     let dueDate = new Date(periodYear, periodMonth - 1, targetDayFallback);

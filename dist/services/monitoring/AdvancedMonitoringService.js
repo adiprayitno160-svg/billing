@@ -168,7 +168,24 @@ class AdvancedMonitoringService {
         if (forceRefresh) {
             await this.refreshCache();
         }
-        return this.getAllCustomersWithStatus(true);
+        const result = await this.getAllCustomersWithStatus(true);
+        let odc_olt_links = [];
+        try {
+            const [odcs] = await pool_1.databasePool.query(`
+                SELECT 
+                    odc.id as odc_id, odc.name as odc_name, odc.latitude as odc_lat, odc.longitude as odc_lng,
+                    olt.id as olt_id, olt.name as olt_name, olt.latitude as olt_lat, olt.longitude as olt_lng
+                FROM ftth_odc odc
+                JOIN ftth_olt olt ON odc.olt_id = olt.id
+                WHERE odc.latitude IS NOT NULL AND odc.longitude IS NOT NULL
+                  AND olt.latitude IS NOT NULL AND olt.longitude IS NOT NULL
+            `);
+            odc_olt_links = odcs;
+        }
+        catch (e) {
+            console.error('Error fetching odc_olt_links:', e);
+        }
+        return { ...result, odc_olt_links };
     }
     /**
      * Get offline customers for alarm notification

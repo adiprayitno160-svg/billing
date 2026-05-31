@@ -433,7 +433,7 @@ PENTING:
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
                 WHERE i.customer_id = ?
-                AND i.status IN ('sent', 'partial', 'overdue')
+                AND i.status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
                 AND i.remaining_amount > 0
             `;
             const invoiceParams = [customerId];
@@ -849,7 +849,7 @@ PENTING:
             if (isFullPayment) {
                 // Check for other unpaid invoices
                 const [unpaidCheck] = await connection.query(`SELECT COUNT(*) as count FROM invoices 
-                     WHERE customer_id = ? AND id != ? AND status IN ('sent', 'partial', 'overdue') AND remaining_amount > 0`, [customerId, invoice.id]);
+                     WHERE customer_id = ? AND id != ? AND status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang') AND remaining_amount > 0`, [customerId, invoice.id]);
                 const hasOtherUnpaid = unpaidCheck[0]?.count > 0;
                 if (!hasOtherUnpaid) {
                     // Remove isolation

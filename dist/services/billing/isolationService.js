@@ -375,7 +375,7 @@ class IsolationService {
                     i.id as invoice_id, i.invoice_number, i.remaining_amount, i.due_date
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
-                WHERE i.status IN ('sent', 'partial', 'overdue')
+                WHERE i.status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
                 AND i.remaining_amount > 0
                 AND c.is_isolated = FALSE
                 AND c.status = 'active'
@@ -438,7 +438,7 @@ class IsolationService {
                     i.id as invoice_id, i.invoice_number, i.remaining_amount, i.due_date
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
-                WHERE i.status IN ('sent', 'partial', 'overdue')
+                WHERE i.status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
                 AND i.remaining_amount > 0
                 AND i.due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
                 AND c.is_isolated = FALSE
@@ -776,7 +776,7 @@ class IsolationService {
             SELECT id, name FROM customers 
             WHERE is_isolated = TRUE 
             AND NOT EXISTS (
-                SELECT 1 FROM invoices WHERE customer_id = customers.id AND status IN ('sent', 'partial', 'overdue') AND remaining_amount > 0
+                SELECT 1 FROM invoices WHERE customer_id = customers.id AND status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang') AND remaining_amount > 0
             )
             AND NOT EXISTS (
                 SELECT 1 FROM isolation_logs 

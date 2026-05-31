@@ -48,6 +48,7 @@ export declare class AdvancedMonitoringService {
     static getCustomersForMap(forceRefresh?: boolean): Promise<{
         customers: any[];
         stats: any;
+        odc_olt_links?: any[];
     }>;
     /**
      * Get offline customers for alarm notification

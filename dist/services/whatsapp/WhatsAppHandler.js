@@ -336,7 +336,8 @@ class WhatsAppHandler {
                         }
                         // Send success reply to customer
                         const typeName = confType === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
-                        await service.sendMessage(senderJid, `✅ *Permohonan ${typeName} Disetujui!*\n\nTerima kasih, permohonan Anda untuk tagihan sebesar *Rp ${parseFloat(confAmount).toLocaleString('id-ID')}* telah berhasil diproses.\n\n🌐 Layanan internet Anda akan segera diaktifkan kembali secara otomatis dalam beberapa menit.`);
+                        const newDateStr = confirmation.due_date ? ` dengan batas akhir pembayaran baru pada tanggal *${new Date(confirmation.due_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}*` : '';
+                        await service.sendMessage(senderJid, `✅ *Permohonan ${typeName} Disetujui!*\n\nTerima kasih, permohonan Anda untuk tagihan sebesar *Rp ${parseFloat(confAmount).toLocaleString('id-ID')}*${newDateStr} telah berhasil diproses.\n\n🌐 Layanan internet Anda akan segera diaktifkan kembali secara otomatis dalam beberapa menit.`);
                         // Admin Broadcast
                         try {
                             const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
