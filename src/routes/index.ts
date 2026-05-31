@@ -177,6 +177,17 @@ import { isPppoePackageFull, isStaticIpPackageFull } from '../utils/packageLimit
 const router = Router();
 
 // EMERGENCY TEST ROUTE
+router.get('/api/trigger-simulasi', async (req, res) => {
+    try {
+        const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
+        await UnifiedNotificationService.broadcastToAdmins('✅ *SIMULASI PEMBAYARAN AI DITERIMA*\n\nPelanggan: *Dio / Test*\nNominal: *Rp 150.000*\nStatus: Otomatis diverifikasi dan lunas');
+        res.json({ success: true, message: 'Broadcast triggered!' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// EMERGENCY TEST ROUTE
 router.get('/api/trigger-bulk-mar', async (req, res) => {
     try {
         console.log('[DEBUG] MANUAL TRIGGER BULK MAR START');
