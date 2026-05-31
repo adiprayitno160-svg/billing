@@ -773,7 +773,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
             is_bonus_enabled,
             bonus_speed_limit,
             bonus_start_time,
-            bonus_end_time
+            bonus_end_time,
+            isolation_enabled
         } = req.body;
 
         console.log('[DEBUG UPDATE] ODP ID from body:', odp_id);
@@ -941,6 +942,14 @@ export const updateCustomer = async (req: Request, res: Response) => {
                 updateValues.push(req.body.auto_pay_enabled === '1' || req.body.auto_pay_enabled === 'on' || req.body.auto_pay_enabled === true ? 1 : 0);
             } else if (isFullFormSubmit) {
                 updateFields.push('auto_pay_enabled = 0');
+            }
+
+            // 3b. Isolation Enabled (Apakah pelanggan bisa diisolir sistem)
+            if (req.body.isolation_enabled !== undefined) {
+                updateFields.push('isolation_enabled = ?');
+                updateValues.push(req.body.isolation_enabled === '1' || req.body.isolation_enabled === 'on' || req.body.isolation_enabled === true ? 1 : 0);
+            } else if (isFullFormSubmit) {
+                updateFields.push('isolation_enabled = 0');
             }
 
             // 4. Auto-Pay Date

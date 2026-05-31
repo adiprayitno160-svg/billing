@@ -909,8 +909,9 @@ class UnifiedNotificationService {
                         `🧾 *No:* ${payment.invoice_number}\n` +
                         `💰 *Nominal:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(payment.amount))}\n` +
                         `💸 *Sisa:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(isPaid ? 0 : parseFloat(payment.remaining_amount))}\n` +
-                        `💳 *Metode:* ${payment.payment_method || 'Tunai'}\n\n` +
-                        `Mohon pimpinan (Nina / Diki) untuk memantau kas hari ini.`;
+                        `💳 *Metode:* ${payment.payment_method || 'Tunai'}\n` +
+                        `🤖 *Via:* AI WhatsApp Bot\n\n` +
+                        `Tagihan telah otomatis dikonfirmasi dan diperbarui di sistem.`;
                     await this.broadcastToAdmins(summary);
                 }
                 catch (adminErr) {
@@ -1084,7 +1085,7 @@ class UnifiedNotificationService {
     static async broadcastToAdmins(message) {
         try {
             // Use pool directly to avoid queue overhead for system alerts
-            const [users] = await pool_1.databasePool.query("SELECT phone FROM users WHERE role IN ('admin', 'superadmin', 'operator') AND is_active = 1 AND phone IS NOT NULL");
+            const [users] = await pool_1.databasePool.query("SELECT phone FROM users WHERE role IN ('admin', 'superadmin', 'operator', 'kasir') AND is_active = 1 AND phone IS NOT NULL AND phone != ''");
             if (users.length === 0)
                 return;
             const waClient = whatsapp_1.whatsappService;

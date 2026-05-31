@@ -70,19 +70,21 @@ class SchedulerService {
             console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
             this.scheduleAutoIsolation([1], 0, 0); // Tanggal 1 jam 00:00
         }); */
-        // Auto restore paid customers - DISABLED (Payments now trigger real-time restore)
-        /* cron.schedule('0 6 * * *', async () => {
-            console.log('Running auto restore for paid customers...');
+        // Auto restore paid customers - daily at 06:00 (hanya pelanggan isolation_enabled=1 yang ter-restore)
+        cron.schedule('0 6 * * *', async () => {
+            console.log('[Scheduler] Running auto restore for paid customers...');
             try {
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
                 const result = await IsolationService.autoRestorePaidCustomers();
-                console.log(`Auto restored ${result.restored} customers, failed ${result.failed}`);
-            } catch (error) {
-                console.error('Error auto restoring customers:', error);
+                console.log(`[Scheduler] Auto restored ${result.restored} customers, failed ${result.failed}`);
+            }
+            catch (error) {
+                console.error('[Scheduler] Error auto restoring customers:', error);
             }
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
-        }); */
+        });
         // Calculate SLA and apply discounts - setiap tanggal 1 jam 06:00
         cron.schedule('0 6 1 * *', async () => {
             console.log('Running SLA calculation and discount application...');
@@ -251,20 +253,25 @@ class SchedulerService {
             scheduled: true,
             timezone: "Asia/Jakarta"
         });
-        // Auto isolate overdue (>= 2 unpaid invoices) - (DISABLED BY USER REQUEST - MANUAL MODE)
-        /* cron.schedule('0 2 * * *', async () => {
-            console.log('Running auto isolate overdue customers (>= 2 unpaid)...');
+        // Auto isolate overdue (isolation_enabled=1, lewat jatuh tempo + grace 3 hari) - daily at 02:00
+        cron.schedule('0 2 * * *', async () => {
+            console.log('[Scheduler] Running auto isolate overdue customers (isolation_enabled=1)...');
             try {
-                const { IsolationService } = await import('./billing/isolationService');
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
                 const result = await IsolationService.autoIsolateOverdueCustomers();
-                console.log(`Auto isolate overdue: ${result.isolated} isolated, ${result.failed} failed`);
-            } catch (error) {
-                console.error('Error running auto isolate overdue:', error);
+                console.log(`[Scheduler] Auto isolate overdue: ${result.isolated} isolated, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('[Scheduler] Error running auto isolate overdue:', error);
             }
         }, {
             scheduled: true,
             timezone: "Asia/Jakarta"
-        }); */
+        });
+        // Auto isolate bulan sebelumnya (isolation_enabled=1) - via applyAutoIsolationScheduleFromDb
+        this.applyAutoIsolationScheduleFromDb().catch((err) => {
+            console.error('[Scheduler] Failed to apply Auto Isolation schedule from DB:', err);
+        });
         // Auto delete blocked customers (> 7 days) - daily at 03:00
         cron.schedule('0 3 * * *', async () => {
             console.log('Running auto delete blocked customers (> 7 days)...');

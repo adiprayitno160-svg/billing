@@ -270,13 +270,14 @@ class IsolationService {
             else {
                 // When restoring, we set status back to 'active' if they were isolated (TRUE) OR if they were inactive 
                 // but we are restoring. This fixes the issue where system auto-isolate sets status="inactive".
+                // Also reset isolation_enabled to 0 so customer returns to safe default (no risk of re-isolation).
                 if (customer.is_isolated || customer.status === 'inactive') {
-                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL, status = "active" WHERE id = ?', [customer.id]);
-                    console.log(`[Isolation] ✅ Customer ${customer.name} status set to ACTIVE (service restored and un-isolated)`);
+                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL, status = "active", isolation_enabled = 0 WHERE id = ?', [customer.id]);
+                    console.log(`[Isolation] ✅ Customer ${customer.name} status set to ACTIVE, isolation_enabled reset to 0 (safe default)`);
                 }
                 else {
-                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL WHERE id = ?', [customer.id]);
-                    console.log(`[Isolation] ✅ Customer ${customer.name} is_isolated reset, but status remains ${customer.status}`);
+                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL, isolation_enabled = 0 WHERE id = ?', [customer.id]);
+                    console.log(`[Isolation] ✅ Customer ${customer.name} is_isolated reset, isolation_enabled = 0, status remains ${customer.status}`);
                 }
             }
             if (isNewConnection)
@@ -536,6 +537,7 @@ class IsolationService {
                 AND c.is_isolated = FALSE
                 AND c.is_deferred = FALSE
                 AND c.status = 'active'
+                AND c.isolation_enabled = 1
                 AND NOT EXISTS (
                     SELECT 1 FROM payment_deferments pd
                     WHERE pd.customer_id = c.id
@@ -599,11 +601,12 @@ class IsolationService {
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.status NOT IN ('paid', 'partial', 'cancelled', 'hutang')
-            AND i.period <= '2026-03'
+            AND i.period < DATE_FORMAT(CURDATE(), '%Y-%m')
             AND i.due_date < DATE_SUB(CURDATE(), INTERVAL ${GRACE_PERIOD_DAYS} DAY)
             AND c.is_isolated = FALSE
             AND c.is_deferred = FALSE
             AND c.status = 'active'
+            AND c.isolation_enabled = 1
             AND NOT EXISTS (
                 SELECT 1 FROM payment_deferments pd 
                 WHERE pd.customer_id = c.id 
@@ -625,7 +628,7 @@ class IsolationService {
                 const success = await this.isolateCustomer({
                     customer_id: customer.id,
                     action: 'isolate',
-                    reason: `Tagihan belum dibayar melewati batas masa tenggang ${GRACE_PERIOD_DAYS} hari (${periods}).`,
+                    reason: `Belum melakukan pembayaran tagihan untuk bulan ${periods}.`,
                     performed_by: 'system',
                     invoice_id: customer.latest_invoice_id,
                     unpaid_periods: periods
@@ -695,6 +698,7 @@ class IsolationService {
             AND c.is_isolated = FALSE
             AND c.is_deferred = FALSE
             AND c.status = 'active'
+            AND c.isolation_enabled = 1
             AND NOT EXISTS (
                 SELECT 1 FROM payment_deferments pd 
                 WHERE pd.customer_id = c.id 
@@ -707,11 +711,18 @@ class IsolationService {
         let failed = 0;
         for (const customer of customers) {
             try {
+                let prevMonthName = prevPeriod;
+                try {
+                    const [year, month] = prevPeriod.split('-');
+                    prevMonthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                }
+                catch (e) { }
                 const success = await this.isolateCustomer({
                     customer_id: customer.id,
                     action: 'isolate',
-                    reason: `Sistem AI mendeteksi penunggakan tagihan bulan ${prevPeriod} tanpa info yang jelas, koneksi diputus sementara.`,
-                    performed_by: 'system'
+                    reason: `Belum melakukan pembayaran tagihan untuk bulan ${prevMonthName}.`,
+                    performed_by: 'system',
+                    unpaid_periods: prevMonthName
                 });
                 if (success)
                     isolated++;
@@ -815,9 +826,9 @@ class IsolationService {
         const connection = existingConnection || pool_1.databasePool;
         try {
             // Check if customer is currently isolated
-            const [customerResult] = await connection.query("SELECT id, is_isolated, name FROM customers WHERE id = ?", [customerId]);
+            const [customerResult] = await connection.query("SELECT id, is_isolated, isolation_enabled, name FROM customers WHERE id = ?", [customerId]);
             const customer = customerResult[0];
-            if (!customer || !customer.is_isolated) {
+            if (!customer) {
                 return false;
             }
             // Check for any TRULY unpaid and overdue invoices (excluding draft/cancelled)
@@ -830,6 +841,14 @@ class IsolationService {
                  AND remaining_amount > 0 
                  AND (status = 'overdue' OR status = 'partial' OR (status = 'sent' AND due_date <= CURDATE()))`, [customerId]);
             if (unpaidResult.length === 0) {
+                // If they have no overdue unpaid invoices, we should reset isolation_enabled = 0!
+                if (customer.isolation_enabled === 1 || customer.isolation_enabled === true) {
+                    await connection.query("UPDATE customers SET isolation_enabled = 0, updated_at = NOW() WHERE id = ?", [customerId]);
+                    console.log(`[Isolation] Reset isolation_enabled to 0 for customer ${customer.name} (#${customerId}) because they paid all overdue/unpaid invoices.`);
+                }
+                if (!customer.is_isolated) {
+                    return false;
+                }
                 console.log(`[Isolation] 🔓 Customer ${customer.name} (#${customerId}) qualified for auto-restore. No unpaid invoices remaining.`);
                 try {
                     const result = await this.isolateCustomer({

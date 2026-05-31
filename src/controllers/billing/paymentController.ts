@@ -1272,6 +1272,16 @@ export class PaymentController {
 
             await conn.commit();
 
+            // Trigger auto-restore isolation if customer has no more unpaid invoices
+            setTimeout(async () => {
+                try {
+                    const { IsolationService } = await import('../../services/billing/isolationService');
+                    await IsolationService.restoreIfQualified(invoice.customer_id);
+                } catch (restoreErr) {
+                    console.error('[PaymentController] resolveDebt: Failed to check auto-restore:', restoreErr);
+                }
+            }, 500);
+
             res.json({
                 success: true,
                 message: 'Hutang berhasil diselesaikan',

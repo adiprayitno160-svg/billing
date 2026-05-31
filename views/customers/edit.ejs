@@ -466,6 +466,16 @@
                                 </div>
                             </label>
 
+                             <label class="group flex items-center justify-between p-4 bg-rose-50 rounded-2xl border border-rose-200 cursor-pointer hover:border-rose-300 hover:bg-white transition-all">
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" name="isolation_enabled" value="1" <%=customer.isolation_enabled ? 'checked' : '' %> class="w-5 h-5 text-rose-600 rounded-lg border-rose-300 focus:ring-rose-500">
+                                    <div>
+                                        <span class="block text-sm font-bold text-rose-700">Aktifkan Isolir Otomatis</span>
+                                        <span class="block text-[10px] text-rose-500 uppercase tracking-tight">Pelanggan bisa diisolir sistem jika telat bayar</span>
+                                    </div>
+                                </div>
+                            </label>
+
                             <div class="p-4 bg-blue-50 rounded-2xl border border-blue-200">
                                 <label class="block text-xs font-bold text-blue-700 uppercase tracking-widest mb-2 px-1">Bonus Loyalitas (Potongan Selamanya)</label>
                                 <div class="relative">

@@ -353,6 +353,12 @@ export class WhatsAppHandler {
                                 'UPDATE invoices SET status = ?, due_date = ?, updated_at = NOW() WHERE id = ?',
                                 [newStatus, confirmation.due_date, invId]
                             );
+                            // Enable isolation for the customer since they entered janji_bayar!
+                            await databasePool.query(
+                                'UPDATE customers SET isolation_enabled = 1, updated_at = NOW() WHERE id = ?',
+                                [customer.id]
+                            );
+                            console.log(`[WhatsAppHandler] Activated isolation_enabled = 1 for customer ${customer.name} (#${customer.id}) due to approved janji_bayar.`);
                         } else {
                             await databasePool.query(
                                 'UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ?',

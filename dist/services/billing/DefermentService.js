@@ -63,7 +63,7 @@ class DefermentService {
             await connection.query(`INSERT INTO payment_deferments (customer_id, invoice_id, requested_date, deferred_until_date, reason, status, count_in_year)
                  VALUES (?, ?, CURDATE(), ?, ?, 'approved', ?)`, [data.customer_id, data.invoice_id || null, data.deferred_until_date, data.reason, count + 1]);
             // Update customer status
-            await connection.query('UPDATE customers SET is_deferred = TRUE WHERE id = ?', [data.customer_id]);
+            await connection.query('UPDATE customers SET is_deferred = TRUE, isolation_enabled = 1, updated_at = NOW() WHERE id = ?', [data.customer_id]);
             await connection.commit();
             // Send success notification
             await this.sendDefermentapprovedNotification(data.customer_id, data.deferred_until_date);

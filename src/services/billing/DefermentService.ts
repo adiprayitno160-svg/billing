@@ -49,7 +49,7 @@ export class DefermentService {
 
             // Update customer status
             await connection.query(
-                'UPDATE customers SET is_deferred = TRUE WHERE id = ?',
+                'UPDATE customers SET is_deferred = TRUE, isolation_enabled = 1, updated_at = NOW() WHERE id = ?',
                 [data.customer_id]
             );
 

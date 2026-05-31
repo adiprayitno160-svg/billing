@@ -702,7 +702,7 @@ const updateCustomer = async (req, res) => {
                 error: 'Invalid customer ID'
             });
         }
-        const { name, customer_code, phone, email, address, status, connection_type, pppoe_username, pppoe_password, pppoe_profile_id, pppoe_package, ip_address, interface: interfaceName, static_ip_package, odp_id, odc_id, custom_payment_deadline, custom_isolate_days_after_deadline, serial_number, rental_mode, rental_cost, ignore_monitoring_start, ignore_monitoring_end, enable_billing, exclude_from_print, auto_pay_enabled, auto_pay_date, loyalty_discount, is_fup_enabled, fup_limit_gb, fup_speed_limit, is_bonus_enabled, bonus_speed_limit, bonus_start_time, bonus_end_time } = req.body;
+        const { name, customer_code, phone, email, address, status, connection_type, pppoe_username, pppoe_password, pppoe_profile_id, pppoe_package, ip_address, interface: interfaceName, static_ip_package, odp_id, odc_id, custom_payment_deadline, custom_isolate_days_after_deadline, serial_number, rental_mode, rental_cost, ignore_monitoring_start, ignore_monitoring_end, enable_billing, exclude_from_print, auto_pay_enabled, auto_pay_date, loyalty_discount, is_fup_enabled, fup_limit_gb, fup_speed_limit, is_bonus_enabled, bonus_speed_limit, bonus_start_time, bonus_end_time, isolation_enabled } = req.body;
         console.log('[DEBUG UPDATE] ODP ID from body:', odp_id);
         console.log('[DEBUG UPDATE] ODC ID from body:', odc_id);
         const conn = await pool_1.databasePool.getConnection();
@@ -856,6 +856,14 @@ const updateCustomer = async (req, res) => {
             }
             else if (isFullFormSubmit) {
                 updateFields.push('auto_pay_enabled = 0');
+            }
+            // 3b. Isolation Enabled (Apakah pelanggan bisa diisolir sistem)
+            if (req.body.isolation_enabled !== undefined) {
+                updateFields.push('isolation_enabled = ?');
+                updateValues.push(req.body.isolation_enabled === '1' || req.body.isolation_enabled === 'on' || req.body.isolation_enabled === true ? 1 : 0);
+            }
+            else if (isFullFormSubmit) {
+                updateFields.push('isolation_enabled = 0');
             }
             // 4. Auto-Pay Date
             if (req.body.auto_pay_date !== undefined && req.body.auto_pay_date !== '') {
