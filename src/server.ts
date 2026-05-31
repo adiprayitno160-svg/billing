@@ -200,17 +200,6 @@ app.use(injectAppVersion);
 // PPPoE Stats middleware - for sidebar
 app.use(pppoeStatsMiddleware);
 
-// EMERGENCY TEST ROUTE
-app.get('/api/trigger-simulasi-noauth', async (req, res) => {
-    try {
-        const { UnifiedNotificationService } = await import('./services/notification/UnifiedNotificationService');
-        await UnifiedNotificationService.broadcastToAdmins('✅ *SIMULASI PEMBAYARAN AI DITERIMA*\n\nPelanggan: *Dio / Test*\nNominal: *Rp 150.000*\nStatus: Otomatis diverifikasi dan lunas');
-        res.json({ success: true, message: 'Broadcast triggered!' });
-    } catch (e: any) {
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
 // Root router
 app.use('/', router);
 
