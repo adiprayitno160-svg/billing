@@ -954,11 +954,14 @@ PENTING:
             await connection.beginTransaction();
 
             // Get customer billing mode
+            // Get customer billing mode
             const [customerRows] = await connection.query<RowDataPacket[]>(
-                'SELECT billing_mode, account_balance FROM customers WHERE id = ?',
+                'SELECT billing_mode, account_balance, name, customer_code FROM customers WHERE id = ?',
                 [customerId]
             );
             const billingMode = customerRows[0]?.billing_mode || 'postpaid';
+            const customerName = customerRows[0]?.name || 'Unknown';
+            const customerCode = customerRows[0]?.customer_code || '-';
 
             // Record payment
             const invoice = matchObj;
@@ -1057,6 +1060,12 @@ PENTING:
                     UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e =>
                         console.error('[AdvancedAI] Background notification error:', e)
                     );
+                    
+                    // Broadcast to admins and kasir
+                    UnifiedNotificationService.broadcastToAdmins(
+                        `✅ *PEMBAYARAN AI DITERIMA*\n\nPelanggan: *${customerName}* (${customerCode})\nNominal: *Rp ${paymentAmount.toLocaleString('id-ID')}*\nStatus: Otomatis diverifikasi dan lunas`
+                    ).catch(e => console.error('[AdvancedAI] Broadcast admin error:', e));
+
                     notificationSent = true;
                     console.log(`[AdvancedAI] ✅ Notification queued via Unified Service`);
                 } catch (notifError) {
