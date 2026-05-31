@@ -235,6 +235,22 @@ export class SchedulerService {
             timezone: "Asia/Jakarta"
         });
 
+        // Auto-expire unconfirmed payment confirmations (no SETUJU reply within 24h) - daily at 01:30
+        // Runs BEFORE auto-isolate (02:00) so expired customers get isolation_enabled=1 first
+        cron.schedule('30 1 * * *', async () => {
+            console.log('[Scheduler] Running auto-expire unconfirmed payment confirmations...');
+            try {
+                const { IsolationService } = await import('./billing/isolationService');
+                const result = await IsolationService.autoExpireUnconfirmedPayments();
+                console.log(`[Scheduler] Auto-expire: ${result.expired} expired, ${result.isolated} isolated, ${result.failed} failed`);
+            } catch (error) {
+                console.error('[Scheduler] Error running auto-expire unconfirmed:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
+
         // Auto isolate overdue (isolation_enabled=1, lewat jatuh tempo + grace 3 hari) - daily at 02:00
         cron.schedule('0 2 * * *', async () => {
             console.log('[Scheduler] Running auto isolate overdue customers (isolation_enabled=1)...');

@@ -1270,6 +1270,13 @@ export class IsolationService {
             totalFailed += deferredResult.failed;
             console.log(`[Startup Catch-Up] Step 3 done: ${deferredResult.isolated} isolated, ${deferredResult.failed} failed`);
 
+            // 3.5. Expire unconfirmed payment confirmations (no SETUJU reply > 24h)
+            console.log('[Startup Catch-Up] Step 3.5: Expiring unconfirmed payment confirmations...');
+            const expireResult = await this.autoExpireUnconfirmedPayments();
+            totalIsolated += expireResult.isolated;
+            totalFailed += expireResult.failed;
+            console.log(`[Startup Catch-Up] Step 3.5 done: ${expireResult.expired} expired, ${expireResult.isolated} isolated, ${expireResult.failed} failed`);
+
             // 4. Auto-restore customer yang sudah bayar semua (jaga konsistensi)
             console.log('[Startup Catch-Up] Step 4: Checking paid customers for auto-restore...');
             const restoreResult = await this.autoRestorePaidCustomers();
@@ -1338,5 +1345,128 @@ export class IsolationService {
         }
 
         return { isolated, failed };
+    }
+
+    /**
+     * Auto-expire pending payment confirmations (janji_bayar/hutang) that haven't been confirmed.
+     * If a customer doesn't reply SETUJU within 1 day, the confirmation is expired and
+     * isolation_enabled is set to 1 so the auto-isolate cron will pick them up.
+     */
+    static async autoExpireUnconfirmedPayments(): Promise<{ expired: number, isolated: number, failed: number }> {
+        let expired = 0;
+        let isolated = 0;
+        let failed = 0;
+
+        try {
+            // Find pending confirmations older than 1 day
+            const [pendingConfirmations] = await databasePool.query<RowDataPacket[]>(`
+                SELECT pc.id, pc.customer_id, pc.invoice_id, pc.amount, pc.type, pc.due_date,
+                       pc.created_at,
+                       c.name as customer_name, c.phone, c.is_isolated, c.isolation_enabled,
+                       i.status as invoice_status, i.period
+                FROM payment_confirmations pc
+                JOIN customers c ON pc.customer_id = c.id
+                LEFT JOIN invoices i ON pc.invoice_id = i.id
+                WHERE pc.status = 'pending'
+                AND pc.created_at < DATE_SUB(NOW(), INTERVAL 1 DAY)
+            `);
+
+            if (pendingConfirmations.length === 0) {
+                console.log('[Isolation] No expired unconfirmed payments found.');
+                return { expired: 0, isolated: 0, failed: 0 };
+            }
+
+            console.log(`[Isolation] Found ${pendingConfirmations.length} unconfirmed payment(s) to expire.`);
+
+            for (const conf of pendingConfirmations) {
+                try {
+                    // 1. Expire the confirmation
+                    await databasePool.query(
+                        `UPDATE payment_confirmations SET status = 'expired', updated_at = NOW() WHERE id = ?`,
+                        [conf.id]
+                    );
+
+                    // 2. Set isolation_enabled = 1 for this customer (so auto-isolate cron picks them up)
+                    await databasePool.query(
+                        `UPDATE customers SET isolation_enabled = 1, updated_at = NOW() WHERE id = ? AND isolation_enabled = 0`,
+                        [conf.customer_id]
+                    );
+
+                    expired++;
+
+                    // 3. Try to isolate immediately if they qualify
+                    if (!conf.is_isolated) {
+                        try {
+                            const success = await this.isolateCustomer({
+                                customer_id: conf.customer_id,
+                                action: 'isolate',
+                                reason: `Konfirmasi ${conf.type === 'janji_bayar' ? 'Janji Bayar' : 'Hutang'} tidak dibalas dalam 24 jam. Tagihan Rp ${parseFloat(conf.amount).toLocaleString('id-ID')} periode ${conf.period || '-'}.`,
+                                performed_by: 'system',
+                                invoice_id: conf.invoice_id
+                            });
+
+                            if (success) {
+                                isolated++;
+                                console.log(`[Isolation] ⛔ Isolated ${conf.customer_name} (#${conf.customer_id}) - unconfirmed ${conf.type}`);
+                            } else {
+                                failed++;
+                            }
+                        } catch (isoErr: any) {
+                            console.error(`[Isolation] Failed to isolate ${conf.customer_name}:`, isoErr.message);
+                            failed++;
+                        }
+                    }
+
+                    // 4. Send WA notification to customer
+                    try {
+                        const { WhatsAppService } = await import('../whatsapp/WhatsAppService');
+                        const waService = WhatsAppService.getInstance();
+                        if (waService && conf.phone) {
+                            const phone = conf.phone.replace(/^0/, '62').replace(/\D/g, '');
+                            const typeName = conf.type === 'janji_bayar' ? 'Janji Bayar' : 'Hutang';
+                            await waService.sendMessage(phone + '@s.whatsapp.net',
+                                `⚠️ *PERHATIAN — ${conf.customer_name}*\n\n` +
+                                `Permohonan *${typeName}* Anda untuk tagihan sebesar *Rp ${parseFloat(conf.amount).toLocaleString('id-ID')}* telah *KADALUARSA* karena Anda tidak membalas SETUJU dalam waktu 24 jam.\n\n` +
+                                `🔴 *Koneksi internet Anda akan DIISOLIR/DIPUTUS.*\n\n` +
+                                `Untuk mengaktifkan kembali, silakan:\n` +
+                                `1. Lakukan pembayaran segera\n` +
+                                `2. Atau hubungi Admin untuk meminta perpanjangan baru\n\n` +
+                                `Ketik *TAGIHAN* untuk cek detail tagihan.`
+                            );
+                        }
+                    } catch (waErr: any) {
+                        console.error(`[Isolation] Failed to send WA expiry notice to ${conf.customer_name}:`, waErr.message);
+                    }
+
+                } catch (err: any) {
+                    console.error(`[Isolation] Error expiring confirmation ${conf.id}:`, err.message);
+                    failed++;
+                }
+            }
+
+            // 5. Broadcast to Admins
+            if (expired > 0) {
+                try {
+                    const customerNames = pendingConfirmations.map((c: any) => c.customer_name).join(', ');
+                    await UnifiedNotificationService.broadcastToAdmins(
+                        `⏰ *KONFIRMASI KADALUARSA*\n\n` +
+                        `*${expired}* pelanggan tidak membalas SETUJU dalam 24 jam:\n` +
+                        `👤 ${customerNames}\n\n` +
+                        `✅ Diisolir: ${isolated}\n` +
+                        `❌ Gagal isolir: ${failed}\n\n` +
+                        `Status konfirmasi diubah ke "expired". Isolasi otomatis diterapkan.`
+                    );
+                } catch (e) {
+                    console.warn('[Isolation] Failed to broadcast expiry report:', e);
+                }
+            }
+
+            console.log(`[Isolation] Expire result: ${expired} expired, ${isolated} isolated, ${failed} failed`);
+
+        } catch (error: any) {
+            console.error('[Isolation] Error in autoExpireUnconfirmedPayments:', error.message);
+        }
+
+        return { expired, isolated, failed };
     }
 }
