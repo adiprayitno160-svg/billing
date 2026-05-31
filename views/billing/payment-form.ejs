@@ -389,8 +389,8 @@
                                         class="w-16 h-16 mx-auto mb-4 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                                         <i class="fas fa-calculator text-2xl"></i>
                                     </div>
-                                    <h3 class="font-black text-slate-800 text-lg mb-1 tracking-tight">CICILAN</h3>
-                                    <p class="text-xs text-slate-400 font-medium mb-4">Bayar Sebagian Saja</p>
+                                    <h3 class="font-black text-slate-800 text-lg mb-1 tracking-tight">KUSTOM / SALDO</h3>
+                                    <p class="text-xs text-slate-400 font-medium mb-4">Bayar Sebagian / Bayar Lebih</p>
                                     <span
                                         class="text-[9px] font-black uppercase tracking-widest py-1 px-2 rounded-md bg-blue-100 text-blue-700">Fleksibel</span>
                                 </div>
@@ -775,13 +775,12 @@
                                                 <span class="text-sm font-black text-amber-500" id="calc-remaining">Rp
                                                     0</span>
                                             </div>
-                                            <div id="calc-overpayment-row"
-                                                class="hidden flex justify-between items-center py-4 px-6 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-                                                <span
-                                                    class="text-[10px] font-black uppercase tracking-widest text-emerald-500">Saldo
-                                                    Akun+</span>
-                                                <span class="text-sm font-black text-emerald-400"
-                                                    id="calc-overpayment">Rp 0</span>
+                                            <div id="calc-overpayment-row" class="hidden flex-col gap-2 mt-4">
+                                                <div class="flex justify-between items-center py-4 px-6 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+                                                    <span class="text-[10px] font-black uppercase tracking-widest text-emerald-500">Masuk Saldo+</span>
+                                                    <span class="text-sm font-black text-emerald-400" id="calc-overpayment">Rp 0</span>
+                                                </div>
+                                                <p class="text-[10px] font-bold text-emerald-500 text-center"><i class="fas fa-info-circle mr-1"></i>Kelebihan pembayaran otomatis melunasi tagihan bulan depan.</p>
                                             </div>
                                         </div>
                                     </div>

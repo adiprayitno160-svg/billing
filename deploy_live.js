@@ -4,7 +4,7 @@ const conn = new Client();
 
 conn.on('ready', () => { 
   console.log('SSH Ready');
-  conn.exec('cd /var/www/billing && git pull origin main && npm run build && pm2 restart all', (err, stream) => {
+  conn.exec('cd /var/www/billing && git reset --hard && git pull origin main && npm run build && pm2 restart all', (err, stream) => {
     if (err) throw err;
     stream.on('close', () => {
         console.log('Deploy complete');

@@ -709,7 +709,7 @@ export class IsolationService {
                 const success = await this.isolateCustomer({
                     customer_id: customer.id,
                     action: 'isolate',
-                    reason: `Tagihan belum dibayar melewati batas masa tenggang ${GRACE_PERIOD_DAYS} hari (${periods}).`,
+                    reason: `Belum melakukan pembayaran tagihan untuk bulan ${periods}.`,
                     performed_by: 'system',
                     invoice_id: customer.latest_invoice_id,
                     unpaid_periods: periods
@@ -792,11 +792,18 @@ export class IsolationService {
 
         for (const customer of customers) {
             try {
+                let prevMonthName = prevPeriod;
+                try {
+                    const [year, month] = prevPeriod.split('-');
+                    prevMonthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                } catch(e) {}
+
                 const success = await this.isolateCustomer({
                     customer_id: customer.id,
                     action: 'isolate',
-                    reason: `Sistem AI mendeteksi penunggakan tagihan bulan ${prevPeriod} tanpa info yang jelas, koneksi diputus sementara.`,
-                    performed_by: 'system'
+                    reason: `Belum melakukan pembayaran tagihan untuk bulan ${prevMonthName}.`,
+                    performed_by: 'system',
+                    unpaid_periods: prevMonthName
                 });
                 if (success) isolated++; else failed++;
             } catch (error) {
