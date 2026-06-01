@@ -398,7 +398,7 @@ export class VerificationController {
                 try {
                     const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
                     // Fire and forget, don't await to keep UI responsive
-                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e =>
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true).catch(e =>
                         console.error('Background notification error in verification:', e)
                     );
                 } catch (e) {

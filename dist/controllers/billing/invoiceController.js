@@ -879,15 +879,12 @@ class InvoiceController {
             else {
                 notificationIds = await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id), false);
             }
-            // Wait for dispatch if we have IDs
+            // Fire and forget dispatch if we have IDs, to keep UI responsive
             if (notificationIds && notificationIds.length > 0) {
                 for (const nid of notificationIds) {
-                    try {
-                        await UnifiedNotificationService.sendNotificationById(nid);
-                    }
-                    catch (sendErr) {
-                        console.error(`[InvoiceController] Direct send error for notification ${nid}:`, sendErr.message);
-                    }
+                    UnifiedNotificationService.sendNotificationById(nid).catch((sendErr) => {
+                        console.error(`[InvoiceController] Background send error for notification ${nid}:`, sendErr.message);
+                    });
                 }
             }
             // Also update status to 'sent' if it was 'draft'
@@ -1313,7 +1310,7 @@ class InvoiceController {
             let queuedCount = 0;
             // Use concurrent processing with a limit or just map to promises
             // To prevent blocking the main thread for too long, we trigger them
-            const promises = validInvoices.map(invoice => UnifiedNotificationService.notifyInvoiceCreated(invoice.id)
+            const promises = validInvoices.map(invoice => UnifiedNotificationService.notifyInvoiceCreated(invoice.id, false)
                 .then(() => {
                 queuedCount++;
                 // If it was draft (not possible with filter above, but good for safety), update it

@@ -41,11 +41,11 @@ export class SchedulerService {
             this.schedulePaymentReminders(true);
         });
 
-        // Auto isolate - DISABLED (Handled by processAutoBlocking individually)
-        /* this.applyAutoIsolationScheduleFromDb().catch((err) => {
+        // Auto isolate
+        this.applyAutoIsolationScheduleFromDb().catch((err) => {
             console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
             this.scheduleAutoIsolation([1], 0, 0); // Tanggal 1 jam 00:00
-        }); */
+        });
 
         // Auto restore paid customers - daily at 06:00 (hanya pelanggan isolation_enabled=1 yang ter-restore)
         cron.schedule('0 6 * * *', async () => {

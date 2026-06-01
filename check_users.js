@@ -1,0 +1,1 @@
+const { databasePool } = require('./dist/db/pool'); async function test() { const [rows] = await databasePool.query('SELECT username, phone, role FROM users'); console.log(rows); process.exit(0); } test();

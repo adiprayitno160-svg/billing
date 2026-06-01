@@ -435,7 +435,7 @@ class PaymentController {
                 const [paymentRows] = await pool_1.databasePool.query('SELECT id FROM payments WHERE invoice_id = ? ORDER BY id DESC LIMIT 1', [invoice_id]);
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && paymentRows[0].id) {
                     // Don't await this, let it run in background
-                    UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id).catch(e => console.error('Background notification error:', e));
+                    UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id, true, true).catch(e => console.error('Background notification error:', e));
                 }
             }
             catch (notifError) {
@@ -686,7 +686,7 @@ class PaymentController {
                 const [paymentRows] = await pool_1.databasePool.query('SELECT id FROM payments WHERE invoice_id = ? ORDER BY id DESC LIMIT 1', [invoice_id]);
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && paymentRows[0].id) {
                     // Don't await this, let it run in background
-                    UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id).catch(e => console.error('Background notification error:', e));
+                    UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id, true, true).catch(e => console.error('Background notification error:', e));
                 }
             }
             catch (notifError) {
@@ -805,7 +805,7 @@ class PaymentController {
                 if (customerRows.length > 0 && customerRows[0].phone) {
                     const customer = customerRows[0];
                     const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService')));
-                    console.log(`[PaymentController] ðŸ“± Sending debt notification to customer ${customer.name}...`);
+                    console.log(`[PaymentController] Ã°Å¸â€œÂ± Sending debt notification to customer ${customer.name}...`);
                     const notificationIds = await UnifiedNotificationService.queueNotification({
                         customer_id: invoice.customer_id,
                         invoice_id: invoice_id,
@@ -824,14 +824,14 @@ class PaymentController {
                         priority: 'high',
                         send_immediately: true // Queue will handle dispatch in background
                     });
-                    console.log(`[PaymentController] âœ… Debt notification queued (IDs: ${notificationIds.join(', ')})`);
+                    console.log(`[PaymentController] Ã¢Å“â€¦ Debt notification queued (IDs: ${notificationIds.join(', ')})`);
                 }
                 else {
-                    console.log(`[PaymentController] âš ï¸ No phone number for customer ${invoice.customer_id}, skipping notification`);
+                    console.log(`[PaymentController] Ã¢Å¡Â Ã¯Â¸Â No phone number for customer ${invoice.customer_id}, skipping notification`);
                 }
             }
             catch (notifError) {
-                console.error(`[PaymentController] âš ï¸ Failed to send debt notification (non-critical):`, notifError.message);
+                console.error(`[PaymentController] Ã¢Å¡Â Ã¯Â¸Â Failed to send debt notification (non-critical):`, notifError.message);
                 // Non-critical, debt recording already succeeded
             }
             const discountAmount = req.body.discount_amount || 0;
@@ -871,7 +871,7 @@ class PaymentController {
             const queryParams = [];
             // Map status
             if (status === 'unpaid' || status === 'active') {
-                whereConditions.push("i.status IN ('unpaid', 'overdue', 'partial', 'hutang')");
+                whereConditions.push("(i.status IN ('overdue', 'partial', 'hutang') OR (i.status IN ('unpaid', 'sent') AND DATEDIFF(CURRENT_DATE, i.due_date) > 0))");
                 whereConditions.push("i.remaining_amount > 0");
             }
             else if (status === 'resolved') {
@@ -1200,7 +1200,7 @@ class PaymentController {
      * Supports multi-invoice selection, partial payments, and discounts.
      */
     async processPayment(req, res) {
-        console.log(`[PaymentController] 💰 Handling processPayment request from ${req.ip} for invoice ${req.body.invoice_id}`);
+        console.log(`[PaymentController] ðŸ’° Handling processPayment request from ${req.ip} for invoice ${req.body.invoice_id}`);
         try {
             const { invoice_id, selectedInvoiceIds, payment_amount, payment_method, payment_type, notes, discount_amount, discount_reason, sla_discount_amount, manual_discount_value, manual_discount_type, janji_bayar_date } = req.body;
             if (!invoice_id || !payment_method) {
@@ -1386,19 +1386,19 @@ class PaymentController {
                 Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService'))).then(({ UnifiedNotificationService }) => {
                     if (firstPaymentId) {
                         // Send Regular/Partial receipt to customer
-                        UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true)
+                        UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true, true)
                             .catch(err => console.error('[AdminPayment] Failed to send customer receipt:', err));
                     }
                     // Admin Broadcast (No need to broadcast customer notifications if we wait for WA reply)
                     if (paymentType === 'debt' || paymentType === 'janji_bayar') {
                         const typeLabel = paymentType === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
-                        const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `📆 *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';
-                        UnifiedNotificationService.broadcastToAdmins(`📌 *INFORMASI ${typeLabel} BARU (ADMIN)*\n\n` +
-                            `👤 *Pelanggan ID:* ${customerId}\n` +
-                            `🧾 *Invoices:* ${selectedInvoiceIds.join(', ')}\n` +
-                            `💰 *Sisa Tagihan:* Rp ${amount.toLocaleString('id-ID')}\n` +
+                        const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `ðŸ“† *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';
+                        UnifiedNotificationService.broadcastToAdmins(`ðŸ“Œ *INFORMASI ${typeLabel} BARU (ADMIN)*\n\n` +
+                            `ðŸ‘¤ *Pelanggan ID:* ${customerId}\n` +
+                            `ðŸ§¾ *Invoices:* ${selectedInvoiceIds.join(', ')}\n` +
+                            `ðŸ’° *Sisa Tagihan:* Rp ${amount.toLocaleString('id-ID')}\n` +
                             dateInfo +
-                            `📝 *Keterangan:* Status diupdate via Admin Panel.\n\n` +
+                            `ðŸ“ *Keterangan:* Status diupdate via Admin Panel.\n\n` +
                             `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`).catch(notifErr => console.error('[AdminPayment] Failed to notify admins about status change:', notifErr));
                         // [Fix] Auto-Regenerate Next Period Invoice if already created
                         // This ensures 'tunggakan' appears in the new invoice!
@@ -1428,7 +1428,7 @@ class PaymentController {
                                                 await InvoiceService.bulkDeleteInvoices([nextInvs[0].id]);
                                                 // Regenerate!
                                                 await InvoiceService.generateMonthlyInvoices(nextPeriod, [customerId], true);
-                                                console.log(`[AutoRegen] ✅ Regenerated next invoice ${nextPeriod} for customer ${customerId}`);
+                                                console.log(`[AutoRegen] âœ… Regenerated next invoice ${nextPeriod} for customer ${customerId}`);
                                             }
                                         }
                                     }

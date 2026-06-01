@@ -173,7 +173,7 @@ router.get('/rekap/tunggakan', async (req, res) => {
                     SUM(i.total_amount - i.paid_amount) as total_arrears
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
-                WHERE i.status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang') 
+                WHERE (i.status IN ('overdue', 'hutang') OR (i.status IN ('unpaid', 'sent', 'partial') AND i.due_date < CURDATE()))
                   AND c.status != 'deleted'
             `;
             const params = [];
@@ -1442,7 +1442,7 @@ router.get('/debts/print', async (req, res) => {
                 DATEDIFF(CURRENT_DATE, i.due_date) as days_overdue
             FROM invoices i
             LEFT JOIN customers c ON i.customer_id = c.id
-            WHERE i.status IN ('unpaid', 'overdue', 'partial', 'hutang') AND i.remaining_amount > 0
+            WHERE (i.status IN ('overdue', 'partial', 'hutang') OR (i.status = 'unpaid' AND DATEDIFF(CURRENT_DATE, i.due_date) > 0)) AND i.remaining_amount > 0
             ORDER BY i.due_date ASC
         `;
         const summaryQuery = `
@@ -1451,7 +1451,7 @@ router.get('/debts/print', async (req, res) => {
                 COUNT(DISTINCT i.customer_id) as customers_count,
                 COUNT(CASE WHEN DATEDIFF(CURRENT_DATE, i.due_date) > 30 THEN 1 END) as overdue_count
             FROM invoices i
-            WHERE i.status IN ('unpaid', 'overdue', 'partial', 'hutang') AND i.remaining_amount > 0
+            WHERE (i.status IN ('overdue', 'partial', 'hutang') OR (i.status = 'unpaid' AND DATEDIFF(CURRENT_DATE, i.due_date) > 0)) AND i.remaining_amount > 0
         `;
         const [debtsResult] = await databasePool.query(debtsQuery);
         const [summaryResult] = await databasePool.query(summaryQuery);

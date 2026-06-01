@@ -74,5 +74,12 @@ export declare class InvoiceService {
         updated: number;
         failed: number;
     }>;
+    /**
+     * Auto-delete invoices that are older than 4 months to prevent data accumulation.
+     */
+    static autoDeleteOldInvoices(): Promise<{
+        deleted: number;
+        failed: number;
+    }>;
 }
 //# sourceMappingURL=invoiceService.d.ts.map

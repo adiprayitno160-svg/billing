@@ -90,14 +90,61 @@ class InvoiceSchedulerService {
             console.log(`📅 Generating invoices for period: ${currentPeriod} using InvoiceService`);
             // Auto scheduler usually respects the billing day (DAY check)
             const createdInvoiceIds = await invoiceService_1.InvoiceService.generateMonthlyInvoices(currentPeriod, undefined, false);
+            // Check newly created invoices for inactive customers (Post-Invoice Automation)
             const createdCount = createdInvoiceIds.length;
-            const logMessage = `Invoice generation completed: ${createdCount} created via InvoiceService`;
-            console.log(`✅ ${logMessage}`);
-            // Save scheduler log
-            await this.saveSchedulerLog('monthly_invoice_generation', 'completed', logMessage, {
-                period: currentPeriod,
-                created_count: createdCount
-            });
+            if (createdInvoiceIds.length > 0) {
+                try {
+                    console.log(`[Scheduler] Checking for inactive customers among ${createdInvoiceIds.length} generated invoices...`);
+                    // Fetch customers for the newly generated invoices
+                    const [inactiveCustomers] = await pool_1.databasePool.query(`SELECT DISTINCT i.id as invoice_id, c.id as customer_id, c.status
+                         FROM invoices i 
+                         JOIN customers c ON i.customer_id = c.id 
+                         WHERE i.id IN (?) AND LOWER(c.status) IN ('inactive', 'suspended', 'isolated')`, [createdInvoiceIds]);
+                    let deletedCount = 0;
+                    if (inactiveCustomers.length > 0) {
+                        const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./isolationService')));
+                        for (const row of inactiveCustomers) {
+                            console.log(`[Scheduler] Found inactive/disabled customer ${row.customer_id}. Deleting invoice ${row.invoice_id} and ensuring Mikrotik isolation.`);
+                            // Delete the invoice and its items
+                            await pool_1.databasePool.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [row.invoice_id]);
+                            await pool_1.databasePool.execute('DELETE FROM invoices WHERE id = ?', [row.invoice_id]);
+                            deletedCount++;
+                            // Trigger IsolationService to ensure Mikrotik IP/PPPoE is dropped
+                            try {
+                                await IsolationService.isolateCustomer({
+                                    customer_id: row.customer_id,
+                                    action: 'isolate',
+                                    reason: `System Auto-Isolate: Customer is ${row.status}`,
+                                    performed_by: 'system'
+                                });
+                            }
+                            catch (isoErr) {
+                                console.error(`[Scheduler] Failed to isolate customer ${row.customer_id} in Mikrotik:`, isoErr);
+                            }
+                        }
+                    }
+                    const logMessage = `Invoice generation completed: ${createdCount} created, ${deletedCount} deleted due to inactive status.`;
+                    console.log(`✅ ${logMessage}`);
+                    // Save scheduler log
+                    await this.saveSchedulerLog('monthly_invoice_generation', 'completed', logMessage, {
+                        period: currentPeriod,
+                        created_count: createdCount,
+                        deleted_inactive: deletedCount
+                    });
+                }
+                catch (postGenErr) {
+                    console.error('[Scheduler] Error in post-invoice automation for disabled customers:', postGenErr);
+                }
+            }
+            else {
+                const logMessage = `Invoice generation completed: 0 created.`;
+                console.log(`✅ ${logMessage}`);
+                // Save scheduler log
+                await this.saveSchedulerLog('monthly_invoice_generation', 'completed', logMessage, {
+                    period: currentPeriod,
+                    created_count: 0
+                });
+            }
         }
         catch (error) {
             console.error('❌ Error in monthly invoice generation:', error);

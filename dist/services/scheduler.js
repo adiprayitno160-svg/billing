@@ -65,11 +65,11 @@ class SchedulerService {
             console.error('Failed to apply Payment Reminder schedule, fallback enabling at 08:00 daily:', err);
             this.schedulePaymentReminders(true);
         });
-        // Auto isolate - DISABLED (Handled by processAutoBlocking individually)
-        /* this.applyAutoIsolationScheduleFromDb().catch((err) => {
+        // Auto isolate
+        this.applyAutoIsolationScheduleFromDb().catch((err) => {
             console.error('Failed to apply Auto Isolation schedule from DB, falling back to default (day 1 00:00):', err);
             this.scheduleAutoIsolation([1], 0, 0); // Tanggal 1 jam 00:00
-        }); */
+        });
         // Auto restore paid customers - daily at 06:00 (hanya pelanggan isolation_enabled=1 yang ter-restore)
         cron.schedule('0 6 * * *', async () => {
             console.log('[Scheduler] Running auto restore for paid customers...');
@@ -253,6 +253,22 @@ class SchedulerService {
             scheduled: true,
             timezone: "Asia/Jakarta"
         });
+        // Auto-expire unconfirmed payment confirmations (no SETUJU reply within 24h) - daily at 01:30
+        // Runs BEFORE auto-isolate (02:00) so expired customers get isolation_enabled=1 first
+        cron.schedule('30 1 * * *', async () => {
+            console.log('[Scheduler] Running auto-expire unconfirmed payment confirmations...');
+            try {
+                const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./billing/isolationService')));
+                const result = await IsolationService.autoExpireUnconfirmedPayments();
+                console.log(`[Scheduler] Auto-expire: ${result.expired} expired, ${result.isolated} isolated, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('[Scheduler] Error running auto-expire unconfirmed:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
+        });
         // Auto isolate overdue (isolation_enabled=1, lewat jatuh tempo + grace 3 hari) - daily at 02:00
         cron.schedule('0 2 * * *', async () => {
             console.log('[Scheduler] Running auto isolate overdue customers (isolation_enabled=1)...');
@@ -271,6 +287,21 @@ class SchedulerService {
         // Auto isolate bulan sebelumnya (isolation_enabled=1) - via applyAutoIsolationScheduleFromDb
         this.applyAutoIsolationScheduleFromDb().catch((err) => {
             console.error('[Scheduler] Failed to apply Auto Isolation schedule from DB:', err);
+        });
+        // Auto-delete invoices older than 4 months - daily at 03:30
+        cron.schedule('30 3 * * *', async () => {
+            console.log('[Scheduler] Running auto-delete old invoices (> 4 months)...');
+            try {
+                const { InvoiceService } = await Promise.resolve().then(() => __importStar(require('./billing/invoiceService')));
+                const result = await InvoiceService.autoDeleteOldInvoices();
+                console.log(`[Scheduler] Auto-delete old invoices: ${result.deleted} deleted, ${result.failed} failed`);
+            }
+            catch (error) {
+                console.error('[Scheduler] Error running auto-delete old invoices:', error);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Jakarta"
         });
         // Auto delete blocked customers (> 7 days) - daily at 03:00
         cron.schedule('0 3 * * *', async () => {

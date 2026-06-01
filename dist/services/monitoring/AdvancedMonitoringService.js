@@ -66,9 +66,9 @@ class AdvancedMonitoringService {
             }
             query += ` ORDER BY c.name`;
             const [customers] = await pool_1.databasePool.query(query);
-            // Get Offline timestamps from DB efficiently for all customers
+            // Get Offline timestamps and status from DB efficiently for all customers
             const [offlineData] = await pool_1.databasePool.query(`
-                SELECT customer_id, last_online_at, last_offline_at, last_check 
+                SELECT customer_id, status, last_online_at, last_offline_at, last_check 
                 FROM static_ip_ping_status
             `);
             const offlineMap = new Map();
@@ -88,11 +88,15 @@ class AdvancedMonitoringService {
                 }
                 else if (customer.connection_type === 'pppoe') {
                     // Check PPPoE status from cache - CASE INSENSITIVE
+                    // Try pppoe_username first, then customer_code as fallback
                     let isOnline = false;
-                    if (customer.pppoe_username) {
-                        const searchTarget = customer.pppoe_username.toLowerCase();
+                    const identifiers = [customer.pppoe_username, customer.customer_code].filter(Boolean);
+                    for (const identifier of identifiers) {
+                        if (isOnline)
+                            break;
+                        const searchTarget = identifier.toLowerCase();
                         // First try direct lookup for performance
-                        if (monitoringCache.pppoeOnlineSessions.has(customer.pppoe_username)) {
+                        if (monitoringCache.pppoeOnlineSessions.has(identifier)) {
                             isOnline = true;
                         }
                         else {
@@ -105,7 +109,13 @@ class AdvancedMonitoringService {
                             }
                         }
                     }
-                    status = isOnline ? 'online' : 'offline';
+                    if (isOnline) {
+                        status = 'online';
+                    }
+                    else {
+                        // Fallback to database status if cache missed (e.g. on web worker instances in PM2 cluster)
+                        status = (dbOffline?.status === 'online') ? 'online' : 'offline';
+                    }
                 }
                 else if (customer.connection_type === 'static_ip') {
                     // Check Static IP status from cache
@@ -487,9 +497,17 @@ class AdvancedMonitoringService {
             await this.checkPPPoETransitions();
             // Store current state to database for persistent tracking (PPPoE & Static)
             // Get PPPoE customers to match with sessions
-            const [pppoeCustomers] = await pool_1.databasePool.query(`SELECT id, pppoe_username FROM customers WHERE connection_type = 'pppoe' AND status = 'active'`);
+            const [pppoeCustomers] = await pool_1.databasePool.query(`SELECT id, pppoe_username, customer_code FROM customers WHERE connection_type = 'pppoe' AND status = 'active'`);
             for (const [username, session] of monitoringCache.pppoeOnlineSessions) {
-                const customer = pppoeCustomers.find((c) => c.pppoe_username === username);
+                // Match by pppoe_username OR customer_code (case-insensitive)
+                const usernameLower = username.toLowerCase();
+                const customer = pppoeCustomers.find((c) => {
+                    if (c.pppoe_username && c.pppoe_username.toLowerCase() === usernameLower)
+                        return true;
+                    if (c.customer_code && c.customer_code.toLowerCase() === usernameLower)
+                        return true;
+                    return false;
+                });
                 if (customer) {
                     const ipAddress = session.address || session['caller-id'] || '0.0.0.0'; // Fallback
                     await pool_1.databasePool.query(`
@@ -619,18 +637,21 @@ class AdvancedMonitoringService {
         try {
             // Find active pppoe customers
             const [pppoeCustomers] = await pool_1.databasePool.query(`
-                SELECT id, name, pppoe_username 
+                SELECT id, name, pppoe_username, customer_code 
                 FROM customers 
                 WHERE connection_type = 'pppoe' 
                     AND status = 'active'
                     AND (is_isolated = 0 OR is_isolated IS NULL)
             `);
             for (const customer of pppoeCustomers) {
-                // Case-insensitive check
+                // Case-insensitive check with customer_code fallback
                 let isOnline = false;
-                if (customer.pppoe_username) {
-                    const searchTarget = customer.pppoe_username.toLowerCase();
-                    if (monitoringCache.pppoeOnlineSessions.has(customer.pppoe_username)) {
+                const identifiers = [customer.pppoe_username, customer.customer_code].filter(Boolean);
+                for (const identifier of identifiers) {
+                    if (isOnline)
+                        break;
+                    const searchTarget = identifier.toLowerCase();
+                    if (monitoringCache.pppoeOnlineSessions.has(identifier)) {
                         isOnline = true;
                     }
                     else {
@@ -646,7 +667,7 @@ class AdvancedMonitoringService {
                 // Only handle transition if status changed
                 const cached = monitoringCache.staticIPStatus.get(customer.id);
                 if (!cached || cached.status !== currentStatus) {
-                    console.log(`[AMS] PPPoE Transition detected: ${customer.name} (${customer.pppoe_username}) -> ${currentStatus}`);
+                    console.log(`[AMS] PPPoE Transition detected: ${customer.name} (${customer.pppoe_username || customer.customer_code}) -> ${currentStatus}`);
                     await this.handleStatusTransition(customer.id, 'pppoe', currentStatus);
                 }
             }

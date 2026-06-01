@@ -678,6 +678,36 @@ class InvoiceService {
                     console.error(`[InvoiceService] Error fallback customer ${customer.customer_id}:`, err);
                 }
             }
+            // Enforce isolation in Mikrotik for inactive/isolated customers after generating their invoices
+            if (invoiceIds.length > 0) {
+                try {
+                    const [enforceCustomers] = await connection.query(`SELECT DISTINCT c.id, c.name, c.connection_type, c.status
+                         FROM customers c
+                         JOIN invoices i ON c.id = i.customer_id
+                         WHERE i.id IN (?) AND (LOWER(c.status) = 'inactive' OR c.is_isolated = 1)`, [invoiceIds]);
+                    if (Array.isArray(enforceCustomers) && enforceCustomers.length > 0) {
+                        console.log(`[InvoiceService] Re-enforcing isolation in Mikrotik for ${enforceCustomers.length} inactive customers...`);
+                        const { IsolationService } = await Promise.resolve().then(() => __importStar(require('./isolationService')));
+                        for (const cust of enforceCustomers) {
+                            try {
+                                await IsolationService.isolateCustomer({
+                                    customer_id: cust.id,
+                                    action: 'isolate',
+                                    reason: 'Sistem: Sinkronisasi Isolir Mikrotik setelah pembuatan tagihan otomatis',
+                                    performed_by: 'system'
+                                }, connection);
+                                console.log(`[InvoiceService] Successfully re-enforced isolation for ${cust.name}`);
+                            }
+                            catch (isoErr) {
+                                console.error(`[InvoiceService] Failed to enforce isolation for ${cust.name}:`, isoErr);
+                            }
+                        }
+                    }
+                }
+                catch (enforceErr) {
+                    console.error('[InvoiceService] Error checking for isolation enforcement:', enforceErr);
+                }
+            }
             return invoiceIds;
         }
         finally {
@@ -834,6 +864,36 @@ class InvoiceService {
         finally {
             connection.release();
         }
+    }
+    /**
+     * Auto-delete invoices that are older than 4 months to prevent data accumulation.
+     */
+    static async autoDeleteOldInvoices() {
+        let deleted = 0;
+        let failed = 0;
+        const connection = await pool_1.databasePool.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Calculate the period threshold (4 months ago)
+            // If current is May 2026, 4 months ago is Jan 2026. We delete anything < '2026-02' (e.g. '2026-01' and older)
+            const query = `
+                DELETE FROM invoices 
+                WHERE period < DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 4 MONTH), '%Y-%m')
+            `;
+            const [result] = await connection.execute(query);
+            deleted = result.affectedRows;
+            await connection.commit();
+            console.log(`[InvoiceService] Auto-delete old invoices: ${deleted} records deleted.`);
+        }
+        catch (error) {
+            await connection.rollback();
+            console.error(`[InvoiceService] Error deleting old invoices:`, error);
+            failed = 1;
+        }
+        finally {
+            connection.release();
+        }
+        return { deleted, failed };
     }
 }
 exports.InvoiceService = InvoiceService;

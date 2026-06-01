@@ -257,10 +257,15 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 				// Fast timeout 2s
 				const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard interface fetch timeout')), 2000));
 				const fetchPromise = getInterfaces(config);
+				const infoPromise = getMikrotikInfo(config);
 
 				interfaces = await Promise.race([fetchPromise, timeoutPromise]) as any[];
-			} catch (err) {
-				console.warn('[Dashboard] Skipping interface fetch (slow network/offline):', err);
+				mikrotikInfo = await Promise.race([infoPromise, timeoutPromise]) as any;
+				
+				connectionStatus = { connected: true, error: null };
+			} catch (err: any) {
+				console.warn('[Dashboard] Skipping interface fetch (slow network/offline):', err.message);
+				connectionStatus = { connected: false, error: err.message };
 			}
 		}
 
@@ -270,6 +275,15 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			serverMonitoring = await ServerMonitoringService.getServerStatus();
 		} catch (error: any) {
 			console.error(`[Dashboard] ❌ Error getting server monitoring:`, error);
+		}
+
+		// Get WhatsApp Bot status
+		let whatsappStatus = { ready: false, initializing: false, hasQr: false, errorCode: null };
+		try {
+			const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
+			whatsappStatus = WhatsAppService.getInstance().getStatus() as any;
+		} catch (error: any) {
+			console.error(`[Dashboard] Error getting WhatsApp status:`, error.message);
 		}
 
 		res.render('dashboard/index', {
@@ -303,7 +317,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			mikrotikInfo,
 			interfaces,
 			connectionStatus,
-			serverMonitoring
+			serverMonitoring,
+			whatsappStatus
 		});
 	} catch (error: any) {
 		console.error('CRITICAL DASHBOARD ERROR:', error);
@@ -332,7 +347,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			mikrotikInfo: null,
 			interfaces: [],
 			connectionStatus: { connected: false, error: error.message },
-			serverMonitoring: null
+			serverMonitoring: null,
+			whatsappStatus: { ready: false, initializing: false, hasQr: false, errorCode: null }
 		});
 	}
 }

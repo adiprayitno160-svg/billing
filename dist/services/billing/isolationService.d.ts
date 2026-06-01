@@ -131,5 +131,15 @@ export declare class IsolationService {
         isolated: number;
         failed: number;
     }>;
+    /**
+     * Auto-expire pending payment confirmations (janji_bayar/hutang) that haven't been confirmed.
+     * If a customer doesn't reply SETUJU within 1 day, the confirmation is expired and
+     * isolation_enabled is set to 1 so the auto-isolate cron will pick them up.
+     */
+    static autoExpireUnconfirmedPayments(): Promise<{
+        expired: number;
+        isolated: number;
+        failed: number;
+    }>;
 }
 //# sourceMappingURL=isolationService.d.ts.map

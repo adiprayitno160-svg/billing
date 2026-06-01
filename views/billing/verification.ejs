@@ -1,4 +1,4 @@
-<div class="max-w-7xl mx-auto">
+﻿<div class="max-w-7xl mx-auto">
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Verifikasi Pembayaran</h1>
@@ -107,14 +107,14 @@
 
 <!-- Verification Modal -->
 <div id="verifyModal"
-    class="fixed inset-0 z-50 hidden overflow-y-auto w-full h-full bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center">
+    class="fixed inset-0 z-50 hidden overflow-y-auto w-full h-full bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4">
     <div
-        class="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-xl flex flex-col md:flex-row overflow-hidden">
+        class="relative w-full max-w-4xl max-h-[95vh] bg-white rounded-2xl shadow-xl flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
 
         <!-- Image Section -->
-        <div class="w-full md:w-1/2 bg-gray-900 flex items-center justify-center p-4">
+        <div class="w-full md:w-1/2 bg-gray-900 flex items-center justify-center p-4 min-h-[300px]">
             <img id="modalImage" src="" alt="Bukti Transfer"
-                class="max-w-full max-h-[60vh] md:max-h-[80vh] object-contain rounded-lg shadow-lg">
+                class="max-w-full max-h-[40vh] md:max-h-[80vh] object-contain rounded-lg shadow-lg">
             <div id="modalNoImage" class="hidden text-gray-400 flex flex-col items-center">
                 <i class="fas fa-image-slash text-5xl mb-3"></i>
                 <span>Tidak ada gambar</span>
@@ -122,15 +122,15 @@
         </div>
 
         <!-- Form Section -->
-        <div class="w-full md:w-1/2 flex flex-col h-full max-h-[90vh]">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div class="w-full md:w-1/2 flex flex-col h-full max-h-[90vh] md:max-h-[90vh] overflow-hidden">
+            <div class="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center bg-white z-10 sticky top-0">
                 <h3 class="text-xl font-bold text-gray-900">Verifikasi Pembayaran</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
 
-            <div class="p-6 overflow-y-auto flex-1">
+            <div class="p-4 md:p-6 overflow-y-auto flex-1">
                 <!-- Customer Info -->
                 <div class="mb-6 p-4 bg-gray-50 rounded-xl">
                     <p class="text-sm text-gray-500 mb-1">Pelanggan</p>
@@ -390,3 +390,4 @@
     // Init
     loadData();
 </script>
+

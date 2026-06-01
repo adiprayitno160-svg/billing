@@ -54,7 +54,7 @@ class UnifiedNotificationService {
                 // We still allow it to queue, but logic might fail if template expects it.
             }
         }
-        console.log(`[UnifiedNotification] 📥 Queueing notification:`, {
+        console.log(`[UnifiedNotification] ðŸ“¥ Queueing notification:`, {
             customer_id: data.customer_id,
             notification_type: data.notification_type,
             channels: data.channels || ['whatsapp']
@@ -71,7 +71,7 @@ class UnifiedNotificationService {
          LEFT JOIN customer_wa_lids cl ON c.id = cl.customer_id 
          WHERE c.id = ?`, [data.customer_id]);
             if (customerRows.length === 0) {
-                console.error(`[UnifiedNotification] ❌ Customer with ID ${data.customer_id} not found in database. Type: ${typeof data.customer_id}`);
+                console.error(`[UnifiedNotification] âŒ Customer with ID ${data.customer_id} not found in database. Type: ${typeof data.customer_id}`);
                 throw new Error(`Customer ${data.customer_id} not found`);
             }
             const customer = customerRows[0];
@@ -100,7 +100,7 @@ class UnifiedNotificationService {
                 }
                 const [existing] = await connection.query(duplicateCheckQuery, duplicateCheckParams);
                 if (existing.length > 0) {
-                    console.warn(`[UnifiedNotification] ⚠️ Duplicate notification prevented for ${data.customer_id} (${data.notification_type} - ${channel})`);
+                    console.warn(`[UnifiedNotification] âš ï¸ Duplicate notification prevented for ${data.customer_id} (${data.notification_type} - ${channel})`);
                     continue;
                 }
                 // Get template for this notification type and channel
@@ -110,11 +110,11 @@ class UnifiedNotificationService {
                     const [inactiveRows] = await connection.query(`SELECT template_code, is_active FROM notification_templates 
              WHERE notification_type = ? AND channel = ?`, [data.notification_type, channel]);
                     if (inactiveRows.length > 0 && !inactiveRows[0].is_active) {
-                        console.error(`[UnifiedNotification] ❌ Template found but is INACTIVE: ${inactiveRows[0].template_code} for ${data.notification_type} on ${channel}. Please activate it in the notification templates page.`);
+                        console.error(`[UnifiedNotification] âŒ Template found but is INACTIVE: ${inactiveRows[0].template_code} for ${data.notification_type} on ${channel}. Please activate it in the notification templates page.`);
                         throw new Error(`Template ${inactiveRows[0].template_code} exists but is inactive. Please activate it in the notification templates page.`);
                     }
                     else {
-                        console.error(`[UnifiedNotification] ❌ No template found for ${data.notification_type} on ${channel}. Please create a template in the notification templates page.`);
+                        console.error(`[UnifiedNotification] âŒ No template found for ${data.notification_type} on ${channel}. Please create a template in the notification templates page.`);
                         throw new Error(`No template found for ${data.notification_type} on ${channel}. Please create a template in the notification templates page.`);
                     }
                 }
@@ -124,14 +124,14 @@ class UnifiedNotificationService {
                 // Inject dynamic notification info for cicilan and tunggakan/janji bayar
                 const vars = allVariables;
                 if (data.notification_type === 'payment_partial') {
-                    message += `\n\n📌 *Info Pembayaran*: Anda telah melakukan cicilan pembayaran sebesar *Rp ${vars.paid_amount || 0}*. Kekurangan tagihan sebesar *Rp ${vars.remaining_amount || 0}* mohon dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan.`;
+                    message += `\n\nðŸ“Œ *Info Pembayaran*: Anda telah melakukan cicilan pembayaran sebesar *Rp ${vars.paid_amount || 0}*. Kekurangan tagihan sebesar *Rp ${vars.remaining_amount || 0}* mohon dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan.`;
                 }
                 else if (data.notification_type === 'payment_debt') {
                     if (vars.due_date && vars.due_date !== '-') {
-                        message += `\n\n📌 *Info Janji Bayar*: Tagihan Anda dialihkan menjadi tunggakan/janji bayar dengan sisa tagihan sebesar *Rp ${vars.remaining_amount || 0}*. Mohon komitmen pembayaran sesuai dengan janji bayar yang disepakati, yaitu paling lambat *${vars.due_date}*.`;
+                        message += `\n\nðŸ“Œ *Info Janji Bayar*: Tagihan Anda dialihkan menjadi tunggakan/janji bayar dengan sisa tagihan sebesar *Rp ${vars.remaining_amount || 0}*. Mohon komitmen pembayaran sesuai dengan janji bayar yang disepakati, yaitu paling lambat *${vars.due_date}*.`;
                     }
                     else {
-                        message += `\n\n📌 *Info Tunggakan*: Tagihan Anda sebesar *Rp ${vars.remaining_amount || 0}* telah dialihkan menjadi tunggakan. Mohon pembayaran segera dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan untuk menghindari pemblokiran layanan.`;
+                        message += `\n\nðŸ“Œ *Info Tunggakan*: Tagihan Anda sebesar *Rp ${vars.remaining_amount || 0}* telah dialihkan menjadi tunggakan. Mohon pembayaran segera dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan untuk menghindari pemblokiran layanan.`;
                     }
                 }
                 // Inject isolation info if it's an invoice_created notification
@@ -144,7 +144,7 @@ class UnifiedNotificationService {
                 // Add auto-verification prompt for invoice-related notifications
                 const invoiceNotificationTypes = ['invoice_created', 'invoice_reminder', 'invoice_overdue', 'payment_debt'];
                 if (invoiceNotificationTypes.includes(data.notification_type)) {
-                    const autoVerifyInfo = `\n\n🤖 *Pembayaran Lebih Cepat & Mudah!*\nAnda dapat langsung membalas pesan ini dengan *mengirimkan foto bukti transfer*. Sistem cerdas kami akan otomatis memverifikasi pembayaran Anda dalam hitungan detik tanpa perlu menunggu Admin.`;
+                    const autoVerifyInfo = `\n\nðŸ¤– *Pembayaran Lebih Cepat & Mudah!*\nAnda dapat langsung membalas pesan ini dengan *mengirimkan foto bukti transfer*. Sistem cerdas kami akan otomatis memverifikasi pembayaran Anda dalam hitungan detik tanpa perlu menunggu Admin.`;
                     if (!message.includes('bukti transfer')) {
                         message += autoVerifyInfo;
                     }
@@ -168,19 +168,19 @@ class UnifiedNotificationService {
                     data.scheduled_for || null
                 ]);
                 notificationIds.push(result.insertId);
-                console.log(`[UnifiedNotification] ✅ Notification queued (ID: ${result.insertId}) for ${channel}`, {
+                console.log(`[UnifiedNotification] âœ… Notification queued (ID: ${result.insertId}) for ${channel}`, {
                     customer_id: data.customer_id,
                     notification_type: data.notification_type,
                     template_code: template.template_code
                 });
             }
-            console.log(`[UnifiedNotification] 📊 Total notifications queued: ${notificationIds.length}`, {
+            console.log(`[UnifiedNotification] ðŸ“Š Total notifications queued: ${notificationIds.length}`, {
                 notification_ids: notificationIds
             });
             return notificationIds;
         }
         catch (error) {
-            console.error(`[UnifiedNotification] ❌ Fatal error in queueNotification:`, {
+            console.error(`[UnifiedNotification] âŒ Fatal error in queueNotification:`, {
                 error: error.message,
                 stack: error.stack,
                 customer_id: data.customer_id,
@@ -192,7 +192,7 @@ class UnifiedNotificationService {
             connection.release();
             // Trigger immediate send if requested and we have items
             if (data.send_immediately && notificationIds.length > 0) {
-                console.log('[UnifiedNotification] ⚡ Triggering immediate dispatch for', notificationIds);
+                console.log('[UnifiedNotification] âš¡ Triggering immediate dispatch for', notificationIds);
                 // Fire and forget, don't await to avoid blocking response
                 this.sendPendingNotifications(50, notificationIds).catch(err => console.error('[UnifiedNotification] Immediate dispatch error:', err));
             }
@@ -204,13 +204,13 @@ class UnifiedNotificationService {
      * the message is sent immediately and we wait for the result.
      */
     static async sendNotificationById(notificationId) {
-        console.log(`[UnifiedNotification] 🦄 Manual dispatch requested for ID: ${notificationId}`);
+        console.log(`[UnifiedNotification] ðŸ¦„ Manual dispatch requested for ID: ${notificationId}`);
         const connection = await pool_1.databasePool.getConnection();
         try {
             // 1. Fetch the notification (check status to avoid race conditions with cron)
             const [rows] = await connection.query("SELECT * FROM unified_notifications_queue WHERE id = ? AND status IN ('pending', 'failed')", [notificationId]);
             if (rows.length === 0) {
-                console.warn(`[UnifiedNotification] ℹ️ Notification ${notificationId} already being processed or sent.`);
+                console.warn(`[UnifiedNotification] â„¹ï¸ Notification ${notificationId} already being processed or sent.`);
                 return true; // Already handled
             }
             const notif = rows[0];
@@ -229,11 +229,11 @@ class UnifiedNotificationService {
             await this.sendNotification(notif, customerRows[0]);
             // 5. Mark as sent
             await connection.query("UPDATE unified_notifications_queue SET status = 'sent', sent_at = NOW() WHERE id = ?", [notificationId]);
-            console.log(`[UnifiedNotification] ✨ Manual dispatch successful for ID: ${notificationId}`);
+            console.log(`[UnifiedNotification] âœ¨ Manual dispatch successful for ID: ${notificationId}`);
             return true;
         }
         catch (error) {
-            console.error(`[UnifiedNotification] ❌ Manual dispatch failed for ID: ${notificationId}:`, error.message);
+            console.error(`[UnifiedNotification] âŒ Manual dispatch failed for ID: ${notificationId}:`, error.message);
             // Mark back as pending/failed for cron retry
             await connection.query("UPDATE unified_notifications_queue SET status = 'failed', error_message = ? WHERE id = ?", [error.message, notificationId]);
             return false;
@@ -253,7 +253,7 @@ class UnifiedNotificationService {
         if (instanceId !== '0' && (!specificIds || specificIds.length === 0)) {
             return { sent: 0, failed: 0, skipped: 0 };
         }
-        console.log(`[UnifiedNotification] 🔄 Processing pending notifications (limit: ${limit}, specific: ${specificIds?.length || 0})...`);
+        console.log(`[UnifiedNotification] ðŸ”„ Processing pending notifications (limit: ${limit}, specific: ${specificIds?.length || 0})...`);
         const connection = await pool_1.databasePool.getConnection();
         let sent = 0;
         let failed = 0;
@@ -332,7 +332,7 @@ class UnifiedNotificationService {
                 // Fallback for older MySQL or other errors
                 if (connection.beginTransaction)
                     await connection.rollback().catch(() => { });
-                console.warn('[UnifiedNotification] ⚠️ SKIP LOCKED failed or transaction error, using fallback:', err.message);
+                console.warn('[UnifiedNotification] âš ï¸ SKIP LOCKED failed or transaction error, using fallback:', err.message);
                 // Manual marking approach
                 await connection.query(`UPDATE unified_notifications_queue 
            SET status = 'processing', worker_id = ?, updated_at = NOW() 
@@ -343,7 +343,7 @@ class UnifiedNotificationService {
                 const [fullNotifs] = await connection.query(`SELECT * FROM unified_notifications_queue WHERE worker_id = ?`, [runId]);
                 notifications = fullNotifs;
             }
-            console.log(`[UnifiedNotification] 📋 Claimed ${notifications.length} notifications with worker_id: ${runId}`);
+            console.log(`[UnifiedNotification] ðŸ“‹ Claimed ${notifications.length} notifications with worker_id: ${runId}`);
             if (notifications.length === 0) {
                 return { sent: 0, failed: 0, skipped: 0 };
             }
@@ -352,10 +352,10 @@ class UnifiedNotificationService {
                 // Anti-spam: Fixed delay 15 seconds for mass notifications to achieve 4 msgs/minute
                 if (processedInThisBatch > 0) {
                     const delay = 15000;
-                    console.log(`[UnifiedNotification] ⏳ Waiting ${Math.round(delay / 1000)} seconds before next message (Anti-Ban 15s Delay)...`);
+                    console.log(`[UnifiedNotification] â³ Waiting ${Math.round(delay / 1000)} seconds before next message (Anti-Ban 15s Delay)...`);
                     await this.delay(delay);
                 }
-                console.log(`[UnifiedNotification] 🔍 Processing notification ID: ${notif.id}`, {
+                console.log(`[UnifiedNotification] ðŸ” Processing notification ID: ${notif.id}`, {
                     customer_id: notif.customer_id,
                     notification_type: notif.notification_type,
                     channel: notif.channel,
@@ -366,7 +366,7 @@ class UnifiedNotificationService {
                     if (notif.invoice_id) {
                         const [invCheck] = await connection.query('SELECT id, status, remaining_amount FROM invoices WHERE id = ?', [notif.invoice_id]);
                         if (invCheck.length === 0) {
-                            console.warn(`[UnifiedNotification] ⚠️ Skipping notification ${notif.id} - Invoice ${notif.invoice_id} no longer exists.`);
+                            console.warn(`[UnifiedNotification] âš ï¸ Skipping notification ${notif.id} - Invoice ${notif.invoice_id} no longer exists.`);
                             await this.markAsSkipped(notif.id, 'Invoice sudah dihapus');
                             skipped++;
                             continue;
@@ -376,7 +376,7 @@ class UnifiedNotificationService {
                         // If it's a reminder or overdue or a payment push, abort if it's already paid!
                         if (notif.notification_type.includes('reminder') || notif.notification_type.includes('overdue') || notif.notification_type === 'invoice_created') {
                             if (invoiceStatus === 'paid' || remainingAmount <= 0) {
-                                console.warn(`[UnifiedNotification] ⏭️ Skipping notification ${notif.id} - Invoice ${notif.invoice_id} is already paid. Current status: ${invoiceStatus}`);
+                                console.warn(`[UnifiedNotification] â­ï¸ Skipping notification ${notif.id} - Invoice ${notif.invoice_id} is already paid. Current status: ${invoiceStatus}`);
                                 await this.markAsSkipped(notif.id, 'Dibatalkan otomatis: Tagihan sudah lunas');
                                 skipped++;
                                 continue;
@@ -390,7 +390,7 @@ class UnifiedNotificationService {
              LEFT JOIN customer_wa_lids cl ON c.id = cl.customer_id 
              WHERE c.id = ?`, [notif.customer_id]);
                     if (customerRows.length === 0) {
-                        console.error(`[UnifiedNotification] ❌ Notification ID ${notif.id}: Customer ${notif.customer_id} not found in database`);
+                        console.error(`[UnifiedNotification] âŒ Notification ID ${notif.id}: Customer ${notif.customer_id} not found in database`);
                         await this.markAsFailed(notif.id, `Customer ID ${notif.customer_id} not found in database`);
                         failed++;
                         continue;
@@ -408,7 +408,7 @@ class UnifiedNotificationService {
                         continue;
                     }
                     // Send notification
-                    console.log(`[UnifiedNotification] 🚀 Attempting to send notification ID: ${notif.id}`);
+                    console.log(`[UnifiedNotification] ðŸš€ Attempting to send notification ID: ${notif.id}`);
                     // Try to send - this will throw error if fails
                     await this.sendNotification(notif, customer);
                     // Only mark as sent if sendNotification completed without error
@@ -416,7 +416,7 @@ class UnifiedNotificationService {
                     await connection.query(`UPDATE unified_notifications_queue 
              SET status = 'sent', sent_at = NOW(), error_message = NULL
              WHERE id = ?`, [notif.id]);
-                    console.log(`[UnifiedNotification] ✅ Notification ID: ${notif.id} marked as sent (actually sent successfully)`);
+                    console.log(`[UnifiedNotification] âœ… Notification ID: ${notif.id} marked as sent (actually sent successfully)`);
                     sent++;
                     processedInThisBatch++;
                 }
@@ -429,7 +429,7 @@ class UnifiedNotificationService {
                         errorMessage.includes('Stream Errored') ||
                         errorMessage.includes('Connection Closed') ||
                         errorMessage.includes('Timeout'); // Added Timeout as per instruction snippet
-                    console.error(`[UnifiedNotification] ❌ Error processing notification ID: ${notif.id}:`, {
+                    console.error(`[UnifiedNotification] âŒ Error processing notification ID: ${notif.id}:`, {
                         error: errorMessage,
                         stack: error.stack,
                         customer_id: notif.customer_id,
@@ -440,7 +440,7 @@ class UnifiedNotificationService {
                     if (isConnectionError) {
                         // If connection error, DO NOT increment retry count, just delay it
                         // This prevents "Failed" status when WA is down
-                        console.log(`[UnifiedNotification] ⏳ Connection error for ID ${notif.id}. Preserving retry count. Rescheduling...`);
+                        console.log(`[UnifiedNotification] â³ Connection error for ID ${notif.id}. Preserving retry count. Rescheduling...`);
                         await connection.query(`UPDATE unified_notifications_queue 
                 SET scheduled_for = DATE_ADD(NOW(), INTERVAL 5 MINUTE), status = 'pending', error_message = ?
                 WHERE id = ?`, [`Connection issue: ${errorMessage}`, notif.id]);
@@ -451,24 +451,24 @@ class UnifiedNotificationService {
                         const retryCount = (notif.retry_count || 0) + 1;
                         const maxRetries = notif.max_retries || 3;
                         if (retryCount < maxRetries) {
-                            console.log(`[UnifiedNotification] 🔄 Retrying notification ID: ${notif.id} (attempt ${retryCount}/${maxRetries})`);
+                            console.log(`[UnifiedNotification] ðŸ”„ Retrying notification ID: ${notif.id} (attempt ${retryCount}/${maxRetries})`);
                             await connection.query(`UPDATE unified_notifications_queue 
                   SET retry_count = ?, error_message = ?, status = 'pending'
                   WHERE id = ?`, [retryCount, errorMessage, notif.id]);
                         }
                         else {
-                            console.error(`[UnifiedNotification] ❌ Notification ID: ${notif.id} failed after ${maxRetries} attempts`);
+                            console.error(`[UnifiedNotification] âŒ Notification ID: ${notif.id} failed after ${maxRetries} attempts`);
                             await this.markAsFailed(notif.id, errorMessage);
                             failed++;
                         }
                     }
                 }
             }
-            console.log(`[UnifiedNotification] 📊 Processing complete: ${sent} sent, ${failed} failed, ${skipped} skipped`);
+            console.log(`[UnifiedNotification] ðŸ“Š Processing complete: ${sent} sent, ${failed} failed, ${skipped} skipped`);
             return { sent, failed, skipped };
         }
         catch (error) {
-            console.error(`[UnifiedNotification] ❌ Fatal error in sendPendingNotifications:`, {
+            console.error(`[UnifiedNotification] âŒ Fatal error in sendPendingNotifications:`, {
                 error: error.message,
                 stack: error.stack
             });
@@ -490,15 +490,15 @@ class UnifiedNotificationService {
     static async sendNotification(notification, customer) {
         let fullMessage = `${notification.title}\n\n${notification.message}`;
         // ANTI-BAN: Add random invisible character or emoji to ensure message uniqueness
-        const emojis = ['✨', '📌', '🔔', '🚀', '✅', '💡', '🌟', '🛡️', '📊', '📅'];
+        const emojis = ['âœ¨', 'ðŸ“Œ', 'ðŸ””', 'ðŸš€', 'âœ…', 'ðŸ’¡', 'ðŸŒŸ', 'ðŸ›¡ï¸', 'ðŸ“Š', 'ðŸ“…'];
         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
         const timestampSuffix = `\n\n_Ref: ${Math.random().toString(36).substring(7).toUpperCase()}_ ${randomEmoji}`;
         // Only add unique suffix if it's not already too long and it's a reminder-type message
         if (fullMessage.length < 3500 && (notification.notification_type.includes('reminder') || notification.notification_type.includes('warning') || notification.notification_type === 'invoice_created')) {
             fullMessage += timestampSuffix;
         }
-        console.log(`[UnifiedNotification] 📤 Sending ${notification.channel} notification to customer ${notification.customer_id}...`);
-        console.log(`[UnifiedNotification] 📋 Details:`, {
+        console.log(`[UnifiedNotification] ðŸ“¤ Sending ${notification.channel} notification to customer ${notification.customer_id}...`);
+        console.log(`[UnifiedNotification] ðŸ“‹ Details:`, {
             notification_id: notification.id,
             template_code: notification.template_code,
             notification_type: notification.notification_type,
@@ -508,22 +508,22 @@ class UnifiedNotificationService {
         switch (notification.channel) {
             case 'whatsapp':
                 if (!customer.phone) {
-                    console.error(`[UnifiedNotification] ❌ No phone number for customer ${notification.customer_id}`);
+                    console.error(`[UnifiedNotification] âŒ No phone number for customer ${notification.customer_id}`);
                     throw new Error('Customer phone number not found');
                 }
                 // Check WhatsApp client status before sending
                 const waClient = whatsapp_1.whatsappService;
                 const whatsappStatus = waClient.getStatus();
-                console.log(`[UnifiedNotification] 📱 WhatsApp Status:`, whatsappStatus);
+                console.log(`[UnifiedNotification] ðŸ“± WhatsApp Status:`, whatsappStatus);
                 if (!whatsappStatus.ready) {
-                    console.warn(`[UnifiedNotification] ⚠️ WhatsApp not ready, waiting for connection...`);
+                    console.warn(`[UnifiedNotification] âš ï¸ WhatsApp not ready, waiting for connection...`);
                     try {
                         // Wait up to 5 seconds for WhatsApp to become ready
                         await whatsapp_1.whatsappService.waitForReady(5000);
-                        console.log(`[UnifiedNotification] ✅ WhatsApp is now ready.`);
+                        console.log(`[UnifiedNotification] âœ… WhatsApp is now ready.`);
                     }
                     catch (err) {
-                        console.error(`[UnifiedNotification] ❌ WhatsApp wait failed: ${err.message}`);
+                        console.error(`[UnifiedNotification] âŒ WhatsApp wait failed: ${err.message}`);
                         if (err.message.includes('QR code')) {
                             throw new Error(`WhatsApp memerlukan scan QR code. Silakan buka menu WhatsApp Bisnis.`);
                         }
@@ -531,12 +531,13 @@ class UnifiedNotificationService {
                     }
                 }
                 const recipient = customer.wa_lid || customer.phone;
+                console.log(`[UnifiedNotification] ðŸ“± Sending WhatsApp to ${recipient}...`);
                 console.log(`[UnifiedNotification] 📱 Sending WhatsApp to ${recipient}...`);
-                console.log(`[UnifiedNotification] 📝 Message preview (first 100 chars):`, fullMessage.substring(0, 100));
+                console.log(`[UnifiedNotification] 💬 Message preview (first 100 chars):`, fullMessage.substring(0, 100));
                 try {
                     let attachmentPath = notification.attachment_path;
                     // Generate PDF on the fly if missing for invoice or payment notifications
-                    if (!attachmentPath && notification.invoice_id && (notification.notification_type === 'invoice_reminder' || notification.notification_type === 'payment_received')) {
+                    if (!attachmentPath && notification.invoice_id && ['invoice_reminder', 'payment_received', 'payment_partial', 'payment_debt', 'janji_bayar', 'invoice_created', 'invoice_reminder_manual'].includes(notification.notification_type)) {
                         try {
                             console.log(`[UnifiedNotification] 🧙 Generating missing PDF for notification ${notification.id} (invoice: ${notification.invoice_id}) on the fly...`);
                             attachmentPath = await UnifiedNotificationService.generateInvoicePdf(notification.invoice_id);
@@ -733,7 +734,7 @@ class UnifiedNotificationService {
                     bank_list: bank.bankListText,
                     notes: invoice.notes || ''
                 },
-                attachment_path: await this.generateInvoicePdf(invoiceId)
+                attachment_path: undefined // We'll generate PDF on the fly later if needed
             });
         }
         finally {
@@ -773,7 +774,7 @@ class UnifiedNotificationService {
                     bank_list: bank.bankListText,
                     notes: invoice.notes || ''
                 },
-                attachment_path: await this.generateInvoicePdf(invoiceId)
+                attachment_path: undefined // We'll generate PDF on the fly later if needed
             });
         }
         finally {
@@ -830,8 +831,8 @@ class UnifiedNotificationService {
     /**
      * Send payment received notification
      */
-    static async notifyPaymentReceived(paymentId, sendImmediately = true) {
-        console.log(`[UnifiedNotification] 🔔 notifyPaymentReceived called for paymentId: ${paymentId}, sendImmediately: ${sendImmediately}`);
+    static async notifyPaymentReceived(paymentId, sendImmediately = true, isManualVerification = false) {
+        console.log(`[UnifiedNotification] 🔔 notifyPaymentReceived called for paymentId: ${paymentId}, sendImmediately: ${sendImmediately}, isManual: ${isManualVerification}`);
         if (this.processingPayments.has(paymentId)) {
             console.log(`[UnifiedNotification] ⚠️ Prevention: notifyPaymentReceived already processing for paymentId: ${paymentId}`);
             return [];
@@ -857,16 +858,8 @@ class UnifiedNotificationService {
             const isPaid = remainingAmount <= 100;
             const notificationType = isPaid ? 'payment_received' : 'payment_partial';
             console.log(`[UnifiedNotification] Payment ${paymentId}: isPaid=${isPaid}, NotificationType=${notificationType}`);
-            // Generate PDF for payment receipt/invoice (for both full and partial payments)
+            // We'll generate PDF on the fly later if needed
             let attachmentPath = undefined;
-            try {
-                attachmentPath = await this.generateInvoicePdf(payment.invoice_id);
-                console.log(`[UnifiedNotification] 📄 Generated PDF for payment ${paymentId}: ${attachmentPath}`);
-            }
-            catch (pdfError) {
-                console.error(`[UnifiedNotification] ❌ Failed to generate PDF for payment:`, pdfError);
-                // Continue without attachment
-            }
             // Format billing month
             const billingMonth = getBillingMonth(payment.period, paymentDate, payment.due_date);
             try {
@@ -902,20 +895,22 @@ class UnifiedNotificationService {
                     send_immediately: sendImmediately // Urgent: Payment receipt
                 });
                 // NOTIFIKASI ADMIN: Nina & Diki (Broadcast to all operators/admins)
-                try {
-                    const summary = `✅ *PEMBAYARAN DITERIMA*\n\n` +
-                        `👤 *Pelanggan:* ${payment.customer_name}\n` +
-                        `🆔 *Kode:* ${payment.customer_code}\n` +
-                        `🧾 *No:* ${payment.invoice_number}\n` +
-                        `💰 *Nominal:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(payment.amount))}\n` +
-                        `💸 *Sisa:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(isPaid ? 0 : parseFloat(payment.remaining_amount))}\n` +
-                        `💳 *Metode:* ${payment.payment_method || 'Tunai'}\n` +
-                        `🤖 *Via:* AI WhatsApp Bot\n\n` +
-                        `Tagihan telah otomatis dikonfirmasi dan diperbarui di sistem.`;
-                    await this.broadcastToAdmins(summary);
-                }
-                catch (adminErr) {
-                    console.error('[UnifiedNotification] Broadcast to admins failed:', adminErr);
+                if (!isManualVerification) {
+                    try {
+                        const summary = `✅ *PEMBAYARAN DITERIMA*\n\n` +
+                            `👤 *Pelanggan:* ${payment.customer_name}\n` +
+                            `🆔 *Kode:* ${payment.customer_code}\n` +
+                            `🧾 *No:* ${payment.invoice_number}\n` +
+                            `💰 *Nominal:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(payment.amount))}\n` +
+                            `💸 *Sisa:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(isPaid ? 0 : parseFloat(payment.remaining_amount))}\n` +
+                            `💳 *Metode:* ${payment.payment_method || 'Tunai'}\n` +
+                            `🤖 *Via:* AI WhatsApp Bot\n\n` +
+                            `Tagihan telah otomatis dikonfirmasi dan diperbarui di sistem.`;
+                        await this.broadcastToAdmins(summary);
+                    }
+                    catch (adminErr) {
+                        console.error('[UnifiedNotification] Broadcast to admins failed:', adminErr);
+                    }
                 }
                 return ids;
             }
@@ -944,15 +939,8 @@ class UnifiedNotificationService {
                 return [];
             }
             const invoice = invoiceRows[0];
-            // Generate PDF for the invoice
+            // We'll generate PDF on the fly later
             let attachmentPath = undefined;
-            try {
-                attachmentPath = await this.generateInvoicePdf(invoiceId);
-                console.log(`[UnifiedNotification] 📄 Generated PDF for debt notification ${invoiceId}: ${attachmentPath}`);
-            }
-            catch (pdfError) {
-                console.error(`[UnifiedNotification] ❌ Failed to generate PDF for debt:`, pdfError);
-            }
             // Format billing month
             const billingMonth = getBillingMonth(invoice.period, new Date(), invoice.due_date);
             try {
@@ -977,13 +965,13 @@ class UnifiedNotificationService {
                 try {
                     const isJanji = invoice.status === 'janji_bayar';
                     const typeLabel = isJanji ? 'JANJI BAYAR' : 'TUNGGAKAN/HUTANG';
-                    const adminSummary = `📌 *INFORMASI ${typeLabel} (SISTEM)*\n\n` +
-                        `👤 *Pelanggan:* ${invoice.customer_name}\n` +
-                        `🆔 *Kode:* ${invoice.customer_code}\n` +
-                        `🧾 *No:* ${invoice.invoice_number}\n` +
-                        `💰 *Sisa Tagihan:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount))}\n` +
-                        (invoice.due_date ? `📆 *Tgl Janji:* ${NotificationTemplateService_1.NotificationTemplateService.formatDate(new Date(invoice.due_date))}\n` : '') +
-                        `📅 *Bulan:* ${billingMonth}\n\n` +
+                    const adminSummary = `ðŸ“Œ *INFORMASI ${typeLabel} (SISTEM)*\n\n` +
+                        `ðŸ‘¤ *Pelanggan:* ${invoice.customer_name}\n` +
+                        `ðŸ†” *Kode:* ${invoice.customer_code}\n` +
+                        `ðŸ§¾ *No:* ${invoice.invoice_number}\n` +
+                        `ðŸ’° *Sisa Tagihan:* Rp ${NotificationTemplateService_1.NotificationTemplateService.formatCurrency(parseFloat(invoice.remaining_amount))}\n` +
+                        (invoice.due_date ? `ðŸ“† *Tgl Janji:* ${NotificationTemplateService_1.NotificationTemplateService.formatDate(new Date(invoice.due_date))}\n` : '') +
+                        `ðŸ“… *Bulan:* ${billingMonth}\n\n` +
                         `Tagihan telah dipindahkan ke status ${typeLabel.toLowerCase()}. Mohon pimpinan (Nina / Diki) untuk memantau.`;
                     await this.broadcastToAdmins(adminSummary);
                 }
@@ -993,7 +981,7 @@ class UnifiedNotificationService {
                 return ids;
             }
             catch (queueError) {
-                console.error(`[UnifiedNotification] ❌ Failed to queue debt notification for invoice ${invoiceId}:`, queueError);
+                console.error(`[UnifiedNotification] âŒ Failed to queue debt notification for invoice ${invoiceId}:`, queueError);
                 return [];
             }
         }

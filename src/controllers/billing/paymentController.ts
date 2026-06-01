@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { BillingPaymentIntegration } from '../../services/payment/BillingPaymentIntegration';
@@ -474,7 +474,7 @@ export class PaymentController {
                 );
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
                     // Don't await this, let it run in background
-                    UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id).catch(e =>
+                    UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id, true, true).catch(e =>
                         console.error('Background notification error:', e)
                     );
                 }
@@ -781,7 +781,7 @@ export class PaymentController {
                 );
                 if (Array.isArray(paymentRows) && paymentRows.length > 0 && (paymentRows[0] as any).id) {
                     // Don't await this, let it run in background
-                    UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id).catch(e =>
+                    UnifiedNotificationService.notifyPaymentReceived((paymentRows[0] as any).id, true, true).catch(e =>
                         console.error('Background notification error:', e)
                     );
                 }
@@ -933,7 +933,7 @@ export class PaymentController {
                     const customer = customerRows[0];
                     const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
 
-                    console.log(`[PaymentController] ðŸ“± Sending debt notification to customer ${customer.name}...`);
+                    console.log(`[PaymentController] Ã°Å¸â€œÂ± Sending debt notification to customer ${customer.name}...`);
 
                     const notificationIds = await UnifiedNotificationService.queueNotification({
                         customer_id: invoice.customer_id,
@@ -954,12 +954,12 @@ export class PaymentController {
                         send_immediately: true // Queue will handle dispatch in background
                     });
 
-                    console.log(`[PaymentController] âœ… Debt notification queued (IDs: ${notificationIds.join(', ')})`);
+                    console.log(`[PaymentController] Ã¢Å“â€¦ Debt notification queued (IDs: ${notificationIds.join(', ')})`);
                 } else {
-                    console.log(`[PaymentController] âš ï¸ No phone number for customer ${invoice.customer_id}, skipping notification`);
+                    console.log(`[PaymentController] Ã¢Å¡Â Ã¯Â¸Â No phone number for customer ${invoice.customer_id}, skipping notification`);
                 }
             } catch (notifError: any) {
-                console.error(`[PaymentController] âš ï¸ Failed to send debt notification (non-critical):`, notifError.message);
+                console.error(`[PaymentController] Ã¢Å¡Â Ã¯Â¸Â Failed to send debt notification (non-critical):`, notifError.message);
                 // Non-critical, debt recording already succeeded
             }
 
@@ -1005,7 +1005,7 @@ export class PaymentController {
 
             // Map status
             if (status === 'unpaid' || status === 'active') {
-                whereConditions.push("i.status IN ('unpaid', 'overdue', 'partial', 'hutang')");
+                whereConditions.push("(i.status IN ('overdue', 'partial', 'hutang') OR (i.status IN ('unpaid', 'sent') AND DATEDIFF(CURRENT_DATE, i.due_date) > 0))");
                 whereConditions.push("i.remaining_amount > 0");
             } else if (status === 'resolved') {
                 whereConditions.push("i.status = 'paid'");
@@ -1380,7 +1380,7 @@ export class PaymentController {
      * Supports multi-invoice selection, partial payments, and discounts.
      */
     async processPayment(req: Request, res: Response): Promise<void> {
-        console.log(`[PaymentController] 💰 Handling processPayment request from ${req.ip} for invoice ${req.body.invoice_id}`);
+        console.log(`[PaymentController] ðŸ’° Handling processPayment request from ${req.ip} for invoice ${req.body.invoice_id}`);
         try {
             const {
                 invoice_id,
@@ -1660,22 +1660,22 @@ export class PaymentController {
                 import('../../services/notification/UnifiedNotificationService').then(({ UnifiedNotificationService }) => {
                     if (firstPaymentId) {
                         // Send Regular/Partial receipt to customer
-                        UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true)
+                        UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true, true)
                             .catch(err => console.error('[AdminPayment] Failed to send customer receipt:', err));
                     }
 
                     // Admin Broadcast (No need to broadcast customer notifications if we wait for WA reply)
                     if (paymentType === 'debt' || paymentType === 'janji_bayar') {
                         const typeLabel = paymentType === 'janji_bayar' ? 'JANJI BAYAR' : 'HUTANG';
-                        const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `📆 *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';
+                        const dateInfo = (dueDate && !isNaN(Date.parse(dueDate))) ? `ðŸ“† *Tgl Janji:* ${new Date(dueDate).toLocaleDateString('id-ID')}\n` : '';
                         
                         UnifiedNotificationService.broadcastToAdmins(
-                            `📌 *INFORMASI ${typeLabel} BARU (ADMIN)*\n\n` +
-                            `👤 *Pelanggan ID:* ${customerId}\n` +
-                            `🧾 *Invoices:* ${selectedInvoiceIds.join(', ')}\n` +
-                            `💰 *Sisa Tagihan:* Rp ${amount.toLocaleString('id-ID')}\n` +
+                            `ðŸ“Œ *INFORMASI ${typeLabel} BARU (ADMIN)*\n\n` +
+                            `ðŸ‘¤ *Pelanggan ID:* ${customerId}\n` +
+                            `ðŸ§¾ *Invoices:* ${selectedInvoiceIds.join(', ')}\n` +
+                            `ðŸ’° *Sisa Tagihan:* Rp ${amount.toLocaleString('id-ID')}\n` +
                             dateInfo +
-                            `📝 *Keterangan:* Status diupdate via Admin Panel.\n\n` +
+                            `ðŸ“ *Keterangan:* Status diupdate via Admin Panel.\n\n` +
                             `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`
                         ).catch(notifErr => console.error('[AdminPayment] Failed to notify admins about status change:', notifErr));
 
@@ -1713,7 +1713,7 @@ export class PaymentController {
                                                 await InvoiceService.bulkDeleteInvoices([nextInvs[0].id]);
                                                 // Regenerate!
                                                 await InvoiceService.generateMonthlyInvoices(nextPeriod, [customerId], true);
-                                                console.log(`[AutoRegen] ✅ Regenerated next invoice ${nextPeriod} for customer ${customerId}`);
+                                                console.log(`[AutoRegen] âœ… Regenerated next invoice ${nextPeriod} for customer ${customerId}`);
                                             }
                                         }
                                     }
@@ -1747,3 +1747,4 @@ export class PaymentController {
         }
     }
 }
+

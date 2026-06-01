@@ -51,6 +51,7 @@ export async function addClientToPackage(packageId: number, clientData: {
     billing_mode?: string | null;
     activation_date?: string | null;
     custom_payment_deadline?: number | null;
+    isolation_enabled?: number | null;
 }): Promise<{ customerId: number, clientId: number }> {
     const conn = await databasePool.getConnection();
     try {
@@ -88,8 +89,8 @@ export async function addClientToPackage(packageId: number, clientData: {
                     connection_type, status, is_isolated, latitude, longitude,
                     created_at, updated_at,
                     is_taxable, use_device_rental, serial_number, billing_mode,
-                    activation_date, custom_payment_deadline
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'static_ip', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)
+                    activation_date, custom_payment_deadline, isolation_enabled
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'static_ip', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?)
             `, [
                 customerCode,
                 clientData.client_name,
@@ -107,7 +108,8 @@ export async function addClientToPackage(packageId: number, clientData: {
                 clientData.serial_number || null,
                 clientData.billing_mode || 'postpaid',
                 clientData.activation_date || new Date().toISOString().split('T')[0],
-                clientData.custom_payment_deadline || null
+                clientData.custom_payment_deadline || null,
+                clientData.isolation_enabled || 0
             ]);
 
             customerId = (customerResult as any).insertId;

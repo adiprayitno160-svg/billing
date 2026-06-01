@@ -799,6 +799,40 @@ export class InvoiceService {
                     console.error(`[InvoiceService] Error fallback customer ${customer.customer_id}:`, err);
                 }
             }
+
+            // Enforce isolation in Mikrotik for inactive/isolated customers after generating their invoices
+            if (invoiceIds.length > 0) {
+                try {
+                    const [enforceCustomers] = await connection.query<RowDataPacket[]>(
+                        `SELECT DISTINCT c.id, c.name, c.connection_type, c.status
+                         FROM customers c
+                         JOIN invoices i ON c.id = i.customer_id
+                         WHERE i.id IN (?) AND (LOWER(c.status) = 'inactive' OR c.is_isolated = 1)`,
+                        [invoiceIds]
+                    );
+                    
+                    if (Array.isArray(enforceCustomers) && enforceCustomers.length > 0) {
+                        console.log(`[InvoiceService] Re-enforcing isolation in Mikrotik for ${enforceCustomers.length} inactive customers...`);
+                        const { IsolationService } = await import('./isolationService');
+                        for (const cust of enforceCustomers) {
+                            try {
+                                await IsolationService.isolateCustomer({
+                                    customer_id: cust.id,
+                                    action: 'isolate',
+                                    reason: 'Sistem: Sinkronisasi Isolir Mikrotik setelah pembuatan tagihan otomatis',
+                                    performed_by: 'system'
+                                }, connection);
+                                console.log(`[InvoiceService] Successfully re-enforced isolation for ${cust.name}`);
+                            } catch (isoErr) {
+                                console.error(`[InvoiceService] Failed to enforce isolation for ${cust.name}:`, isoErr);
+                            }
+                        }
+                    }
+                } catch (enforceErr) {
+                    console.error('[InvoiceService] Error checking for isolation enforcement:', enforceErr);
+                }
+            }
+
             return invoiceIds;
         } finally {
             connection.release();

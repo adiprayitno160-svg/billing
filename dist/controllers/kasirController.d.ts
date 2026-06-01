@@ -6,6 +6,7 @@ export declare class KasirController {
     loginForm(req: Request, res: Response): Promise<void>;
     login(req: Request, res: Response): Promise<void>;
     logout(req: Request, res: Response): Promise<void>;
+    private getAvailablePeriods;
     dashboard(req: AuthenticatedRequest, res: Response): Promise<void>;
     transactions(req: AuthenticatedRequest, res: Response): Promise<void>;
     payments(req: AuthenticatedRequest, res: Response): Promise<void>;

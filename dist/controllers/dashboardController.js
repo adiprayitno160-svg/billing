@@ -258,10 +258,14 @@ async function getDashboard(req, res) {
                 // Fast timeout 2s
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard interface fetch timeout')), 2000));
                 const fetchPromise = (0, mikrotikService_1.getInterfaces)(config);
+                const infoPromise = (0, mikrotikService_1.getMikrotikInfo)(config);
                 interfaces = await Promise.race([fetchPromise, timeoutPromise]);
+                mikrotikInfo = await Promise.race([infoPromise, timeoutPromise]);
+                connectionStatus = { connected: true, error: null };
             }
             catch (err) {
-                console.warn('[Dashboard] Skipping interface fetch (slow network/offline):', err);
+                console.warn('[Dashboard] Skipping interface fetch (slow network/offline):', err.message);
+                connectionStatus = { connected: false, error: err.message };
             }
         }
         // Get server monitoring status
@@ -271,6 +275,15 @@ async function getDashboard(req, res) {
         }
         catch (error) {
             console.error(`[Dashboard] ❌ Error getting server monitoring:`, error);
+        }
+        // Get WhatsApp Bot status
+        let whatsappStatus = { ready: false, initializing: false, hasQr: false, errorCode: null };
+        try {
+            const { WhatsAppService } = await Promise.resolve().then(() => __importStar(require('../services/whatsapp/WhatsAppService')));
+            whatsappStatus = WhatsAppService.getInstance().getStatus();
+        }
+        catch (error) {
+            console.error(`[Dashboard] Error getting WhatsApp status:`, error.message);
         }
         res.render('dashboard/index', {
             title: 'Dashboard',
@@ -303,7 +316,8 @@ async function getDashboard(req, res) {
             mikrotikInfo,
             interfaces,
             connectionStatus,
-            serverMonitoring
+            serverMonitoring,
+            whatsappStatus
         });
     }
     catch (error) {
@@ -333,7 +347,8 @@ async function getDashboard(req, res) {
             mikrotikInfo: null,
             interfaces: [],
             connectionStatus: { connected: false, error: error.message },
-            serverMonitoring: null
+            serverMonitoring: null,
+            whatsappStatus: { ready: false, initializing: false, hasQr: false, errorCode: null }
         });
     }
 }

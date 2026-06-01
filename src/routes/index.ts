@@ -2427,10 +2427,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     use_device_rental, rental_mode, rental_cost,
                     serial_number, activation_date, custom_payment_deadline,
                     is_fup_enabled, fup_limit_gb, fup_speed_limit,
-                    is_bonus_enabled, bonus_speed_limit, bonus_start_time, bonus_end_time
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_bonus_enabled, bonus_speed_limit, bonus_start_time, bonus_end_time,
+                    isolation_enabled
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
+            const isolation_enabled_val = req.body.isolation_enabled === '1' || req.body.isolation_enabled === 'on' || req.body.isolation_enabled === true ? 1 : 0;
             const is_fup_enabled_val = req.body.is_fup_enabled === '1' || req.body.is_fup_enabled === 'on' || req.body.is_fup_enabled === true ? 1 : 0;
             const fup_limit_gb_val = req.body.fup_limit_gb ? parseFloat(req.body.fup_limit_gb) : null;
             const fup_speed_limit_val = req.body.fup_speed_limit || null;
@@ -2468,7 +2470,8 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 final_activation_date,
                 final_custom_payment_deadline,
                 is_fup_enabled_val, fup_limit_gb_val, fup_speed_limit_val,
-                is_bonus_enabled_val, bonus_speed_limit_val, bonus_start_time_val, bonus_end_time_val
+                is_bonus_enabled_val, bonus_speed_limit_val, bonus_start_time_val, bonus_end_time_val,
+                isolation_enabled_val
             ]);
 
             // Log for debugging
@@ -3783,7 +3786,8 @@ router.post('/customers/new-static-ip', async (req, res) => {
             serial_number: serial_number || null,
             billing_mode: billing_mode_value,
             activation_date: activation_date || new Date().toISOString().split('T')[0],
-            custom_payment_deadline: custom_payment_deadline || (activation_date ? new Date(activation_date).getDate() : new Date().getDate())
+            custom_payment_deadline: custom_payment_deadline || (activation_date ? new Date(activation_date).getDate() : new Date().getDate()),
+            isolation_enabled: (req.body.isolation_enabled === '1' || req.body.isolation_enabled === 'on' || req.body.isolation_enabled === true) ? 1 : 0
         });
         // MikroTik: tambah IP address, mangle + child queues
         const cfg = await getMikrotikConfig();

@@ -74,7 +74,7 @@ export declare class UnifiedNotificationService {
     /**
      * Send payment received notification
      */
-    static notifyPaymentReceived(paymentId: number, sendImmediately?: boolean): Promise<number[]>;
+    static notifyPaymentReceived(paymentId: number, sendImmediately?: boolean, isManualVerification?: boolean): Promise<number[]>;
     /**
      * Send notification for payment marked as debt (Tunggakan/Hutang)
      */

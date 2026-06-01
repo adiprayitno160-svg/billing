@@ -1991,37 +1991,64 @@ const toggleCustomerStatus = async (req, res) => {
             else if (customer.connection_type === 'static_ip') {
                 // Static IP Isolation Logic
                 try {
-                    const [staticClients] = await conn.query('SELECT ip_address FROM static_ip_clients WHERE customer_id = ?', [customerId]);
+                    const [staticClients] = await conn.query('SELECT ip_address, gateway_ip, gateway_ip_id FROM static_ip_clients WHERE customer_id = ?', [customerId]);
                     if (staticClients && staticClients.length > 0) {
-                        const clientIp = staticClients[0].ip_address; // this is Client IP (e.g. .2)
+                        const sip = staticClients[0];
+                        const clientIp = sip.ip_address;
                         if (clientIp) {
                             const config = await (0, mikrotikConfigHelper_1.getMikrotikConfig)();
                             if (config) {
                                 const { findIpAddressId, updateIpAddress } = await Promise.resolve().then(() => __importStar(require('../services/mikrotikService')));
-                                let targetIp = clientIp;
-                                // Calculate Gateway IP if /30 to isolate the Gateway (Router Interface)
-                                const [ipOnly, prefixStr] = String(clientIp).split('/');
-                                const prefix = Number(prefixStr || '0');
-                                if (prefix === 30) {
-                                    const ipToInt = (ip) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
-                                    const intToIp = (int) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-                                    const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
-                                    const networkInt = ipToInt(ipOnly) & mask;
-                                    const firstHost = networkInt + 1;
-                                    const secondHost = networkInt + 2;
-                                    const ipInt = ipToInt(ipOnly);
-                                    // Gateway is Peer
-                                    const gwIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
-                                    targetIp = `${gwIp}/${prefix}`;
+                                let targetIp = sip.gateway_ip || clientIp;
+                                let ipId = sip.gateway_ip_id;
+                                // Fallback calculation if gateway_ip is not present and prefix is 30
+                                if (!sip.gateway_ip) {
+                                    const [ipOnly, prefixStr] = String(clientIp).split('/');
+                                    const prefix = Number(prefixStr || '0');
+                                    if (prefix === 30) {
+                                        const ipToInt = (ip) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+                                        const intToIp = (int) => [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+                                        const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+                                        const networkInt = ipToInt(ipOnly) & mask;
+                                        const firstHost = networkInt + 1;
+                                        const secondHost = networkInt + 2;
+                                        const ipInt = ipToInt(ipOnly);
+                                        // Gateway is Peer
+                                        const gwIp = (ipInt === firstHost) ? intToIp(secondHost) : intToIp(firstHost);
+                                        targetIp = `${gwIp}/${prefix}`;
+                                    }
                                 }
-                                // Find ID of the IP on MikroTik
-                                let ipId = await findIpAddressId(config, targetIp);
-                                if (!ipId)
-                                    ipId = await findIpAddressId(config, targetIp.split('/')[0]);
+                                // Find ID of the IP on MikroTik if we don't have gateway_ip_id
+                                if (!ipId) {
+                                    ipId = await findIpAddressId(config, targetIp);
+                                    if (!ipId)
+                                        ipId = await findIpAddressId(config, targetIp.split('/')[0]);
+                                    // Search by original ip if it wasn't gateway
+                                    if (!ipId && !sip.gateway_ip)
+                                        ipId = await findIpAddressId(config, clientIp);
+                                    if (!ipId && !sip.gateway_ip)
+                                        ipId = await findIpAddressId(config, clientIp.split('/')[0]);
+                                    // Extreme fallback: find by comment (Customer Code)
+                                    if (!ipId) {
+                                        const ips = await config ? (await Promise.resolve().then(() => __importStar(require('../services/MikroTikConnectionPool')))).mikrotikPool.execute(config, '/ip/address/print', []) : [];
+                                        if (Array.isArray(ips)) {
+                                            const found = ips.find((ip) => (ip.comment && ip.comment.includes(customer.customer_code)) ||
+                                                (customer.pppoe_username && ip.comment && ip.comment.includes(customer.pppoe_username)));
+                                            if (found) {
+                                                ipId = found['.id'];
+                                                targetIp = found.address;
+                                            }
+                                        }
+                                    }
+                                }
                                 if (ipId) {
                                     // active -> disabled: false, inactive -> disabled: true
                                     await updateIpAddress(config, ipId, { disabled: status !== 'active' });
                                     console.log(`✅ Static IP ${targetIp} status updated to ${status} (Disabled: ${status !== 'active'})`);
+                                    // Save the ipId to DB for future use if it wasn't saved yet
+                                    if (!sip.gateway_ip_id) {
+                                        await conn.query('UPDATE static_ip_clients SET gateway_ip_id = ?, gateway_ip = ? WHERE customer_id = ?', [ipId, targetIp, customerId]);
+                                    }
                                 }
                                 else {
                                     console.warn(`⚠️ Could not find MikroTik IP for isolation: ${targetIp}`);

@@ -1,4 +1,4 @@
-<div class="space-y-6">
+ï»¿<div class="space-y-6">
 	<!-- Recent Monitoring Alerts (NEW) -->
 	<% if (typeof recentAlerts !=='undefined' && recentAlerts.length> 0) { %>
 		<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-md animate-pulse">
@@ -263,7 +263,7 @@
 
 
 <!-- MikroTik Status, Server Monitoring & Interface Speed -->
-<div class="grid gap-6 grid-cols-1 lg:grid-cols-3">
+<div class="grid gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-4">
 	<!-- Status MikroTik (Kiri) -->
 	<% if (typeof settings !=='undefined' && settings) { %>
 		<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300"
@@ -459,6 +459,63 @@
 							</div>
 						</div>
 						<% } %>
+
+														<!-- WhatsApp Bot Status (Baru) -->
+							<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+								<div class="flex items-center justify-between mb-4">
+									<h2 class="text-lg font-semibold text-gray-900">WhatsApp Bot</h2>
+									<% if (typeof whatsappStatus !== 'undefined' && whatsappStatus && whatsappStatus.ready) { %>
+										<span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+											<span class="h-2 w-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
+											Connected
+										</span>
+									<% } else if (typeof whatsappStatus !== 'undefined' && whatsappStatus && whatsappStatus.initializing) { %>
+										<span class="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-sm text-yellow-800">
+											<i class="fas fa-spinner fa-spin mr-2"></i>
+											Menyiapkan...
+										</span>
+									<% } else { %>
+										<span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+											<span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>
+											Disconnected
+										</span>
+									<% } %>
+								</div>
+								
+								<div class="text-center py-4">
+									<% if (typeof whatsappStatus !== 'undefined' && whatsappStatus && whatsappStatus.ready) { %>
+										<div class="mb-3">
+											<div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-2">
+												<i class="fab fa-whatsapp text-3xl"></i>
+											</div>
+											<p class="text-gray-700 font-medium">Bot WhatsApp Siap</p>
+											<p class="text-xs text-gray-500 mt-1">Sistem notifikasi aktif</p>
+										</div>
+										<div class="mt-4 pt-4 border-t border-gray-200">
+											<a href="/whatsapp" class="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center">
+												Kelola Bot WA <i class="fas fa-arrow-right ml-1"></i>
+											</a>
+										</div>
+									<% } else { %>
+										<div class="mb-3">
+											<div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-2">
+												<i class="fab fa-whatsapp text-3xl opacity-50"></i>
+											</div>
+											<p class="text-red-600 font-bold">Koneksi Terputus</p>
+											<% if (typeof whatsappStatus !== 'undefined' && whatsappStatus && whatsappStatus.errorCode === 440) { %>
+												<p class="text-xs text-red-500 mt-1">Konflik sesi terdeteksi</p>
+											<% } else { %>
+												<p class="text-xs text-red-500 mt-1">Scan QR untuk login</p>
+											<% } %>
+										</div>
+										<div class="mt-4 pt-4 border-t border-gray-200">
+											<a href="/whatsapp" class="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium w-full shadow-sm hover:shadow-md">
+												<i class="fas fa-qrcode mr-2"></i> Scan QR Code
+											</a>
+										</div>
+									<% } %>
+								</div>
+							</div>
 
 							<!-- Interface Traffic Realtime (New & Improved) -->
 							<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 lg:col-span-1"
@@ -1009,7 +1066,7 @@
 										<%= customer.name %>
 									</span>
 									<span class="text-xs font-medium text-slate-500 mt-0.5">
-										<%= customer.customer_code || '-' %> • <%= customer.pppoe_username || '-' %>
+										<%= customer.customer_code || '-' %> â€¢ <%= customer.pppoe_username || '-' %>
 									</span>
 								</div>
 							</td>
@@ -1200,7 +1257,7 @@
 										<td class="px-6 py-5">
 											<div class="flex flex-col">
 												<span class="text-sm font-bold text-slate-900 group-hover/row:text-blue-600 transition-colors">${customer.name}</span>
-												<span class="text-xs font-medium text-slate-500 mt-0.5">${customer.customer_code || '-'} • ${customer.pppoe_username || '-'}</span>
+												<span class="text-xs font-medium text-slate-500 mt-0.5">${customer.customer_code || '-'} â€¢ ${customer.pppoe_username || '-'}</span>
 											</div>
 										</td>
 										<td class="px-6 py-5">
@@ -1271,3 +1328,5 @@
 
 		<script>
 			// Dashboard scripts
+
+

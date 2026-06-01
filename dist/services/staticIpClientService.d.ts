@@ -23,6 +23,7 @@ export declare function addClientToPackage(packageId: number, clientData: {
     billing_mode?: string | null;
     activation_date?: string | null;
     custom_payment_deadline?: number | null;
+    isolation_enabled?: number | null;
 }): Promise<{
     customerId: number;
     clientId: number;

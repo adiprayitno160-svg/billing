@@ -346,7 +346,7 @@ class VerificationController {
                 try {
                     const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService')));
                     // Fire and forget, don't await to keep UI responsive
-                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e => console.error('Background notification error in verification:', e));
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true).catch(e => console.error('Background notification error in verification:', e));
                 }
                 catch (e) {
                     console.warn('Failed to initiate unified notification:', e);
