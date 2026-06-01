@@ -171,7 +171,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			latePaymentHighRiskP,
 			latePaymentWarning4P,
 			verifyingJobsP,
-			pendingPaymentsP
+			pendingPaymentsP,
+			recentWhatsAppMessagesP
 		] = await Promise.all([
 			databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active' AND is_isolated=0"),
 			databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
@@ -204,7 +205,14 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 				} catch { return [[{ cnt: 0 }]]; }
 			})(),
 			databasePool.query("SELECT j.*, c.name as customer_name, c.customer_code FROM technician_jobs j LEFT JOIN customers c ON j.customer_id = c.id WHERE j.status = 'verifying' ORDER BY j.created_at DESC"),
-			databasePool.query("SELECT v.*, c.name as customer_name, c.customer_code FROM manual_payment_verifications v LEFT JOIN customers c ON v.customer_id = c.id WHERE v.status = 'pending' ORDER BY v.created_at DESC LIMIT 5")
+			databasePool.query("SELECT v.*, c.name as customer_name, c.customer_code FROM manual_payment_verifications v LEFT JOIN customers c ON v.customer_id = c.id WHERE v.status = 'pending' ORDER BY v.created_at DESC LIMIT 5"),
+			databasePool.query(`
+				SELECT m.*, c.name as customer_name 
+				FROM whatsapp_bot_messages m 
+				LEFT JOIN customers c ON m.customer_id = c.id OR m.phone_number = c.phone 
+				ORDER BY m.created_at DESC 
+				LIMIT 5
+			`)
 		]);
 
 		const activeCustomers = (activeCustomersP[0] as any)[0]?.cnt ?? 0;
@@ -227,6 +235,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		const latePaymentWarning4 = (latePaymentWarning4P[0] as any)[0]?.cnt ?? 0;
 		const verifyingJobs = Array.isArray(verifyingJobsP[0]) ? (verifyingJobsP[0] as any[]) : [];
 		const pendingPaymentVerifications = (pendingPaymentsP[0] as any)[0]?.cnt ?? 0;
+		
+		const recentWhatsAppMessages = Array.isArray(recentWhatsAppMessagesP[0]) ? (recentWhatsAppMessagesP[0] as any[]) : [];
 
 		const labels = getLastNDatesLabels(7);
 		const pointsMap: Record<string, number> = Object.create(null);
@@ -318,7 +328,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 			interfaces,
 			connectionStatus,
 			serverMonitoring,
-			whatsappStatus
+			whatsappStatus,
+			recentWhatsAppMessages
 		});
 	} catch (error: any) {
 		console.error('CRITICAL DASHBOARD ERROR:', error);

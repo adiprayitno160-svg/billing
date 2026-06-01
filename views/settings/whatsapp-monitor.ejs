@@ -92,11 +92,12 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Waktu</th>
-                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Nomor</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Pelanggan</th>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Arah</th>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Tipe</th>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Pesan</th>
                             <th class="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">Status</th>
+                            <th class="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="messagesTableBody" class="divide-y divide-gray-50">
@@ -431,7 +432,8 @@
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 text-sm text-gray-600">${new Date(msg.created_at).toLocaleString('id-ID')}</td>
                     <td class="px-6 py-4">
-                        <div class="font-medium text-gray-900">${msg.phone_number}</div>
+                        <div class="font-medium text-gray-900">${escapeHtml(msg.customer_name || 'Pelanggan Umum')}</div>
+                        <div class="text-xs text-gray-500">${msg.phone_number}</div>
                     </td>
                     <td class="px-6 py-4">
                         ${msg.direction === 'inbound'
@@ -443,13 +445,18 @@
                         ? '<span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-lg"><i class="fas fa-image mr-1"></i>Gambar</span>'
                         : '<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg"><i class="fas fa-comment mr-1"></i>Teks</span>'}
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">${escapeHtml(msg.message_content?.substring(0, 100) || '-')}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title="${escapeHtml(msg.message_content)}">${escapeHtml(msg.message_content?.substring(0, 50) || '-')}</td>
                     <td class="px-6 py-4 text-center">
                         ${msg.status === 'sent' || msg.status === 'delivered'
-                        ? '<span class="text-green-500"><i class="fas fa-check-circle"></i></span>'
+                        ? '<span class="text-green-500" title="Berhasil"><i class="fas fa-check-circle"></i></span>'
                         : msg.status === 'failed'
-                            ? '<span class="text-red-500"><i class="fas fa-times-circle"></i></span>'
-                            : '<span class="text-gray-400"><i class="fas fa-clock"></i></span>'}
+                            ? '<span class="text-red-500" title="Gagal"><i class="fas fa-times-circle"></i></span>'
+                            : '<span class="text-gray-400" title="Pending"><i class="fas fa-clock"></i></span>'}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="viewChat('${msg.phone_number}', '${escapeHtml(msg.customer_name || 'Pelanggan Umum')}')" class="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium rounded-lg transition-colors text-xs">
+                            <i class="fas fa-eye mr-1"></i> Lihat Chat
+                        </button>
                     </td>
                 </tr>
             `).join('');
@@ -683,7 +690,17 @@
 
     function escapeHtml(text) {
         if (!text) return '';
-        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // View Chat specific phone number
+    function viewChat(phone, name) {
+        // Set search query to phone number to filter table
+        document.getElementById('searchQuery').value = phone;
+        loadMessages();
+        
+        // Optional: Open a new modal for WhatsApp-like UI
+        // We will simply filter the table for now as it's the fastest way
     }
 
     // Initialize

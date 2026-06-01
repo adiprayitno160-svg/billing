@@ -171,7 +171,7 @@ async function getDashboard(req, res) {
             }
         }
         // Parallel queries
-        const [activeCustomersP, totalCustomersP, inactiveCustomersP, suspendedCustomersP, pppoeCustomersP, staticIpCustomersP, pppoePackagesP, pppoeProfilesP, newRequests7dP, recentRequestsP, chartRawP, oltCountP, odcCountP, odpCountP, mtSettingsP, troubleCustomersP, latePaymentHighRiskP, latePaymentWarning4P, verifyingJobsP, pendingPaymentsP] = await Promise.all([
+        const [activeCustomersP, totalCustomersP, inactiveCustomersP, suspendedCustomersP, pppoeCustomersP, staticIpCustomersP, pppoePackagesP, pppoeProfilesP, newRequests7dP, recentRequestsP, chartRawP, oltCountP, odcCountP, odpCountP, mtSettingsP, troubleCustomersP, latePaymentHighRiskP, latePaymentWarning4P, verifyingJobsP, pendingPaymentsP, recentWhatsAppMessagesP] = await Promise.all([
             pool_1.databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='active' AND is_isolated=0"),
             pool_1.databasePool.query('SELECT COUNT(*) AS cnt FROM customers'),
             pool_1.databasePool.query("SELECT COUNT(*) AS cnt FROM customers WHERE status='inactive'"),
@@ -211,7 +211,14 @@ async function getDashboard(req, res) {
                 }
             })(),
             pool_1.databasePool.query("SELECT j.*, c.name as customer_name, c.customer_code FROM technician_jobs j LEFT JOIN customers c ON j.customer_id = c.id WHERE j.status = 'verifying' ORDER BY j.created_at DESC"),
-            pool_1.databasePool.query("SELECT v.*, c.name as customer_name, c.customer_code FROM manual_payment_verifications v LEFT JOIN customers c ON v.customer_id = c.id WHERE v.status = 'pending' ORDER BY v.created_at DESC LIMIT 5")
+            pool_1.databasePool.query("SELECT v.*, c.name as customer_name, c.customer_code FROM manual_payment_verifications v LEFT JOIN customers c ON v.customer_id = c.id WHERE v.status = 'pending' ORDER BY v.created_at DESC LIMIT 5"),
+            pool_1.databasePool.query(`
+				SELECT m.*, c.name as customer_name 
+				FROM whatsapp_bot_messages m 
+				LEFT JOIN customers c ON m.customer_id = c.id OR m.phone_number = c.phone 
+				ORDER BY m.created_at DESC 
+				LIMIT 5
+			`)
         ]);
         const activeCustomers = activeCustomersP[0][0]?.cnt ?? 0;
         const pppoePackages = pppoePackagesP[0][0]?.cnt ?? 0;
@@ -233,6 +240,7 @@ async function getDashboard(req, res) {
         const latePaymentWarning4 = latePaymentWarning4P[0][0]?.cnt ?? 0;
         const verifyingJobs = Array.isArray(verifyingJobsP[0]) ? verifyingJobsP[0] : [];
         const pendingPaymentVerifications = pendingPaymentsP[0][0]?.cnt ?? 0;
+        const recentWhatsAppMessages = Array.isArray(recentWhatsAppMessagesP[0]) ? recentWhatsAppMessagesP[0] : [];
         const labels = getLastNDatesLabels(7);
         const pointsMap = Object.create(null);
         for (const row of chartRawP[0]) {
@@ -317,7 +325,8 @@ async function getDashboard(req, res) {
             interfaces,
             connectionStatus,
             serverMonitoring,
-            whatsappStatus
+            whatsappStatus,
+            recentWhatsAppMessages
         });
     }
     catch (error) {

@@ -259,25 +259,30 @@ export class WhatsAppSettingsController {
             const { page = 1, limit = 20, search, direction, type } = req.query;
             const offset = (Number(page) - 1) * Number(limit);
 
-            let query = `SELECT * FROM whatsapp_bot_messages WHERE 1=1`;
+            let query = `
+                SELECT m.*, c.name as customer_name 
+                FROM whatsapp_bot_messages m 
+                LEFT JOIN customers c ON m.customer_id = c.id OR m.phone_number = c.phone 
+                WHERE 1=1
+            `;
             const params: any[] = [];
 
             if (search) {
-                query += ` AND (phone_number LIKE ? OR message_content LIKE ?)`;
-                params.push(`%${search}%`, `%${search}%`);
+                query += ` AND (m.phone_number LIKE ? OR m.message_content LIKE ? OR c.name LIKE ?)`;
+                params.push(`%${search}%`, `%${search}%`, `%${search}%`);
             }
 
             if (direction) {
-                query += ` AND direction = ?`;
+                query += ` AND m.direction = ?`;
                 params.push(direction);
             }
 
             if (type) {
-                query += ` AND message_type = ?`;
+                query += ` AND m.message_type = ?`;
                 params.push(type);
             }
 
-            query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+            query += ` ORDER BY m.created_at DESC LIMIT ? OFFSET ?`;
             params.push(Number(limit), offset);
 
             const [rows] = await databasePool.query<any[]>(query, params);

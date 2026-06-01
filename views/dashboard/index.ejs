@@ -1,4 +1,4 @@
-﻿<div class="space-y-6">
+<div class="space-y-6">
 	<!-- Recent Monitoring Alerts (NEW) -->
 	<% if (typeof recentAlerts !=='undefined' && recentAlerts.length> 0) { %>
 		<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-md animate-pulse">
@@ -513,6 +513,39 @@
 												<i class="fas fa-qrcode mr-2"></i> Scan QR Code
 											</a>
 										</div>
+									<% } %>
+								</div>
+
+								<!-- Recent WhatsApp Messages -->
+								<div class="mt-4 pt-4 border-t border-gray-200">
+									<h3 class="text-sm font-semibold text-gray-900 mb-3">Pesan Terakhir</h3>
+									<% if (typeof recentWhatsAppMessages !== 'undefined' && recentWhatsAppMessages.length > 0) { %>
+										<div class="space-y-3">
+											<% recentWhatsAppMessages.forEach(msg => { %>
+												<div class="flex flex-col text-xs bg-gray-50 rounded p-2">
+													<div class="flex justify-between items-center mb-1">
+														<span class="font-medium text-gray-900"><%= msg.customer_name || msg.phone_number %></span>
+														<span class="text-gray-500" title="<%= new Date(msg.created_at).toLocaleString('id-ID') %>">
+															<% 
+																const diff = Math.floor((new Date() - new Date(msg.created_at)) / 60000); 
+																const timeText = diff < 1 ? 'Baru saja' : diff < 60 ? `${diff}m lalu` : diff < 1440 ? `${Math.floor(diff/60)}j lalu` : `${Math.floor(diff/1440)}h lalu`;
+															%>
+															<%= timeText %>
+														</span>
+													</div>
+													<div class="flex items-start gap-2">
+														<% if (msg.direction === 'outbound') { %>
+															<i class="fas fa-arrow-up text-blue-500 mt-0.5" title="Terkirim"></i>
+														<% } else { %>
+															<i class="fas fa-arrow-down text-green-500 mt-0.5" title="Masuk"></i>
+														<% } %>
+														<p class="text-gray-600 line-clamp-2" title="<%= msg.message_content %>"><%= msg.message_content %></p>
+													</div>
+												</div>
+											<% }); %>
+										</div>
+									<% } else { %>
+										<p class="text-xs text-gray-500 text-center py-2">Belum ada riwayat pesan</p>
 									<% } %>
 								</div>
 							</div>
