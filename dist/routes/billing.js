@@ -1162,6 +1162,107 @@ router.get('/isolation-watchlist', async (req, res) => {
         currentPath: req.baseUrl + req.path
     });
 });
+// ====== DIAGNOSA AUTO-ISOLIR ======
+// Buka di browser: /billing/customer/isolation/diagnose?name=nanik
+router.get('/customer/isolation/diagnose', async (req, res) => {
+    try {
+        const { databasePool } = await Promise.resolve().then(() => __importStar(require('../db/pool')));
+        const searchName = req.query.name || '';
+        const GRACE_PERIOD_DAYS = 3;
+        const now = new Date();
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevPeriod = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+        let customerQuery = "SELECT id, name, customer_code, status, is_isolated, isolation_enabled, is_deferred, connection_type, pppoe_username FROM customers WHERE 1=1";
+        const params = [];
+        if (searchName) {
+            customerQuery += " AND name LIKE ?";
+            params.push(`%${searchName}%`);
+        }
+        else {
+            // Default: tampilkan semua customer aktif yang belum terisolir
+            customerQuery += " AND status = 'active' AND is_isolated = FALSE";
+        }
+        customerQuery += " ORDER BY name LIMIT 50";
+        const [customers] = await databasePool.query(customerQuery, params);
+        const results = [];
+        for (const customer of customers) {
+            const diagnosis = {
+                customer: { id: customer.id, name: customer.name, code: customer.customer_code, status: customer.status, connection_type: customer.connection_type },
+                flags: {
+                    is_isolated: customer.is_isolated,
+                    isolation_enabled: customer.isolation_enabled,
+                    is_deferred: customer.is_deferred,
+                },
+                checks: {},
+                invoices: [],
+                deferments: [],
+                isolation_logs: [],
+                conclusion: ''
+            };
+            // Check each condition
+            const checks = {};
+            checks.is_isolated_false = { expected: 0, actual: customer.is_isolated, pass: customer.is_isolated == 0 };
+            checks.is_deferred_false = { expected: 0, actual: customer.is_deferred, pass: customer.is_deferred == 0 };
+            checks.status_active = { expected: 'active', actual: customer.status, pass: customer.status === 'active' };
+            checks.isolation_enabled_1 = { expected: 1, actual: customer.isolation_enabled, pass: customer.isolation_enabled == 1 };
+            diagnosis.checks = checks;
+            // Get unpaid invoices
+            const [invoices] = await databasePool.query(`SELECT id, invoice_number, period, status, remaining_amount, due_date,
+                    CASE WHEN status NOT IN ('paid', 'partial', 'cancelled', 'hutang') THEN 'PASS' ELSE 'EXCLUDED' END as status_filter,
+                    CASE WHEN period < DATE_FORMAT(CURDATE(), '%Y-%m') THEN 'PASS' ELSE 'FAIL_CURRENT_MONTH' END as period_filter,
+                    CASE WHEN due_date < DATE_SUB(CURDATE(), INTERVAL ? DAY) THEN 'PASS' ELSE 'FAIL_IN_GRACE' END as grace_filter,
+                    DATEDIFF(CURDATE(), due_date) as days_since_due
+                FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled') ORDER BY period ASC`, [GRACE_PERIOD_DAYS, customer.id]);
+            diagnosis.invoices = invoices;
+            // Check active deferments
+            const [deferments] = await databasePool.query("SELECT id, status, deferred_until_date, reason FROM payment_deferments WHERE customer_id = ? AND status IN ('pending', 'approved') AND deferred_until_date >= CURDATE()", [customer.id]);
+            diagnosis.deferments = deferments;
+            // Last 5 isolation logs
+            const [isoLogs] = await databasePool.query("SELECT action, reason, performed_by, mikrotik_response, created_at FROM isolation_logs WHERE customer_id = ? ORDER BY created_at DESC LIMIT 5", [customer.id]);
+            diagnosis.isolation_logs = isoLogs;
+            // Determine conclusion
+            const failedChecks = [];
+            if (!checks.is_isolated_false.pass)
+                failedChecks.push('SUDAH TERISOLIR (is_isolated=1)');
+            if (!checks.is_deferred_false.pass)
+                failedChecks.push('ADA JANJI BAYAR AKTIF (is_deferred=1)');
+            if (!checks.status_active.pass)
+                failedChecks.push(`STATUS BUKAN ACTIVE (status=${customer.status})`);
+            if (!checks.isolation_enabled_1.pass)
+                failedChecks.push('ISOLATION BELUM DIAKTIFKAN (isolation_enabled=0) — INI PENYEBAB PALING UMUM!');
+            if (deferments.length > 0)
+                failedChecks.push('ADA DEFERMENT AKTIF DI DB');
+            const qualifyingInvoices = invoices.filter((inv) => inv.status_filter === 'PASS' && inv.period_filter === 'PASS' && inv.grace_filter === 'PASS');
+            if (qualifyingInvoices.length === 0) {
+                failedChecks.push('TIDAK ADA INVOICE YANG MEMENUHI SYARAT (semua sudah lunas/partial/hutang, atau masih dalam grace period)');
+            }
+            if (failedChecks.length === 0) {
+                diagnosis.conclusion = '✅ SEHARUSNYA BISA TERISOLIR OTOMATIS — Kemungkinan cron belum berjalan atau server baru restart';
+            }
+            else {
+                diagnosis.conclusion = '❌ TIDAK BISA TERISOLIR KARENA: ' + failedChecks.join(' | ');
+            }
+            diagnosis.failed_checks = failedChecks;
+            results.push(diagnosis);
+        }
+        // Also get scheduler settings
+        const [schedulerSettings] = await databasePool.query("SELECT * FROM scheduler_settings WHERE task_name = 'auto_isolation'");
+        res.json({
+            success: true,
+            search: searchName || '(all active non-isolated)',
+            timestamp: new Date().toISOString(),
+            prev_period: prevPeriod,
+            grace_period_days: GRACE_PERIOD_DAYS,
+            scheduler_settings: schedulerSettings[0] || 'NOT FOUND',
+            total_results: results.length,
+            results
+        });
+    }
+    catch (error) {
+        console.error('Error in isolation diagnose:', error);
+        res.status(500).json({ success: false, message: error.message, stack: error.stack });
+    }
+});
 // Trigger auto isolation manually (for testing)
 router.post('/customer/isolation/trigger-auto', async (req, res) => {
     try {

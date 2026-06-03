@@ -406,7 +406,7 @@ export class IsolationService {
                                 customer_name: customer.name,
                                 reason: isolationData.reason.split('(Bulan:')[0].trim(),
                                 details: `Kode: ${customer.customer_code}`,
-                                performed_by: isolationData.performed_by === 'system' ? 'Asisten AI' : 'Admin',
+                                performed_by: isolationData.action === 'isolate' ? 'Asisten AI' : (isolationData.performed_by === 'system' ? 'Asisten AI' : 'Admin'),
                                 unpaid_periods: isolationData.unpaid_periods || '-'
                             },
                             attachment_path: isolationData.invoice_id ? await UnifiedNotificationService.generateInvoicePdf(isolationData.invoice_id) : undefined,
