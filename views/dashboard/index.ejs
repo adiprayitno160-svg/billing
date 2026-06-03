@@ -461,7 +461,7 @@
 						<% } %>
 
 														<!-- WhatsApp Bot Status (Baru) -->
-							<div class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
+							<div id="whatsapp-widget-container" class="bg-white border border-gray-300 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300" style="background-color: #ffffff !important; border: 2px solid #d1d5db !important;">
 								<div class="flex items-center justify-between mb-4">
 									<h2 class="text-lg font-semibold text-gray-900">WhatsApp Bot</h2>
 									<% if (typeof whatsappStatus !== 'undefined' && whatsappStatus && whatsappStatus.ready) { %>
@@ -1351,7 +1351,118 @@
 		calculateDuration();
 		setInterval(calculateDuration, 10000);
 		setInterval(refreshTroubleTable, 30000);
+        setInterval(updateWhatsAppWidget, 5000);
 	});
+
+    async function updateWhatsAppWidget() {
+        try {
+            const res = await fetch('/api/dashboard/whatsapp');
+            const data = await res.json();
+            if (data.success && data.status) {
+                const container = document.getElementById('whatsapp-widget-container');
+                if (!container) return;
+                
+                const s = data.status;
+                const msgs = data.messages || [];
+                
+                let headerHtml = '';
+                let contentHtml = '';
+                
+                if (s.ready) {
+                    headerHtml = `<span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800"><span class="h-2 w-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>Connected</span>`;
+                    contentHtml = `
+                        <div class="mb-3">
+                            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-2">
+                                <i class="fab fa-whatsapp text-3xl"></i>
+                            </div>
+                            <p class="text-gray-700 font-medium">Bot WhatsApp Siap</p>
+                            <p class="text-xs text-gray-500 mt-1">Sistem notifikasi aktif</p>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <a href="/whatsapp" class="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center">
+                                Kelola Bot WA <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>`;
+                } else if (s.initializing) {
+                    headerHtml = `<span class="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-sm text-yellow-800"><i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...</span>`;
+                    contentHtml = `
+                        <div class="mb-3">
+                            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-2">
+                                <i class="fab fa-whatsapp text-3xl opacity-50"></i>
+                            </div>
+                            <p class="text-red-600 font-bold">Koneksi Terputus</p>
+                            <p class="text-xs text-red-500 mt-1">Sistem sedang diinisialisasi...</p>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <a href="/whatsapp" class="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium w-full shadow-sm hover:shadow-md">
+                                <i class="fas fa-qrcode mr-2"></i> Scan QR Code
+                            </a>
+                        </div>`;
+                } else {
+                    headerHtml = `<span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800"><span class="h-2 w-2 rounded-full bg-red-400 mr-2"></span>Disconnected</span>`;
+                    const errHtml = s.errorCode === 440 ? '<p class="text-xs text-red-500 mt-1">Konflik sesi terdeteksi</p>' : '<p class="text-xs text-red-500 mt-1">Scan QR untuk login</p>';
+                    contentHtml = `
+                        <div class="mb-3">
+                            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-2">
+                                <i class="fab fa-whatsapp text-3xl opacity-50"></i>
+                            </div>
+                            <p class="text-red-600 font-bold">Koneksi Terputus</p>
+                            ${errHtml}
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <a href="/whatsapp" class="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium w-full shadow-sm hover:shadow-md">
+                                <i class="fas fa-qrcode mr-2"></i> Scan QR Code
+                            </a>
+                        </div>`;
+                }
+                
+                let msgsHtml = '';
+                if (msgs.length > 0) {
+                    let msgListHtml = '';
+                    msgs.forEach(msg => {
+                        const diff = Math.floor((new Date() - new Date(msg.created_at)) / 60000); 
+                        const timeText = diff < 1 ? 'Baru saja' : diff < 60 ? `${diff}m lalu` : diff < 1440 ? `${Math.floor(diff/60)}j lalu` : `${Math.floor(diff/1440)}h lalu`;
+                        const dirHtml = msg.direction === 'outbound' ? 
+                            '<i class="fas fa-arrow-up text-blue-500 mt-0.5" title="Terkirim"></i>' : 
+                            '<i class="fas fa-arrow-down text-green-500 mt-0.5" title="Masuk"></i>';
+                        
+                        // Handle null customer_name
+                        const nameToShow = msg.customer_name ? msg.customer_name : msg.phone_number;
+                        
+                        msgListHtml += `
+                            <div class="flex flex-col text-xs bg-gray-50 rounded p-2">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-medium text-gray-900">${nameToShow}</span>
+                                    <span class="text-gray-500">${timeText}</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    ${dirHtml}
+                                    <p class="text-gray-600 line-clamp-2">${msg.message_content}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    msgsHtml = `<div class="space-y-3">${msgListHtml}</div>`;
+                } else {
+                    msgsHtml = `<p class="text-xs text-gray-500 text-center py-2">Belum ada riwayat pesan</p>`;
+                }
+                
+                container.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900">WhatsApp Bot</h2>
+                        ${headerHtml}
+                    </div>
+                    <div class="text-center py-4">
+                        ${contentHtml}
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-900 mb-3">Pesan Terakhir</h3>
+                        ${msgsHtml}
+                    </div>
+                `;
+            }
+        } catch(e) {}
+    }
 </script>
 <% if (typeof stats !=='undefined' ) { %>
 	<script>
@@ -1361,5 +1472,4 @@
 
 		<script>
 			// Dashboard scripts
-
-
+</script>

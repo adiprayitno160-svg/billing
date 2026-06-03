@@ -181,6 +181,13 @@ export class WhatsAppService extends EventEmitter {
         }
       }
     }, 60000); // Check every minute
+    
+    // Periodically save status to disk so other PM2 instances (Dashboard) get live updates
+    setInterval(() => {
+      if (process.env.NODE_APP_INSTANCE === '0' || !process.env.NODE_APP_INSTANCE) {
+        this.saveStatusToDisk();
+      }
+    }, 5000);
   }
 
   /**

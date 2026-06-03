@@ -421,6 +421,30 @@ router.get('/api/check-notification', async (req, res) => {
     }
 });
 
+// AJAX Endpoint for WhatsApp Widget (Dashboard)
+router.get('/api/dashboard/whatsapp', async (req, res) => {
+    try {
+        const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
+        const whatsappStatus = WhatsAppService.getInstance().getStatus();
+        
+        const [recentMessages] = await databasePool.query(`
+            SELECT m.*, c.name as customer_name 
+            FROM whatsapp_bot_messages m 
+            LEFT JOIN customers c ON m.customer_id = c.id OR m.phone_number = c.phone 
+            ORDER BY m.created_at DESC 
+            LIMIT 5
+        `);
+        
+        res.json({
+            success: true,
+            status: whatsappStatus,
+            messages: recentMessages
+        });
+    } catch (e: any) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 router.get('/', getDashboard);
 router.get('/customers/registration-requests', isAuthenticated, viewRegistrationRequests);
 router.get('/api/interface-stats', getInterfaceStats);
