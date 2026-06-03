@@ -741,6 +741,44 @@ export class IsolationService {
     }
 
     /**
+     * Check if a specific customer is overdue and isolate them immediately.
+     * Used when 'Auto Isolir' is enabled from the Edit Customer page.
+     */
+    static async isolateIfOverdue(customerId: number): Promise<boolean> {
+        // Find the oldest unpaid invoice that is past due
+        const query = `
+            SELECT i.id, i.period, i.due_date 
+            FROM invoices i
+            WHERE i.customer_id = ?
+            AND i.status NOT IN ('paid', 'partial', 'cancelled', 'hutang')
+            AND i.due_date < CURDATE()
+            ORDER BY i.period ASC
+            LIMIT 1
+        `;
+        const [invoices] = await databasePool.query<RowDataPacket[]>(query, [customerId]);
+        if (invoices.length > 0) {
+            const inv = invoices[0];
+            let periodName = inv.period;
+            try {
+                const [y, m] = inv.period.split('-');
+                periodName = new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+            } catch(e) {}
+            
+            console.log(`[IsolationService] Immediate isolation triggered for customer ${customerId} (Invoice overdue: ${periodName})`);
+            
+            return await this.isolateCustomer({
+                customer_id: customerId,
+                action: 'isolate',
+                reason: \`Sistem mendeteksi tagihan jatuh tempo saat fitur Auto-Isolir diaktifkan (Bulan \${periodName}).\`,
+                performed_by: 'system',
+                invoice_id: inv.id,
+                unpaid_periods: periodName
+            });
+        }
+        return false;
+    }
+
+    /**
      * Auto isolate customers with previous month unpaid invoices (on configured date)
      */
     static async autoIsolatePreviousMonthUnpaid(): Promise<{ isolated: number, failed: number }> {

@@ -291,13 +291,8 @@ async function getInterfaceTraffic(cfg, interfaceName) {
     }
 }
 async function getPppoeActiveConnections(cfg) {
-    try {
-        const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/print', [], 'active_connections', 60000);
-        return Array.isArray(res) ? res : [];
-    }
-    catch {
-        return [];
-    }
+    const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/print', [], 'active_connections', 60000);
+    return Array.isArray(res) ? res : [];
 }
 async function getPppoeSecrets(cfg) {
     try {

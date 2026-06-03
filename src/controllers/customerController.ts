@@ -1532,6 +1532,19 @@ export const updateCustomer = async (req: Request, res: Response) => {
             await conn.commit();
             console.log('[updateCustomer] Update successful, redirecting to:', `/customers/${customerId}?success=updated`);
 
+            // ========== TRIGGER IMMEDIATE ISOLATION IF AUTO-ISOLIR IS ENABLED ==========
+            if (req.body.isolation_enabled === '1' || req.body.isolation_enabled === 'on' || req.body.isolation_enabled === true) {
+                // Run asynchronously so it doesn't block the UI
+                (async () => {
+                    try {
+                        const { IsolationService } = await import('../services/billing/isolationService');
+                        await IsolationService.isolateIfOverdue(customerId);
+                    } catch (isoErr) {
+                        console.error(`[updateCustomer] Error triggering immediate isolation for customer ${customerId}:`, isoErr);
+                    }
+                })();
+            }
+
             // ========== MIGRATION CLEANUP (CLEAN OLD RESOURCES) ==========
             const migrationFrom = oldCustomer.connection_type;
             const migrationTo = connection_type || oldCustomer.connection_type;
