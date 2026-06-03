@@ -57,6 +57,11 @@ export declare class IsolationService {
         failed: number;
     }>;
     /**
+     * Check if a specific customer is overdue and isolate them immediately.
+     * Used when 'Auto Isolir' is enabled from the Edit Customer page.
+     */
+    static isolateIfOverdue(customerId: number): Promise<boolean>;
+    /**
      * Auto isolate customers with previous month unpaid invoices (on configured date)
      */
     static autoIsolatePreviousMonthUnpaid(): Promise<{

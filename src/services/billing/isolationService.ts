@@ -769,7 +769,7 @@ export class IsolationService {
             return await this.isolateCustomer({
                 customer_id: customerId,
                 action: 'isolate',
-                reason: \`Sistem mendeteksi tagihan jatuh tempo saat fitur Auto-Isolir diaktifkan (Bulan \${periodName}).\`,
+                reason: `Sistem mendeteksi tagihan jatuh tempo saat fitur Auto-Isolir diaktifkan (Bulan ${periodName}).`,
                 performed_by: 'system',
                 invoice_id: inv.id,
                 unpaid_periods: periodName
