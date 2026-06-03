@@ -397,12 +397,18 @@ export class AdvancedMonitoringService {
             // Refresh PPPoE sessions
             const mikrotikConfig = await getMikrotikConfig();
             if (mikrotikConfig) {
-                const sessions = await getPppoeActiveConnections(mikrotikConfig);
-                monitoringCache.pppoeOnlineSessions.clear();
-                sessions.forEach((session: any) => {
-                    monitoringCache.pppoeOnlineSessions.set(session.name, session);
-                });
-                console.log(`[AdvancedMonitoringService] Cached ${sessions.length} PPPoE sessions`);
+                try {
+                    const sessions = await getPppoeActiveConnections(mikrotikConfig);
+                    monitoringCache.pppoeOnlineSessions.clear();
+                    sessions.forEach((session: any) => {
+                        monitoringCache.pppoeOnlineSessions.set(session.name, session);
+                    });
+                    console.log(`[AdvancedMonitoringService] Cached ${sessions.length} PPPoE sessions`);
+                } catch (e) {
+                    console.error('[AdvancedMonitoringService] Failed to get PPPoE sessions in refreshCache:', e);
+                    // Do not clear the cache here. Retain the last known good state to prevent 
+                    // a mass "offline" false positive if Mikrotik is temporarily unreachable.
+                }
             }
 
             // Refresh Static IP status from database
@@ -533,8 +539,8 @@ export class AdvancedMonitoringService {
                     }
                 } catch (err) {
                     console.error('[AdvancedMonitoringService] Failed to get PPPoE sessions:', err);
-                    // Clear cache on error to avoid stale "online" status
-                    monitoringCache.pppoeOnlineSessions.clear();
+                    // DO NOT clear cache on error to prevent mass false-offline alerts
+                    // if Mikrotik API is temporarily unreachable or timing out.
                 }
             } else {
                 // No config = no one is online via PPPoE

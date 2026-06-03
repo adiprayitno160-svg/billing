@@ -253,10 +253,8 @@ export type PppoeActiveConnection = {
 };
 
 export async function getPppoeActiveConnections(cfg: MikroTikConfig): Promise<PppoeActiveConnection[]> {
-    try {
-        const res = await mikrotikPool.execute<PppoeActiveConnection[]>(cfg, '/ppp/active/print', [], 'active_connections', 60000);
-        return Array.isArray(res) ? res : [];
-    } catch { return []; }
+    const res = await mikrotikPool.execute<PppoeActiveConnection[]>(cfg, '/ppp/active/print', [], 'active_connections', 60000);
+    return Array.isArray(res) ? res : [];
 }
 
 export type PppoeSecret = {
