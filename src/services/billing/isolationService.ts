@@ -981,14 +981,9 @@ export class IsolationService {
             );
 
             if (unpaidResult.length === 0) {
-                // If they have no overdue unpaid invoices, we should reset isolation_enabled = 0!
-                if (customer.isolation_enabled === 1 || customer.isolation_enabled === true) {
-                    await connection.query(
-                        "UPDATE customers SET isolation_enabled = 0, updated_at = NOW() WHERE id = ?",
-                        [customerId]
-                    );
-                    console.log(`[Isolation] Reset isolation_enabled to 0 for customer ${customer.name} (#${customerId}) because they paid all overdue/unpaid invoices.`);
-                }
+                // NOTE: isolation_enabled is an ADMIN PREFERENCE setting - do NOT reset it here.
+                // It should remain as-is so auto-isolir works again next month if customer is late again.
+                // Only is_isolated (physical block status) gets reset, not isolation_enabled (feature toggle).
 
                 if (!customer.is_isolated) {
                     return false;
