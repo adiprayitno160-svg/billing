@@ -1,4 +1,4 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { databasePool } from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { BillingPaymentIntegration } from '../../services/payment/BillingPaymentIntegration';
@@ -51,8 +51,8 @@ export class PaymentController {
 
             const { UnifiedNotificationService } = await import('../../services/notification/UnifiedNotificationService');
 
-            // 1. Queue notification again
-            await UnifiedNotificationService.notifyPaymentReceived(paymentId);
+            // Notify Customer (with isManualVerification = true to avoid AI Admin broadcast)
+            await UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true);
 
             // 2. Force send immediately
             const result = await UnifiedNotificationService.sendPendingNotifications(1);

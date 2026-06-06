@@ -290,8 +290,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 		// Get WhatsApp Bot status
 		let whatsappStatus = { ready: false, initializing: false, hasQr: false, errorCode: null };
 		try {
-			const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
-			whatsappStatus = WhatsAppService.getInstance().getStatus() as any;
+			const { whatsappService } = await import('../services/whatsapp');
+			whatsappStatus = whatsappService.getStatus() as any;
 		} catch (error: any) {
 			console.error(`[Dashboard] Error getting WhatsApp status:`, error.message);
 		}

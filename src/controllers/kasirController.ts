@@ -1651,7 +1651,7 @@ export class KasirController {
                 try {
                     const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
                     // We send PDF receipts for the payment
-                    await UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true);
+                    await UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true, true);
                     console.log(`[KasirController] ✅ Payment receipt PDF sent to customer ${customerId}`);
                 } catch (pdfErr: any) {
                     console.error('[KasirController] ❌ Failed to send PDF receipt:', pdfErr.message);
@@ -1801,7 +1801,7 @@ export class KasirController {
                 });
             } else if (paymentId) {
                 // For full/partial payment, use the centralized method which handles PDF generation
-                await UnifiedNotificationService.notifyPaymentReceived(paymentId);
+                await UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true);
             }
 
             console.log(`[KasirController] ✅ Payment notification processed successfully`);
@@ -2244,7 +2244,7 @@ export class KasirController {
             if (paymentId) {
                 try {
                     const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
-                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e =>
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true).catch(e =>
                         console.error('Background notification error in kasir verification:', e)
                     );
                 } catch (e) {
@@ -2363,7 +2363,7 @@ export class KasirController {
             }
 
             const { UnifiedNotificationService } = await import('../services/notification/UnifiedNotificationService');
-            await UnifiedNotificationService.notifyPaymentReceived(parseInt(paymentId));
+            await UnifiedNotificationService.notifyPaymentReceived(parseInt(paymentId), true, true);
 
             // Try to process queue immediately
             try {

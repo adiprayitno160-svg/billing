@@ -940,7 +940,7 @@ export class InvoiceController {
 
                 if (paymentRows.length > 0) {
                     // Use false to avoid fire-and-forget, we want to wait manually
-                    notificationIds = await UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id, false);
+                    notificationIds = await UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id, false, true);
                 } else {
                     notificationIds = await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id), false);
                 }
