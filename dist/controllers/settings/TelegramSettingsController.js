@@ -84,7 +84,8 @@ class TelegramSettingsController {
     static async saveSettings(req, res) {
         try {
             const { bot_token, auto_start } = req.body;
-            if (!bot_token || bot_token.trim() === '') {
+            const trimmedToken = bot_token ? bot_token.trim() : '';
+            if (!trimmedToken || trimmedToken === '') {
                 res.json({
                     success: false,
                     message: 'Bot token tidak boleh kosong'
@@ -101,19 +102,19 @@ class TelegramSettingsController {
                     UPDATE telegram_settings 
                     SET bot_token = ?, auto_start = ?, updated_at = NOW()
                     WHERE id = ?
-                `, [bot_token, auto_start ? 1 : 0, existing[0]?.id || 0]);
+                `, [trimmedToken, auto_start ? 1 : 0, existing[0]?.id || 0]);
             }
             else {
                 // Insert new settings
                 await pool_1.default.query(`
                     INSERT INTO telegram_settings (bot_token, auto_start, created_at, updated_at)
                     VALUES (?, ?, NOW(), NOW())
-                `, [bot_token, auto_start ? 1 : 0]);
+                `, [trimmedToken, auto_start ? 1 : 0]);
             }
             // Update .env file for persistence
-            await TelegramSettingsController.updateEnvFile('TELEGRAM_BOT_TOKEN', bot_token);
+            await TelegramSettingsController.updateEnvFile('TELEGRAM_BOT_TOKEN', trimmedToken);
             // Update environment variable
-            process.env.TELEGRAM_BOT_TOKEN = bot_token;
+            process.env.TELEGRAM_BOT_TOKEN = trimmedToken;
             res.json({
                 success: true,
                 message: 'Pengaturan berhasil disimpan. Bot akan aktif setelah restart server.',
@@ -138,7 +139,8 @@ class TelegramSettingsController {
     static async testConnection(req, res) {
         try {
             const { bot_token } = req.body;
-            if (!bot_token) {
+            const trimmedToken = bot_token ? bot_token.trim() : '';
+            if (!trimmedToken) {
                 res.json({
                     success: false,
                     message: 'Bot token tidak boleh kosong'
@@ -146,7 +148,7 @@ class TelegramSettingsController {
                 return;
             }
             // Try to connect to Telegram
-            const bot = new node_telegram_bot_api_1.default(bot_token, { polling: false });
+            const bot = new node_telegram_bot_api_1.default(trimmedToken, { polling: false });
             const botInfo = await bot.getMe();
             // Stop the bot instance
             await bot.close();
