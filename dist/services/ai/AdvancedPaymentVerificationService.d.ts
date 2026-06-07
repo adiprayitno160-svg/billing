@@ -75,6 +75,10 @@ export declare class AdvancedPaymentVerificationService {
      */
     private static stageApproval;
     /**
+     * Check if a payment with the same amount was recently created for this customer (within last 24 hours)
+     */
+    private static checkRecentPayment;
+    /**
      * Check if reference number already exists in payments table
      */
     private static checkReferenceNumber;

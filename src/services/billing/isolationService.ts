@@ -932,6 +932,11 @@ export class IsolationService {
                 AND action = 'restore' 
                 AND DATE(created_at) = CURDATE()
             )
+            AND NOT EXISTS (
+                SELECT 1 FROM subscriptions 
+                WHERE customer_id = customers.id 
+                AND status = 'suspended'
+            )
         `;
 
         const [customers] = await databasePool.execute<RowDataPacket[]>(query);
@@ -964,9 +969,16 @@ export class IsolationService {
         const connection = existingConnection || databasePool;
 
         try {
-            // Check if customer is currently isolated
+            // Check if customer is currently isolated and not manually suspended
             const [customerResult] = await connection.query<RowDataPacket[]>(
-                "SELECT id, is_isolated, isolation_enabled, name FROM customers WHERE id = ?",
+                `SELECT c.id, c.is_isolated, c.isolation_enabled, c.name 
+                 FROM customers c 
+                 WHERE c.id = ?
+                 AND NOT EXISTS (
+                     SELECT 1 FROM subscriptions s 
+                     WHERE s.customer_id = c.id 
+                     AND s.status = 'suspended'
+                 )`,
                 [customerId]
             );
 

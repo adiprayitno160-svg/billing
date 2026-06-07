@@ -73,5 +73,9 @@ export declare class PaymentService {
      * carry-over items and total/remaining amounts.
      */
     static adjustCarriedOverInvoicesAfterPayment(invoiceId: number, connection: PoolConnection | Pool): Promise<void>;
+    /**
+     * Recursively propagate adjustments to newer invoices that carry over the given adjusted invoice.
+     */
+    static propagateInvoiceAdjustment(adjustedInvoiceId: number, difference: number, connection: PoolConnection | Pool): Promise<void>;
 }
 //# sourceMappingURL=paymentService.d.ts.map

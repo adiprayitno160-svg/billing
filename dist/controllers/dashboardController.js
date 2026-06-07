@@ -287,8 +287,8 @@ async function getDashboard(req, res) {
         // Get WhatsApp Bot status
         let whatsappStatus = { ready: false, initializing: false, hasQr: false, errorCode: null };
         try {
-            const { WhatsAppService } = await Promise.resolve().then(() => __importStar(require('../services/whatsapp/WhatsAppService')));
-            whatsappStatus = WhatsAppService.getInstance().getStatus();
+            const { whatsappService } = await Promise.resolve().then(() => __importStar(require('../services/whatsapp')));
+            whatsappStatus = whatsappService.getStatus();
         }
         catch (error) {
             console.error(`[Dashboard] Error getting WhatsApp status:`, error.message);

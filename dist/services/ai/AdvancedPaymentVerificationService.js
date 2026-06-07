@@ -166,6 +166,27 @@ class AdvancedPaymentVerificationService {
                     console.warn('[AdvancedAI] Reference check failed (ignoring):', refErr);
                 }
             }
+            // ANTI-DUPLICATE: Prevent auto-approval if the same amount was already paid/confirmed in last 24 hours
+            try {
+                const hasRecentSameAmount = await this.checkRecentPayment(customerId, extractedAmount, 24);
+                if (hasRecentSameAmount) {
+                    console.log(`[AdvancedAI] ❌ RECENT PAYMENT DETECTED: Customer ${customerId} already has a payment of Rp ${extractedAmount} in the last 24 hours. Forcing manual review.`);
+                    return {
+                        success: false,
+                        stage: 'validation',
+                        error: `⚠️ Pembayaran dengan nominal Rp ${extractedAmount.toLocaleString('id-ID')} sudah tercatat dalam 24 jam terakhir. Silakan tunggu verifikasi manual oleh Admin.`,
+                        data: {
+                            confidence: 100,
+                            riskLevel: 'high',
+                            riskScore: 80,
+                            fraudIndicators: [{ type: 'duplicate_amount', severity: 'high', description: 'Nominal pembayaran ganda dalam 24 jam' }]
+                        }
+                    };
+                }
+            }
+            catch (recentErr) {
+                console.warn('[AdvancedAI] Recent payment check failed (ignoring):', recentErr);
+            }
             // ============================================
             // STAGE 4: AUTO-APPROVE DECISION (SIMPLIFIED)
             // If extraction found amount AND it matches an invoice → APPROVE
@@ -740,6 +761,25 @@ PENTING:
         };
     }
     /**
+     * Check if a payment with the same amount was recently created for this customer (within last 24 hours)
+     */
+    static async checkRecentPayment(customerId, amount, hours = 24) {
+        if (!customerId || !amount)
+            return false;
+        try {
+            const [rows] = await pool_1.databasePool.query(`SELECT p.id FROM payments p
+                 JOIN invoices i ON p.invoice_id = i.id
+                 WHERE i.customer_id = ? 
+                 AND p.amount = ? 
+                 AND p.created_at >= NOW() - INTERVAL ? HOUR`, [customerId, amount, hours]);
+            return rows.length > 0;
+        }
+        catch (error) {
+            console.error('[AdvancedAI] Error checking recent payment:', error);
+            return false;
+        }
+    }
+    /**
      * Check if reference number already exists in payments table
      */
     static async checkReferenceNumber(ref) {
@@ -875,12 +915,16 @@ PENTING:
             }
             await connection.commit();
             // Send notification (Fire and forget)
+            // isManualVerification=false karena ini verifikasi otomatis oleh AI
+            // broadcastToAdmins dilakukan secara terpisah di bawah
             if (paymentId) {
                 try {
                     const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../notification/UnifiedNotificationService')));
-                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e => console.error('[AdvancedAI] Background notification error:', e));
-                    // Broadcast to admins and kasir
-                    UnifiedNotificationService.broadcastToAdmins(`✅ *PEMBAYARAN AI DITERIMA*\n\nPelanggan: *${customerName}* (${customerCode})\nNominal: *Rp ${paymentAmount.toLocaleString('id-ID')}*\nStatus: Otomatis diverifikasi dan lunas`).catch(e => console.error('[AdvancedAI] Broadcast admin error:', e));
+                    // Pass sendImmediately=true, isManualVerification=false (ini memang AI)
+                    // Set skipAdminBroadcast implicit: broadcastToAdmins dipanggil terpisah di bawah
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId, true, false).catch(e => console.error('[AdvancedAI] Background notification error:', e));
+                    // Broadcast ke admin dengan label AI yang jelas
+                    UnifiedNotificationService.broadcastToAdmins(`🤖 *PEMBAYARAN OTOMATIS AI*\n\nPelanggan: *${customerName}* (${customerCode})\nNominal: *Rp ${paymentAmount.toLocaleString('id-ID')}*\nMetode: Transfer\nStatus: ✅ Otomatis diverifikasi & diproses oleh sistem AI`).catch(e => console.error('[AdvancedAI] Broadcast admin error:', e));
                     notificationSent = true;
                     console.log(`[AdvancedAI] ✅ Notification queued via Unified Service`);
                 }

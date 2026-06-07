@@ -77,8 +77,8 @@ class PaymentController {
                 return;
             }
             const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../../services/notification/UnifiedNotificationService')));
-            // 1. Queue notification again
-            await UnifiedNotificationService.notifyPaymentReceived(paymentId);
+            // Notify Customer (with isManualVerification = true to avoid AI Admin broadcast)
+            await UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true);
             // 2. Force send immediately
             const result = await UnifiedNotificationService.sendPendingNotifications(1);
             if (result.sent > 0) {

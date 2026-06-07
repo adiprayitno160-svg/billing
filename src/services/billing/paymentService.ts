@@ -519,10 +519,12 @@ export class PaymentService {
                 const parentTotalPaid = parseFloat((parentPayments as any[])[0].total_paid || 0);
 
                 let parentStatus = item.status || 'sent';
-                if (parentTotalPaid >= newTotalAmount) {
-                    parentStatus = 'paid';
-                } else if (parentTotalPaid > 0) {
-                    parentStatus = 'partial';
+                if (parentStatus !== 'carried_over') {
+                    if (parentTotalPaid >= newTotalAmount) {
+                        parentStatus = 'paid';
+                    } else if (parentTotalPaid > 0) {
+                        parentStatus = 'partial';
+                    }
                 }
 
                 await connection.execute(
@@ -536,10 +538,104 @@ export class PaymentService {
                 );
                 
                 console.log(`[PaymentService] Updated parent invoice ${item.invoice_id}: total_amount=${newTotalAmount}, remaining_amount=${newRemainingAmount}, status=${parentStatus}`);
+
+                // Propagate this adjustment recursively to any invoices carrying over this adjusted invoice
+                await this.propagateInvoiceAdjustment(item.invoice_id, difference, connection);
             }
 
         } catch (e: any) {
             console.error('[PaymentService] Error in adjustCarriedOverInvoicesAfterPayment:', e.message);
+        }
+    }
+
+    /**
+     * Recursively propagate adjustments to newer invoices that carry over the given adjusted invoice.
+     */
+    static async propagateInvoiceAdjustment(adjustedInvoiceId: number, difference: number, connection: PoolConnection | Pool): Promise<void> {
+        try {
+            // 1. Get the adjusted invoice details
+            const [invRows] = await connection.execute(
+                "SELECT customer_id, period FROM invoices WHERE id = ?",
+                [adjustedInvoiceId]
+            );
+            const adjustedInvoice = (invRows as any[])[0];
+            if (!adjustedInvoice) return;
+
+            // 2. Format the month name to search for in newer invoices
+            const monthName = adjustedInvoice.period; // e.g. "2026-06"
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const [year, month] = monthName.split('-');
+            const monthIndex = parseInt(month, 10) - 1;
+            const indonesianMonthName = `${months[monthIndex]} ${year}`; // e.g. "Juni 2026"
+
+            const searchPattern1 = `%Tunggakan Tagihan Bulan ${indonesianMonthName}%`;
+            const searchPattern2 = `%Kekurangan Tagihan Bulan ${indonesianMonthName}%`;
+
+            // 3. Find any newer invoices carrying over this adjusted invoice
+            const [itemsRows] = await connection.execute(
+                `SELECT ii.id, ii.invoice_id, ii.total_price, i.total_amount, i.remaining_amount, i.status
+                 FROM invoice_items ii
+                 JOIN invoices i ON ii.invoice_id = i.id
+                 WHERE i.customer_id = ?
+                 AND i.period > ?
+                 AND i.status != 'paid'
+                 AND (ii.description LIKE ? OR ii.description LIKE ? OR ii.description LIKE ?)`,
+                [adjustedInvoice.customer_id, adjustedInvoice.period, searchPattern1, searchPattern2, `%${adjustedInvoice.period}%`]
+            );
+
+            const carryOverItems = itemsRows as any[];
+            for (const item of carryOverItems) {
+                console.log(`[PaymentService] Propagating adjustment of diff ${difference} from invoice ${adjustedInvoiceId} to newer invoice item ${item.id} (invoice ${item.invoice_id})`);
+
+                const oldPrice = parseFloat(item.total_price || 0);
+                const newPrice = Math.max(0, oldPrice - difference);
+
+                // Update the invoice item price
+                await connection.execute(
+                    "UPDATE invoice_items SET unit_price = ?, total_price = ? WHERE id = ?",
+                    [newPrice, newPrice, item.id]
+                );
+
+                // Update the parent invoice's total_amount and remaining_amount
+                const currentTotalAmount = parseFloat(item.total_amount || 0);
+                const currentRemainingAmount = parseFloat(item.remaining_amount || 0);
+
+                const newTotalAmount = Math.max(0, currentTotalAmount - difference);
+                const newRemainingAmount = Math.max(0, currentRemainingAmount - difference);
+
+                // Determine new status for the parent invoice
+                const [parentPayments] = await connection.execute(
+                    "SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE invoice_id = ?",
+                    [item.invoice_id]
+                );
+                const parentTotalPaid = parseFloat((parentPayments as any[])[0].total_paid || 0);
+
+                let parentStatus = item.status || 'sent';
+                if (parentStatus !== 'carried_over') {
+                    if (parentTotalPaid >= newTotalAmount) {
+                        parentStatus = 'paid';
+                    } else if (parentTotalPaid > 0) {
+                        parentStatus = 'partial';
+                    }
+                }
+
+                await connection.execute(
+                    `UPDATE invoices 
+                     SET total_amount = ?, 
+                         remaining_amount = ?, 
+                         status = ?, 
+                         updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = ?`,
+                    [newTotalAmount, newRemainingAmount, parentStatus, item.invoice_id]
+                );
+
+                console.log(`[PaymentService] Propagated updated parent invoice ${item.invoice_id}: total_amount=${newTotalAmount}, remaining_amount=${newRemainingAmount}, status=${parentStatus}`);
+
+                // Recursively propagate to invoices carrying over this updated invoice
+                await this.propagateInvoiceAdjustment(item.invoice_id, difference, connection);
+            }
+        } catch (e: any) {
+            console.error('[PaymentService] Error in propagateInvoiceAdjustment:', e.message);
         }
     }
 }

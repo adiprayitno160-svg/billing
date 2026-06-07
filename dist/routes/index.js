@@ -355,8 +355,8 @@ router.get('/api/check-notification', async (req, res) => {
 // AJAX Endpoint for WhatsApp Widget (Dashboard)
 router.get('/api/dashboard/whatsapp', async (req, res) => {
     try {
-        const { WhatsAppService } = await Promise.resolve().then(() => __importStar(require('../services/whatsapp/WhatsAppService')));
-        const whatsappStatus = WhatsAppService.getInstance().getStatus();
+        const { whatsappService } = await Promise.resolve().then(() => __importStar(require('../services/whatsapp')));
+        const whatsappStatus = whatsappService.getStatus();
         const [recentMessages] = await pool_1.databasePool.query(`
             SELECT m.*, c.name as customer_name 
             FROM whatsapp_bot_messages m 
