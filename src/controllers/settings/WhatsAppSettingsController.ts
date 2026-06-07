@@ -6,6 +6,8 @@
 import { Request, Response } from 'express';
 import { whatsappService } from '../../services/whatsapp/WhatsAppService';
 import { databasePool } from '../../db/pool';
+import pool from '../../db/pool';
+import { RowDataPacket } from 'mysql2';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -84,8 +86,22 @@ export class WhatsAppSettingsController {
                 ? `/whatsapp/qr-image`
                 : null;
 
+            // Fetch Telegram settings & botInfo
+            const [telegramRows] = await pool.query<RowDataPacket[]>(`
+                SELECT * FROM telegram_settings 
+                ORDER BY id DESC LIMIT 1
+            `);
+            
+            const telegramSettings = telegramRows.length > 0 ? telegramRows[0] : {
+                bot_token: '',
+                auto_start: true
+            };
+            
+            const telegramAdminService = await import('../../services/telegram/TelegramAdminService');
+            const telegramBotInfo = telegramAdminService.default.getBotInfo();
+
             res.render('settings/whatsapp', {
-                title: 'Pengaturan WhatsApp',
+                title: 'Pengaturan Messaging',
                 currentPath: '/settings/whatsapp',
                 status,
                 stats,
@@ -93,6 +109,8 @@ export class WhatsAppSettingsController {
                 qrCodeUrl,
                 failedNotifications,
                 pendingNotifications,
+                telegramSettings,
+                botInfo: telegramBotInfo,
                 user: (req.session as any).user
             });
 

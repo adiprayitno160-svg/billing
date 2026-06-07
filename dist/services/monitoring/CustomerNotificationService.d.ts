@@ -56,7 +56,7 @@ export declare class CustomerNotificationService {
      */
     sendEscalationNotification(eventType: string, affectedCustomers: number, details?: any): Promise<void>;
     /**
-     * Broadcast customer status change to Admins & Operators
+     * Broadcast customer status change to Admins & Operators via Telegram
      */
     broadcastCustomerStatusToAdmins(customer: CustomerInfo, status: 'offline' | 'online'): Promise<void>;
     /**

@@ -4,6 +4,39 @@
  * Enhanced Telegram Bot for Admin & Teknisi
  * Features: Real-time monitoring, incident management, notifications
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -111,6 +144,22 @@ class TelegramAdminService {
         // Command: /areas
         this.bot.onText(/\/areas/, async (msg) => {
             await this.handleAreas(msg);
+        });
+        // Command: /isolir
+        this.bot.onText(/\/isolir (.+)/, async (msg, match) => {
+            await this.handleIsolir(msg, match?.[1] || '');
+        });
+        // Command: /unisolir
+        this.bot.onText(/\/unisolir (.+)/, async (msg, match) => {
+            await this.handleUnisolir(msg, match?.[1] || '');
+        });
+        // Command: /ping
+        this.bot.onText(/\/ping (.+)/, async (msg, match) => {
+            await this.handlePing(msg, match?.[1] || '');
+        });
+        // Command: /bayarlunas
+        this.bot.onText(/\/bayarlunas (.+)/, async (msg, match) => {
+            await this.handleBayarLunas(msg, match?.[1] || '');
         });
         // Command: /performance
         this.bot.onText(/\/performance( .*)?/, async (msg, match) => {
@@ -309,7 +358,11 @@ class TelegramAdminService {
                 commands += `/invoice <id> - Cek tagihan\n`;
                 commands += `/payment <id> - Cek pembayaran\n`;
                 commands += `/performance - Performa teknisi\n`;
-                commands += `/areas - Daftar area\n\n`;
+                commands += `/areas - Daftar area\n`;
+                commands += `/isolir <id> - Isolir pelanggan manual\n`;
+                commands += `/unisolir <id> - Buka isolir pelanggan\n`;
+                commands += `/ping <id> - Cek status koneksi pelanggan\n`;
+                commands += `/bayarlunas <id_invoice> - Tandai lunas instan\n\n`;
             }
             if (user.role === 'teknisi') {
                 commands += `*Teknisi:*\n`;
@@ -1149,6 +1202,250 @@ class TelegramAdminService {
             CALL sp_get_telegram_bot_stats(?, ?)
         `, [from, to]);
         return result[0] || {};
+    }
+    // ==========================================
+    // NEW ADMIN COMMAND HANDLERS
+    // ==========================================
+    /**
+     * Handle /isolir command
+     */
+    async handleIsolir(msg, customerIdStr) {
+        const chatId = msg.chat.id;
+        const customerId = parseInt(customerIdStr);
+        try {
+            const user = await this.getUser(chatId);
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+                await this.sendMessage(chatId, '❌ Anda tidak memiliki akses untuk command ini.');
+                return;
+            }
+            if (isNaN(customerId)) {
+                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /isolir [ID_Pelanggan]');
+                return;
+            }
+            const { IsolationService } = await Promise.resolve().then(() => __importStar(require('../billing/isolationService')));
+            await this.sendMessage(chatId, '⏳ Sedang memproses isolir...');
+            const result = await IsolationService.isolateCustomer({
+                customer_id: customerId,
+                action: 'isolate',
+                reason: 'Isolir manual via Telegram',
+                performed_by: 'admin'
+            });
+            await this.sendMessage(chatId, `✅ Berhasil mengisolir pelanggan ID ${customerId}`);
+        }
+        catch (error) {
+            console.error('[TelegramAdmin] Isolir error:', error);
+            await this.sendMessage(chatId, `❌ Gagal: ${error.message}`);
+        }
+    }
+    /**
+     * Handle /unisolir command
+     */
+    async handleUnisolir(msg, customerIdStr) {
+        const chatId = msg.chat.id;
+        const customerId = parseInt(customerIdStr);
+        try {
+            const user = await this.getUser(chatId);
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+                await this.sendMessage(chatId, '❌ Anda tidak memiliki akses untuk command ini.');
+                return;
+            }
+            if (isNaN(customerId)) {
+                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /unisolir [ID_Pelanggan]');
+                return;
+            }
+            const { IsolationService } = await Promise.resolve().then(() => __importStar(require('../billing/isolationService')));
+            await this.sendMessage(chatId, '⏳ Sedang memproses un-isolir...');
+            const result = await IsolationService.isolateCustomer({
+                customer_id: customerId,
+                action: 'restore',
+                reason: 'Un-Isolir manual via Telegram',
+                performed_by: 'admin'
+            });
+            await this.sendMessage(chatId, `✅ Berhasil membuka koneksi pelanggan ID ${customerId}`);
+        }
+        catch (error) {
+            console.error('[TelegramAdmin] Unisolir error:', error);
+            await this.sendMessage(chatId, `❌ Gagal: ${error.message}`);
+        }
+    }
+    /**
+     * Handle /ping command
+     */
+    async handlePing(msg, customerIdStr) {
+        const chatId = msg.chat.id;
+        const customerId = parseInt(customerIdStr);
+        try {
+            const user = await this.getUser(chatId);
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+                await this.sendMessage(chatId, '❌ Anda tidak memiliki akses untuk command ini.');
+                return;
+            }
+            if (isNaN(customerId)) {
+                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /ping [ID_Pelanggan]');
+                return;
+            }
+            await this.sendMessage(chatId, '⏳ Mengecek koneksi pelanggan...');
+            // Get customer info
+            const [custRows] = await pool_1.default.query(`
+                SELECT id, name, connection_type, mikrotik_id, pppoe_username, static_ip 
+                FROM customers WHERE id = ?
+            `, [customerId]);
+            if (custRows.length === 0) {
+                await this.sendMessage(chatId, '❌ Pelanggan tidak ditemukan.');
+                return;
+            }
+            const customer = custRows[0];
+            if (!customer.mikrotik_id) {
+                await this.sendMessage(chatId, `❌ Pelanggan ${customer.name} tidak terhubung ke MikroTik manapun.`);
+                return;
+            }
+            // Get MikroTik config
+            const [mkRows] = await pool_1.default.query(`
+                SELECT id, name, host, port, api_port, username, password 
+                FROM mikrotik_routers WHERE id = ?
+            `, [customer.mikrotik_id]);
+            if (mkRows.length === 0) {
+                await this.sendMessage(chatId, '❌ Router MikroTik tidak ditemukan.');
+                return;
+            }
+            const mk = mkRows[0];
+            const cfg = { host: mk.host, port: mk.api_port || 8728, username: mk.username, password: mk.password };
+            let resultMessage = `👤 *${customer.name}* (${customer.connection_type})\n`;
+            if (customer.connection_type === 'PPPoE') {
+                const username = customer.pppoe_username;
+                if (!username) {
+                    await this.sendMessage(chatId, '❌ Username PPPoE tidak dikonfigurasi untuk pelanggan ini.');
+                    return;
+                }
+                const { mikrotikPool } = await Promise.resolve().then(() => __importStar(require('../MikroTikConnectionPool')));
+                const rows = await mikrotikPool.execute(cfg, '/ppp/active/print', [`?name=${username}`], `ppp_ping_${username}`, 1000);
+                if (rows && rows.length > 0) {
+                    const session = rows[0];
+                    resultMessage += `\n✅ *STATUS: ONLINE*`;
+                    resultMessage += `\n⏱️ Uptime: ${session['uptime'] || 'N/A'}`;
+                    resultMessage += `\n🌐 IP Address: ${session['address'] || 'N/A'}`;
+                    resultMessage += `\n🔌 Caller ID: ${session['caller-id'] || 'N/A'}`;
+                }
+                else {
+                    resultMessage += `\n❌ *STATUS: OFFLINE*`;
+                    resultMessage += `\nSesi PPPoE tidak ditemukan aktif di router.`;
+                }
+            }
+            else if (customer.connection_type === 'Static') {
+                const ipAddress = customer.static_ip;
+                if (!ipAddress) {
+                    await this.sendMessage(chatId, '❌ IP Static tidak dikonfigurasi untuk pelanggan ini.');
+                    return;
+                }
+                const { pingIpAddress } = await Promise.resolve().then(() => __importStar(require('../mikrotikService')));
+                const pingResult = await pingIpAddress(cfg, ipAddress, 3);
+                if (pingResult.success) {
+                    resultMessage += `\n✅ *STATUS: ONLINE*`;
+                    resultMessage += `\n🌐 IP Address: ${ipAddress}`;
+                    resultMessage += `\n⚡ AVG RTT: ${pingResult.avgRtt ? pingResult.avgRtt + 'ms' : 'N/A'}`;
+                    resultMessage += `\n📦 Reply: ${pingResult.packetsReceived}/3`;
+                }
+                else {
+                    resultMessage += `\n❌ *STATUS: OFFLINE*`;
+                    resultMessage += `\n🌐 IP Address: ${ipAddress}`;
+                    resultMessage += `\n⚠️ Detail: ${pingResult.message || 'Request Timeout'}`;
+                }
+            }
+            else {
+                resultMessage += `\nTipe koneksi tidak didukung untuk ping.`;
+            }
+            await this.sendMessage(chatId, resultMessage);
+        }
+        catch (error) {
+            console.error('[TelegramAdmin] Ping error:', error);
+            await this.sendMessage(chatId, `❌ Gagal mengecek koneksi: ${error.message}`);
+        }
+    }
+    /**
+     * Handle /bayarlunas command
+     */
+    async handleBayarLunas(msg, invoiceIdStr) {
+        const chatId = msg.chat.id;
+        const invoiceId = parseInt(invoiceIdStr);
+        try {
+            const user = await this.getUser(chatId);
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+                await this.sendMessage(chatId, '❌ Anda tidak memiliki akses untuk command ini.');
+                return;
+            }
+            if (isNaN(invoiceId)) {
+                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /bayarlunas [ID_Invoice]');
+                return;
+            }
+            // Check invoice
+            const [invRows] = await pool_1.default.query(`
+                SELECT i.*, c.name as customer_name, c.is_isolated 
+                FROM invoices i
+                JOIN customers c ON i.customer_id = c.id
+                WHERE i.id = ?
+            `, [invoiceId]);
+            if (invRows.length === 0) {
+                await this.sendMessage(chatId, '❌ Invoice tidak ditemukan.');
+                return;
+            }
+            const invoice = invRows[0];
+            if (invoice.status === 'paid') {
+                await this.sendMessage(chatId, `ℹ️ Invoice #${invoice.invoice_number} sudah berstatus LUNAS.`);
+                return;
+            }
+            await this.sendMessage(chatId, '⏳ Sedang memproses pembayaran...');
+            const connection = await pool_1.default.getConnection();
+            try {
+                await connection.beginTransaction();
+                const paymentAmount = parseFloat(invoice.remaining_amount || invoice.total_amount);
+                // Insert payment record
+                await connection.query(`INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_at)
+                     VALUES (?, 'cash', ?, NOW(), ?, NOW())`, [invoiceId, paymentAmount, 'Auto-Lunas via Telegram Admin Bot']);
+                // Update invoice
+                await connection.query(`UPDATE invoices 
+                     SET paid_amount = total_amount, remaining_amount = 0, status = 'paid', 
+                         last_payment_date = NOW(), paid_at = NOW(), updated_at = NOW()
+                     WHERE id = ?`, [invoiceId]);
+                await connection.commit();
+                // Un-isolir automatically if customer is isolated
+                if (invoice.is_isolated) {
+                    try {
+                        const { IsolationService } = await Promise.resolve().then(() => __importStar(require('../billing/isolationService')));
+                        await IsolationService.isolateCustomer({
+                            customer_id: invoice.customer_id,
+                            action: 'restore',
+                            reason: 'Auto-restore setelah bayar lunas via Telegram',
+                            performed_by: 'admin'
+                        });
+                        await this.sendMessage(chatId, `✅ Pelanggan otomatis di-unisolir.`);
+                    }
+                    catch (e) {
+                        console.error('Failed to un-isolate:', e);
+                        await this.sendMessage(chatId, `⚠️ Gagal auto un-isolir: ${e.message}`);
+                    }
+                }
+                // Generasi PDF Struk (async)
+                try {
+                    const { InvoicePdfService } = await Promise.resolve().then(() => __importStar(require('../invoice/InvoicePdfService')));
+                    await InvoicePdfService.generateInvoicePdf(invoiceId);
+                }
+                catch (e) {
+                    console.error('Failed to generate receipt PDF:', e);
+                }
+                await this.sendMessage(chatId, `✅ *SUKSES*\n\nInvoice #${invoice.invoice_number} a.n ${invoice.customer_name} telah ditandai LUNAS.`);
+            }
+            catch (error) {
+                await connection.rollback();
+                throw error;
+            }
+            finally {
+                connection.release();
+            }
+        }
+        catch (error) {
+            console.error('[TelegramAdmin] BayarLunas error:', error);
+            await this.sendMessage(chatId, `❌ Gagal proses: ${error.message}`);
+        }
     }
     // ==========================================
     // HELPER METHODS

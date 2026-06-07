@@ -197,15 +197,58 @@ export class CustomerNotificationService {
     }
 
     /**
-     * Broadcast customer status change to Admins & Operators
+     * Broadcast customer status change to Admins & Operators via Telegram
      */
     async broadcastCustomerStatusToAdmins(
         customer: CustomerInfo,
         status: 'offline' | 'online'
     ): Promise<void> {
-        // DISABLED: Admin broadcasts disabled per user request
-        console.log(`[Notification] SKIPPED admin broadcast for ${customer.name} status ${status} (Service Disabled)`);
-        return;
+        try {
+            // Anti-spam cooldown: 5 minutes per customer per status change
+            const cooldownKey = `admin_broadcast_${customer.id}_${status}`;
+            const lastSent = this.adminBroadcastCooldowns.get(cooldownKey) || 0;
+            const now = Date.now();
+
+            if (now - lastSent < 5 * 60 * 1000) {
+                console.log(`[Notification] Cooldown active for ${customer.name} ${status}, skipping Telegram broadcast.`);
+                return;
+            }
+
+            // Send via Telegram Admin Bot
+            const TelegramAdminService = (await import('../telegram/TelegramAdminService')).default;
+
+            const emoji = status === 'offline' ? '🔴' : '🟢';
+            const statusText = status === 'offline' ? 'OFFLINE / DOWN' : 'ONLINE / RECOVERED';
+            const priority = status === 'offline' ? 'high' : 'medium';
+
+            const connectionInfo = customer.connection_type === 'PPPoE'
+                ? `PPPoE: ${customer.pppoe_username || 'N/A'}`
+                : `Static IP: ${customer.ip_address || 'N/A'}`;
+
+            const message =
+                `${emoji} *${statusText}*\n\n` +
+                `👤 ${customer.name} (ID: ${customer.id})\n` +
+                `🔗 ${connectionInfo}\n` +
+                `📍 ${customer.address || 'N/A'}\n` +
+                `🕐 ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+
+            await TelegramAdminService.sendNotification({
+                type: status === 'offline' ? 'downtime' : 'custom',
+                priority: priority as any,
+                title: `Customer ${statusText}`,
+                message,
+                targetRole: 'admin',
+                customerId: customer.id
+            });
+
+            // Update cooldown
+            this.adminBroadcastCooldowns.set(cooldownKey, now);
+
+            console.log(`[Notification] Telegram admin broadcast sent for ${customer.name} -> ${status}`);
+
+        } catch (error) {
+            console.error(`[Notification] Failed to send Telegram admin broadcast for ${customer.name}:`, error);
+        }
     }
 
     /**

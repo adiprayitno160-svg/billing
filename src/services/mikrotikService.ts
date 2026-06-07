@@ -671,3 +671,46 @@ export async function removeActivePppConnection(cfg: MikroTikConfig, name: strin
         console.error(`[MikroTik] Failed to remove active connection for ${name}:`, err.message);
     }
 }
+
+/**
+ * Ping an IP address from the MikroTik router
+ */
+export async function pingIpAddress(cfg: MikroTikConfig, ipAddress: string, count: number = 3): Promise<{ success: boolean; packetsReceived: number; avgRtt?: number; message?: string }> {
+    try {
+        const rows = await mikrotikPool.execute<any[]>(cfg, '/ping', [`=address=${ipAddress}`, `=count=${count}`], `ping_${ipAddress}`);
+        
+        if (!rows || rows.length === 0) {
+            return { success: false, packetsReceived: 0, message: 'Tidak ada response dari MikroTik' };
+        }
+
+        let received = 0;
+        let avgRtt: number | undefined;
+
+        for (const row of rows) {
+            if (row['received'] !== undefined) {
+                received = parseInt(row['received'], 10);
+            } else if (row['status'] === 'timeout') {
+                // Ignore timeouts
+            } else if (row['time'] !== undefined) {
+                received++; 
+            }
+            
+            if (row['avg-rtt'] !== undefined) {
+                const rttStr = row['avg-rtt'].replace('ms', '');
+                avgRtt = parseInt(rttStr, 10);
+            }
+        }
+
+        const success = received > 0;
+        return {
+            success,
+            packetsReceived: received,
+            avgRtt: !isNaN(avgRtt as number) ? avgRtt : undefined,
+            message: success ? `Terkoneksi (${received} reply)` : 'Request Timeout / Unreachable'
+        };
+
+    } catch (error: any) {
+        console.error(`[pingIpAddress] Error pinging ${ipAddress}:`, error.message);
+        return { success: false, packetsReceived: 0, message: error.message };
+    }
+}

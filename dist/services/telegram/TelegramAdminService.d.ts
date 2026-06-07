@@ -138,6 +138,22 @@ export declare class TelegramAdminService {
      */
     getBotStatistics(dateFrom?: Date, dateTo?: Date): Promise<any>;
     /**
+     * Handle /isolir command
+     */
+    private handleIsolir;
+    /**
+     * Handle /unisolir command
+     */
+    private handleUnisolir;
+    /**
+     * Handle /ping command
+     */
+    private handlePing;
+    /**
+     * Handle /bayarlunas command
+     */
+    private handleBayarLunas;
+    /**
      * Get user by chat ID
      */
     private getUser;

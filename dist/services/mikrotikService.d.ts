@@ -140,4 +140,13 @@ export declare function findQueueTreeIdByName(cfg: MikroTikConfig, name: string)
 export declare function findMangleIdByComment(cfg: MikroTikConfig, comment: string): Promise<string | null>;
 export declare function findQueueTreeIdByPacketMark(cfg: MikroTikConfig, packetMark: string): Promise<string | null>;
 export declare function removeActivePppConnection(cfg: MikroTikConfig, name: string): Promise<void>;
+/**
+ * Ping an IP address from the MikroTik router
+ */
+export declare function pingIpAddress(cfg: MikroTikConfig, ipAddress: string, count?: number): Promise<{
+    success: boolean;
+    packetsReceived: number;
+    avgRtt?: number;
+    message?: string;
+}>;
 //# sourceMappingURL=mikrotikService.d.ts.map

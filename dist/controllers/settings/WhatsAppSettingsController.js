@@ -36,10 +36,14 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WhatsAppSettingsController = void 0;
 const WhatsAppService_1 = require("../../services/whatsapp/WhatsAppService");
 const pool_1 = require("../../db/pool");
+const pool_2 = __importDefault(require("../../db/pool"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 class WhatsAppSettingsController {
@@ -112,8 +116,19 @@ class WhatsAppSettingsController {
             const qrCodeUrl = qrCode
                 ? `/whatsapp/qr-image`
                 : null;
+            // Fetch Telegram settings & botInfo
+            const [telegramRows] = await pool_2.default.query(`
+                SELECT * FROM telegram_settings 
+                ORDER BY id DESC LIMIT 1
+            `);
+            const telegramSettings = telegramRows.length > 0 ? telegramRows[0] : {
+                bot_token: '',
+                auto_start: true
+            };
+            const telegramAdminService = await Promise.resolve().then(() => __importStar(require('../../services/telegram/TelegramAdminService')));
+            const telegramBotInfo = telegramAdminService.default.getBotInfo();
             res.render('settings/whatsapp', {
-                title: 'Pengaturan WhatsApp',
+                title: 'Pengaturan Messaging',
                 currentPath: '/settings/whatsapp',
                 status,
                 stats,
@@ -121,6 +136,8 @@ class WhatsAppSettingsController {
                 qrCodeUrl,
                 failedNotifications,
                 pendingNotifications,
+                telegramSettings,
+                botInfo: telegramBotInfo,
                 user: req.session.user
             });
         }

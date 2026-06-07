@@ -6,6 +6,39 @@
  * - Recovery alerts
  * - Escalation policies
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CustomerNotificationService = void 0;
 const pool_1 = require("../../db/pool");
@@ -134,12 +167,46 @@ class CustomerNotificationService {
         return;
     }
     /**
-     * Broadcast customer status change to Admins & Operators
+     * Broadcast customer status change to Admins & Operators via Telegram
      */
     async broadcastCustomerStatusToAdmins(customer, status) {
-        // DISABLED: Admin broadcasts disabled per user request
-        console.log(`[Notification] SKIPPED admin broadcast for ${customer.name} status ${status} (Service Disabled)`);
-        return;
+        try {
+            // Anti-spam cooldown: 5 minutes per customer per status change
+            const cooldownKey = `admin_broadcast_${customer.id}_${status}`;
+            const lastSent = this.adminBroadcastCooldowns.get(cooldownKey) || 0;
+            const now = Date.now();
+            if (now - lastSent < 5 * 60 * 1000) {
+                console.log(`[Notification] Cooldown active for ${customer.name} ${status}, skipping Telegram broadcast.`);
+                return;
+            }
+            // Send via Telegram Admin Bot
+            const TelegramAdminService = (await Promise.resolve().then(() => __importStar(require('../telegram/TelegramAdminService')))).default;
+            const emoji = status === 'offline' ? '🔴' : '🟢';
+            const statusText = status === 'offline' ? 'OFFLINE / DOWN' : 'ONLINE / RECOVERED';
+            const priority = status === 'offline' ? 'high' : 'medium';
+            const connectionInfo = customer.connection_type === 'PPPoE'
+                ? `PPPoE: ${customer.pppoe_username || 'N/A'}`
+                : `Static IP: ${customer.ip_address || 'N/A'}`;
+            const message = `${emoji} *${statusText}*\n\n` +
+                `👤 ${customer.name} (ID: ${customer.id})\n` +
+                `🔗 ${connectionInfo}\n` +
+                `📍 ${customer.address || 'N/A'}\n` +
+                `🕐 ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+            await TelegramAdminService.sendNotification({
+                type: status === 'offline' ? 'downtime' : 'custom',
+                priority: priority,
+                title: `Customer ${statusText}`,
+                message,
+                targetRole: 'admin',
+                customerId: customer.id
+            });
+            // Update cooldown
+            this.adminBroadcastCooldowns.set(cooldownKey, now);
+            console.log(`[Notification] Telegram admin broadcast sent for ${customer.name} -> ${status}`);
+        }
+        catch (error) {
+            console.error(`[Notification] Failed to send Telegram admin broadcast for ${customer.name}:`, error);
+        }
     }
     /**
      * Broadcast Infrastructure (ODP/ODC) Mass Outage to Admins & Operators

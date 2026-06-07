@@ -72,6 +72,7 @@ exports.findQueueTreeIdByName = findQueueTreeIdByName;
 exports.findMangleIdByComment = findMangleIdByComment;
 exports.findQueueTreeIdByPacketMark = findQueueTreeIdByPacketMark;
 exports.removeActivePppConnection = removeActivePppConnection;
+exports.pingIpAddress = pingIpAddress;
 const MikroTikConnectionPool_1 = require("./MikroTikConnectionPool");
 async function testMikrotikConnection(cfg) {
     try {
@@ -736,6 +737,45 @@ async function removeActivePppConnection(cfg, name) {
     }
     catch (err) {
         console.error(`[MikroTik] Failed to remove active connection for ${name}:`, err.message);
+    }
+}
+/**
+ * Ping an IP address from the MikroTik router
+ */
+async function pingIpAddress(cfg, ipAddress, count = 3) {
+    try {
+        const rows = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ping', [`=address=${ipAddress}`, `=count=${count}`], `ping_${ipAddress}`);
+        if (!rows || rows.length === 0) {
+            return { success: false, packetsReceived: 0, message: 'Tidak ada response dari MikroTik' };
+        }
+        let received = 0;
+        let avgRtt;
+        for (const row of rows) {
+            if (row['received'] !== undefined) {
+                received = parseInt(row['received'], 10);
+            }
+            else if (row['status'] === 'timeout') {
+                // Ignore timeouts
+            }
+            else if (row['time'] !== undefined) {
+                received++;
+            }
+            if (row['avg-rtt'] !== undefined) {
+                const rttStr = row['avg-rtt'].replace('ms', '');
+                avgRtt = parseInt(rttStr, 10);
+            }
+        }
+        const success = received > 0;
+        return {
+            success,
+            packetsReceived: received,
+            avgRtt: !isNaN(avgRtt) ? avgRtt : undefined,
+            message: success ? `Terkoneksi (${received} reply)` : 'Request Timeout / Unreachable'
+        };
+    }
+    catch (error) {
+        console.error(`[pingIpAddress] Error pinging ${ipAddress}:`, error.message);
+        return { success: false, packetsReceived: 0, message: error.message };
     }
 }
 //# sourceMappingURL=mikrotikService.js.map
