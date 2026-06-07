@@ -54,7 +54,7 @@ export class TelegramSettingsController {
     static async saveSettings(req: Request, res: Response): Promise<void> {
         try {
             const { bot_token, auto_start } = req.body;
-            const trimmedToken = bot_token ? bot_token.trim() : '';
+            const trimmedToken = bot_token ? bot_token.replace(/[^a-zA-Z0-9_:-]/g, '') : '';
             
             if (!trimmedToken || trimmedToken === '') {
                 res.json({
@@ -116,7 +116,7 @@ export class TelegramSettingsController {
     static async testConnection(req: Request, res: Response): Promise<void> {
         try {
             const { bot_token } = req.body;
-            const trimmedToken = bot_token ? bot_token.trim() : '';
+            const trimmedToken = bot_token ? bot_token.replace(/[^a-zA-Z0-9_:-]/g, '') : '';
             
             if (!trimmedToken) {
                 res.json({
@@ -148,7 +148,11 @@ export class TelegramSettingsController {
             
             let errorMessage = 'Gagal terhubung ke Telegram';
             if (error.message.includes('401')) {
-                errorMessage = 'Token tidak valid';
+                // Return substring of token for security but show enough to debug
+                const rawToken = req.body.bot_token || '';
+                const cleanForLog = rawToken.replace(/[^a-zA-Z0-9_:-]/g, '');
+                const mask = cleanForLog.substring(0, 10) + '...' + cleanForLog.substring(cleanForLog.length - 5);
+                errorMessage = `Token tidak valid. Token: ${mask}`;
             } else if (error.message.includes('ETELEGRAM')) {
                 errorMessage = 'Error dari Telegram API: ' + error.message;
             }
