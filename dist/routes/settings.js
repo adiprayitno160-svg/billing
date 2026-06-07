@@ -82,8 +82,11 @@ router.get('/ai', AISettingsController_1.AISettingsController.index);
 router.post('/ai', AISettingsController_1.AISettingsController.updateSettings);
 router.post('/ai/test', AISettingsController_1.AISettingsController.testAPIKey);
 router.get('/ai/stats', AISettingsController_1.AISettingsController.getStatistics);
-// Routes untuk WhatsApp Settings
+const TelegramSettingsController_1 = require("../controllers/settings/TelegramSettingsController");
+// WhatsApp & Telegram Settings
 router.get('/whatsapp', WhatsAppSettingsController_1.WhatsAppSettingsController.showSettings);
+router.post('/telegram', TelegramSettingsController_1.TelegramSettingsController.saveSettings);
+router.post('/telegram/test-connection', TelegramSettingsController_1.TelegramSettingsController.testConnection);
 router.get('/whatsapp/status', WhatsAppSettingsController_1.WhatsAppSettingsController.getStatus);
 router.post('/whatsapp/regenerate-qr', WhatsAppSettingsController_1.WhatsAppSettingsController.regenerateQR);
 router.post('/whatsapp/test-send', WhatsAppSettingsController_1.WhatsAppSettingsController.testSendMessage);
