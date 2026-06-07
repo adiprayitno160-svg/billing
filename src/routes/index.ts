@@ -81,6 +81,7 @@ import { pageRouter as notificationPageRouter, apiRouter as notificationApiRoute
 import genieacsRoutes from './genieacs';
 import wifiAdminRoutes from './wifi-admin';
 import { BulkOperationsController } from '../controllers/bulkOperationsController';
+import telegramRoutes from './telegram';
 import {
     getAboutPage,
     checkUpdates,
@@ -1112,6 +1113,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
 
 // Settings routes - MUST be registered BEFORE specific /settings routes to avoid conflicts
 router.use('/settings', settingsRoutes);
+router.use('/telegram', telegramRoutes);
 
 // Tools routes (Database Migration, etc.)
 router.use('/tools', toolsRoutes);

@@ -78,6 +78,7 @@ const notification_1 = require("./notification");
 const genieacs_1 = __importDefault(require("./genieacs"));
 const wifi_admin_1 = __importDefault(require("./wifi-admin"));
 const bulkOperationsController_1 = require("../controllers/bulkOperationsController");
+const telegram_1 = __importDefault(require("./telegram"));
 const aboutController_1 = require("../controllers/aboutController");
 const databaseController_1 = require("../controllers/databaseController");
 const backupController_1 = require("../controllers/backupController");
@@ -956,6 +957,7 @@ router.post('/api/pppoe/secret/create', async (req, res) => {
 // Portal routes
 // Settings routes - MUST be registered BEFORE specific /settings routes to avoid conflicts
 router.use('/settings', settings_1.default);
+router.use('/telegram', telegram_1.default);
 // Tools routes (Database Migration, etc.)
 router.use('/tools', tools_1.default);
 // Mount API router for notification
