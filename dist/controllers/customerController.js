@@ -1428,33 +1428,12 @@ const updateCustomer = async (req, res) => {
                         if (targetConnType === 'pppoe') {
                             const pppoeUser = req.body.pppoe_username || oldPppoeUsername;
                             if (pppoeUser) {
-                                const { RouterOSAPI } = require('routeros-api');
-                                const api = new RouterOSAPI({
-                                    host: config.host,
-                                    port: config.port,
-                                    user: config.username,
-                                    password: config.password,
-                                    timeout: 5000
-                                });
-                                await api.connect();
-                                const secrets = await api.write('/ppp/secret/print', [`?name=${pppoeUser}`]);
-                                if (Array.isArray(secrets) && secrets.length > 0) {
-                                    const secretId = secrets[0]['.id'];
-                                    await api.write('/ppp/secret/set', [
-                                        `.id=${secretId}`,
-                                        `disabled=${isDisabled ? 'yes' : 'no'}`
-                                    ]);
-                                    console.log(`[Status Sync] ✅ PPPoE Secret ${pppoeUser} disabled=${isDisabled}`);
-                                    if (isDisabled) {
-                                        const activeConns = await api.write('/ppp/active/print', [`?name=${pppoeUser}`]);
-                                        if (Array.isArray(activeConns)) {
-                                            for (const conn of activeConns) {
-                                                await api.write('/ppp/active/remove', [`.id=${conn['.id']}`]);
-                                            }
-                                        }
-                                    }
+                                const { updatePppoeSecret, removeActivePppConnection } = await Promise.resolve().then(() => __importStar(require('../services/mikrotikService')));
+                                await updatePppoeSecret(config, pppoeUser, { disabled: isDisabled });
+                                console.log(`[Status Sync] ✅ PPPoE Secret ${pppoeUser} disabled=${isDisabled}`);
+                                if (isDisabled) {
+                                    await removeActivePppConnection(config, pppoeUser);
                                 }
-                                api.close();
                             }
                         }
                         else if (targetConnType === 'static_ip') {
@@ -1968,33 +1947,12 @@ const toggleCustomerStatus = async (req, res) => {
                 try {
                     const config = await (0, mikrotikConfigHelper_1.getMikrotikConfig)();
                     if (config) {
-                        const { RouterOSAPI } = require('routeros-api');
-                        const api = new RouterOSAPI({
-                            host: config.host,
-                            port: config.port,
-                            user: config.username,
-                            password: config.password,
-                            timeout: 5000
-                        });
-                        await api.connect();
-                        const secrets = await api.write('/ppp/secret/print', [`?name=${customer.pppoe_username}`]);
-                        if (Array.isArray(secrets) && secrets.length > 0) {
-                            const secretId = secrets[0]['.id'];
-                            const isDisabled = status === 'inactive';
-                            await api.write('/ppp/secret/set', [
-                                `.id=${secretId}`,
-                                `disabled=${isDisabled ? 'yes' : 'no'}`
-                            ]);
-                            if (isDisabled) {
-                                const activeConns = await api.write('/ppp/active/print', [`?name=${customer.pppoe_username}`]);
-                                if (Array.isArray(activeConns)) {
-                                    for (const conn of activeConns) {
-                                        await api.write('/ppp/active/remove', [`.id=${conn['.id']}`]);
-                                    }
-                                }
-                            }
+                        const { updatePppoeSecret, removeActivePppConnection } = await Promise.resolve().then(() => __importStar(require('../services/mikrotikService')));
+                        const isDisabled = status === 'inactive';
+                        await updatePppoeSecret(config, customer.pppoe_username, { disabled: isDisabled });
+                        if (isDisabled) {
+                            await removeActivePppConnection(config, customer.pppoe_username);
                         }
-                        api.close();
                     }
                 }
                 catch (mikrotikError) {
