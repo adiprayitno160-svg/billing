@@ -246,7 +246,12 @@ class IsolationService {
             }
             // Security Check: Verify unpaid invoices before restore
             if (isolationData.action === 'restore') {
-                const [unpaidCheck] = await connection.query("SELECT period FROM invoices WHERE customer_id = ? AND status NOT IN ('paid', 'cancelled', 'hutang') AND (remaining_amount > 0 OR status != 'paid') ORDER BY period ASC", [isolationData.customer_id]);
+                const [unpaidCheck] = await connection.query(`SELECT period FROM invoices 
+                     WHERE customer_id = ? 
+                     AND status NOT IN ('paid', 'cancelled', 'hutang') 
+                     AND remaining_amount > 0 
+                     AND (status = 'overdue' OR status = 'janji_bayar' OR ((status = 'sent' OR status = 'partial') AND due_date <= CURDATE()))
+                     ORDER BY period ASC`, [isolationData.customer_id]);
                 const hasUnpaidInvoices = unpaidCheck.length > 0;
                 const periods = unpaidCheck.map(inv => invoiceService_1.InvoiceService.getMonthName(inv.period)).join(', ');
                 if (hasUnpaidInvoices && (isolationData.performed_by === 'system' || isolationData.performed_by === '0')) {
@@ -305,12 +310,12 @@ class IsolationService {
                 // but we are restoring. This fixes the issue where system auto-isolate sets status="inactive".
                 // Also reset isolation_enabled to 0 so customer returns to safe default (no risk of re-isolation).
                 if (customer.is_isolated || customer.status === 'inactive') {
-                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL, status = "active", isolation_enabled = 0 WHERE id = ?', [customer.id]);
-                    console.log(`[Isolation] ✅ Customer ${customer.name} status set to ACTIVE, isolation_enabled reset to 0 (safe default)`);
+                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL, status = "active" WHERE id = ?', [customer.id]);
+                    console.log(`[Isolation] ✅ Customer ${customer.name} status set to ACTIVE`);
                 }
                 else {
-                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL, isolation_enabled = 0 WHERE id = ?', [customer.id]);
-                    console.log(`[Isolation] ✅ Customer ${customer.name} is_isolated reset, isolation_enabled = 0, status remains ${customer.status}`);
+                    await connection.execute('UPDATE customers SET is_isolated = FALSE, isolated_at = NULL WHERE id = ?', [customer.id]);
+                    console.log(`[Isolation] ✅ Customer ${customer.name} is_isolated reset, status remains ${customer.status}`);
                 }
             }
             if (isNewConnection)
@@ -857,7 +862,11 @@ class IsolationService {
             SELECT id, name FROM customers 
             WHERE is_isolated = TRUE 
             AND NOT EXISTS (
-                SELECT 1 FROM invoices WHERE customer_id = customers.id AND status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang') AND remaining_amount > 0
+                SELECT 1 FROM invoices 
+                WHERE customer_id = customers.id 
+                AND status NOT IN ('paid', 'cancelled') 
+                AND remaining_amount > 0
+                AND (status = 'overdue' OR status = 'janji_bayar' OR status = 'hutang' OR ((status = 'sent' OR status = 'partial') AND due_date <= CURDATE()))
             )
             AND NOT EXISTS (
                 SELECT 1 FROM isolation_logs 
@@ -910,13 +919,11 @@ class IsolationService {
                  AND status != 'paid' 
                  AND status != 'cancelled' 
                  AND remaining_amount > 0 
-                 AND (status = 'overdue' OR status = 'partial' OR status = 'janji_bayar' OR status = 'hutang' OR (status = 'sent' AND due_date <= CURDATE()))`, [customerId]);
+                 AND (status = 'overdue' OR status = 'janji_bayar' OR status = 'hutang' OR ((status = 'sent' OR status = 'partial') AND due_date <= CURDATE()))`, [customerId]);
             if (unpaidResult.length === 0) {
-                // If they have no overdue unpaid invoices, we should reset isolation_enabled = 0!
-                if (customer.isolation_enabled === 1 || customer.isolation_enabled === true) {
-                    await connection.query("UPDATE customers SET isolation_enabled = 0, updated_at = NOW() WHERE id = ?", [customerId]);
-                    console.log(`[Isolation] Reset isolation_enabled to 0 for customer ${customer.name} (#${customerId}) because they paid all overdue/unpaid invoices.`);
-                }
+                // NOTE: isolation_enabled is an ADMIN PREFERENCE setting - do NOT reset it here.
+                // It should remain as-is so auto-isolir works again next month if customer is late again.
+                // Only is_isolated (physical block status) gets reset, not isolation_enabled (feature toggle).
                 if (!customer.is_isolated) {
                     return false;
                 }
