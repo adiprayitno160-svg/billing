@@ -219,7 +219,7 @@ router.get('/api/health-check', (req, res) => {
     res.json({
         status: 'online',
         server_time: new Date().toISOString(),
-        deploy_version: 'Update Check: Static IP Route Fix',
+        deploy_version: 'Fix Telegram Token Trim',
         timestamp: Date.now()
     });
 });
