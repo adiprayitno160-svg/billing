@@ -1429,7 +1429,7 @@ const updateCustomer = async (req, res) => {
                             const pppoeUser = req.body.pppoe_username || oldPppoeUsername;
                             if (pppoeUser) {
                                 const { updatePppoeSecret, removeActivePppConnection } = await Promise.resolve().then(() => __importStar(require('../services/mikrotikService')));
-                                await updatePppoeSecret(config, pppoeUser, { disabled: isDisabled });
+                                await updatePppoeSecret(config, pppoeUser, { disabled: isDisabled ? 'yes' : 'no' });
                                 console.log(`[Status Sync] ✅ PPPoE Secret ${pppoeUser} disabled=${isDisabled}`);
                                 if (isDisabled) {
                                     await removeActivePppConnection(config, pppoeUser);
@@ -1949,7 +1949,7 @@ const toggleCustomerStatus = async (req, res) => {
                     if (config) {
                         const { updatePppoeSecret, removeActivePppConnection } = await Promise.resolve().then(() => __importStar(require('../services/mikrotikService')));
                         const isDisabled = status === 'inactive';
-                        await updatePppoeSecret(config, customer.pppoe_username, { disabled: isDisabled });
+                        await updatePppoeSecret(config, customer.pppoe_username, { disabled: isDisabled ? 'yes' : 'no' });
                         if (isDisabled) {
                             await removeActivePppConnection(config, customer.pppoe_username);
                         }
