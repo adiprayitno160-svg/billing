@@ -428,9 +428,13 @@
     </div> <!-- END WHATSAPP TAB -->
 
     <!-- TELEGRAM TAB -->
-    <div id="tab-telegram" class="hidden">
-        <%- include('telegram', { settings: telegramSettings, botInfo: botInfo }) %>
-    </div>
+            <div id="tab-telegram" class="hidden">
+                <% 
+                   const ts = typeof telegramSettings !== 'undefined' ? telegramSettings : { bot_token: '', auto_start: true };
+                   const bi = typeof botInfo !== 'undefined' ? botInfo : { isRunning: false };
+                %>
+                <%- include('telegram', { settings: ts, botInfo: bi }) %>
+            </div>
 </div>
 
 <script>
