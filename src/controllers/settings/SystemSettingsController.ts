@@ -341,13 +341,15 @@ export class SystemSettingsController {
       const hasTsConfig = fs.existsSync(path.join(process.cwd(), 'tsconfig.json'));
       if (hasTsConfig) {
         console.log('Building TypeScript...');
-        // Use npx tsc to be safe or npm run build if defined
         try {
-          // Try npm run build first
-          await execPromise('npm run build');
-        } catch (e) {
-          console.warn('npm run build failed, trying npx tsc directly...');
-          await execPromise('npx tsc');
+          try {
+            await execPromise('npm run build');
+          } catch (e) {
+            console.warn('npm run build failed, trying npx tsc directly...');
+            await execPromise('npx tsc');
+          }
+        } catch (buildError: any) {
+          console.warn('⚠️ Warning: TypeScript build failed (possibly OOM). Using pre-compiled files from Git.', buildError.message);
         }
       }
 
