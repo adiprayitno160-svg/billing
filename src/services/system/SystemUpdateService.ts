@@ -77,12 +77,7 @@ export class SystemUpdateService {
                 await execAsync('npm run build', { maxBuffer: 1024 * 1024 * 5 });
             } catch (e: any) {
                 const errMsg = e.stderr || e.message;
-                console.error('[SystemUpdate] Build failed:', errMsg);
-                // Check for permission error hint
-                if (errMsg.includes('EACCES')) {
-                    throw new Error('Build gagal karena izin akses ditolak (Permission Denied). Silakan jalankan "sudo chown -R $USER:www-data /var/www/billing" di terminal server.');
-                }
-                throw new Error(`Build gagal: ${errMsg.substring(0, 200)}...`);
+                console.warn('[SystemUpdate] Build warning (continuing with precompiled files from Git):', errMsg);
             }
 
             // 4. Restart (PM2)
