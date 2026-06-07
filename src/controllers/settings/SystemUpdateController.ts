@@ -169,7 +169,12 @@ export class SystemUpdateController {
 
             // Step 5: Build application
             logStep('Building application (TypeScript)...');
-            await runCmd('npm run build', 'NPM Build');
+            try {
+                await runCmd('npm run build', 'NPM Build');
+            } catch (err: any) {
+                logStep('⚠️ Warning: TypeScript build failed (possibly OOM). Using pre-compiled files from Git.');
+                console.warn('NPM Build Error:', err.message);
+            }
 
             // Step 6: Read new version
             const packageJson = JSON.parse(
