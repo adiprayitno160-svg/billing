@@ -28,6 +28,7 @@ interface CustomerInfo {
     connection_type: string;
     pppoe_username?: string;
     ip_address?: string;
+    static_ip?: string;
     odc_id?: number;
     odp_id?: number;
     address?: string;
@@ -223,7 +224,7 @@ export class CustomerNotificationService {
 
             const connectionInfo = customer.connection_type === 'PPPoE'
                 ? `PPPoE: ${customer.pppoe_username || 'N/A'}`
-                : `Static IP: ${customer.ip_address || 'N/A'}`;
+                : `Static IP: ${customer.static_ip || 'N/A'}`;
 
             const message =
                 `${emoji} *${statusText}*\n\n` +

@@ -186,7 +186,7 @@ class CustomerNotificationService {
             const priority = status === 'offline' ? 'high' : 'medium';
             const connectionInfo = customer.connection_type === 'PPPoE'
                 ? `PPPoE: ${customer.pppoe_username || 'N/A'}`
-                : `Static IP: ${customer.ip_address || 'N/A'}`;
+                : `Static IP: ${customer.static_ip || 'N/A'}`;
             const message = `${emoji} *${statusText}*\n\n` +
                 `👤 ${customer.name} (ID: ${customer.id})\n` +
                 `🔗 ${connectionInfo}\n` +

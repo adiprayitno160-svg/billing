@@ -42,6 +42,7 @@ exports.findPppProfileIdByName = findPppProfileIdByName;
 exports.deletePppProfile = deletePppProfile;
 exports.getInterfaces = getInterfaces;
 exports.getInterfaceTraffic = getInterfaceTraffic;
+exports.getArpList = getArpList;
 exports.getPppoeActiveConnections = getPppoeActiveConnections;
 exports.getPppoeSecrets = getPppoeSecrets;
 exports.findPppoeSecretIdByName = findPppoeSecretIdByName;
@@ -289,6 +290,18 @@ async function getInterfaceTraffic(cfg, interfaceName) {
     }
     catch {
         return { rxByte: 0, txByte: 0, rxPacket: 0, txPacket: 0, rxDrop: 0, txDrop: 0, rxError: 0, txError: 0 };
+    }
+}
+async function getArpList(cfg) {
+    try {
+        const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ip/arp/print', [], 'arp_list', 30000);
+        if (!Array.isArray(res))
+            return [];
+        return res.map(r => r.address).filter(Boolean);
+    }
+    catch (e) {
+        console.error('[MikroTikService] Failed to get ARP list:', e);
+        return [];
     }
 }
 async function getPppoeActiveConnections(cfg) {

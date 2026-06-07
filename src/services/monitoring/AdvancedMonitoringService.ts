@@ -11,7 +11,7 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import CustomerNotificationService from './CustomerNotificationService';
 import { getMikrotikConfig } from '../pppoeService';
-import { getPppoeActiveConnections } from '../mikrotikService';
+import { getPppoeActiveConnections, getArpList } from '../mikrotikService';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -553,29 +553,27 @@ export class AdvancedMonitoringService {
                 SELECT 
                     c.id,
                     c.static_ip,
-                    c.is_isolated,
-                    sips.last_check
+                    c.is_isolated
                 FROM customers c
-                LEFT JOIN static_ip_ping_status sips ON c.id = sips.customer_id
                 WHERE c.connection_type = 'static_ip'
                     AND c.status = 'active'
                     AND c.static_ip IS NOT NULL
                     AND (c.is_isolated = 0 OR c.is_isolated IS NULL)
-                    AND (sips.last_check IS NULL OR sips.last_check < DATE_SUB(NOW(), INTERVAL 1 MINUTE))
-                ORDER BY sips.last_check ASC
-                LIMIT 100
             `) as [RowDataPacket[], any];
             console.log(`[AMS] Got ${staticIPCustomers.length} static IP customers to check`);
 
-            // 3. Batch ping Static IPs
+            // 3. Batch check Static IPs via ARP
             if (staticIPCustomers.length > 0) {
-                console.log('[AMS] 3. Batch pings starting...');
-                const ips = staticIPCustomers.map((c: any) => c.static_ip);
-                const pingResults = await this.batchPingStaticIPs(ips);
+                console.log('[AMS] 3. Checking ARP list starting...');
+                let arpList: string[] = [];
+                if (mikrotikConfig) {
+                    arpList = await getArpList(mikrotikConfig);
+                }
+                const activeIPs = new Set(arpList);
 
                 // Update database
                 for (const customer of staticIPCustomers) {
-                    const isOnline = pingResults.get(customer.static_ip) || false;
+                    const isOnline = activeIPs.has(customer.static_ip);
                     const status = isOnline ? 'online' : 'offline';
 
                     await databasePool.query(`

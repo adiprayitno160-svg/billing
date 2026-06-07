@@ -13,6 +13,7 @@ interface CustomerInfo {
     connection_type: string;
     pppoe_username?: string;
     ip_address?: string;
+    static_ip?: string;
     odc_id?: number;
     odp_id?: number;
     address?: string;

@@ -75,6 +75,7 @@ export type InterfaceInfo = {
 };
 export declare function getInterfaces(cfg: MikroTikConfig): Promise<InterfaceInfo[]>;
 export declare function getInterfaceTraffic(cfg: MikroTikConfig, interfaceName: string): Promise<any>;
+export declare function getArpList(cfg: MikroTikConfig): Promise<string[]>;
 export type PppoeActiveConnection = {
     '.id': string;
     name: string;

@@ -248,6 +248,17 @@ export async function getInterfaceTraffic(cfg: MikroTikConfig, interfaceName: st
     } catch { return { rxByte: 0, txByte: 0, rxPacket: 0, txPacket: 0, rxDrop: 0, txDrop: 0, rxError: 0, txError: 0 }; }
 }
 
+export async function getArpList(cfg: MikroTikConfig): Promise<string[]> {
+    try {
+        const res = await mikrotikPool.execute<any[]>(cfg, '/ip/arp/print', [], 'arp_list', 30000);
+        if (!Array.isArray(res)) return [];
+        return res.map(r => r.address).filter(Boolean);
+    } catch (e) {
+        console.error('[MikroTikService] Failed to get ARP list:', e);
+        return [];
+    }
+}
+
 export type PppoeActiveConnection = {
     '.id': string; name: string; service: string; callerId?: string; address: string; uptime: string; 'caller-id'?: string;
 };
