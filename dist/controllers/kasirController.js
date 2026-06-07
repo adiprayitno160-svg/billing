@@ -262,7 +262,7 @@ class KasirController {
                          AND pv.confidence_score >= 80) > 0 as ai_verified
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
-                    WHERE (SELECT COUNT(*) FROM invoices 
+                    WHERE c.status = 'active' AND (SELECT COUNT(*) FROM invoices 
                            WHERE customer_id = c.id 
                            AND status IN ('sent', 'overdue')
                 `;
@@ -327,7 +327,7 @@ class KasirController {
                          AND status IN ('sent', 'overdue')) as pending_periods
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
-                    WHERE (c.customer_code LIKE ? 
+                    WHERE c.status = 'active' AND (c.customer_code LIKE ? 
                        OR c.name LIKE ? 
                        OR c.phone LIKE ?
                        OR c.pppoe_username LIKE ?)
@@ -1478,7 +1478,7 @@ class KasirController {
                 try {
                     const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../services/notification/UnifiedNotificationService')));
                     // We send PDF receipts for the payment
-                    await UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true);
+                    await UnifiedNotificationService.notifyPaymentReceived(firstPaymentId, true, true);
                     console.log(`[KasirController] ✅ Payment receipt PDF sent to customer ${customerId}`);
                 }
                 catch (pdfErr) {
@@ -1605,7 +1605,7 @@ class KasirController {
             }
             else if (paymentId) {
                 // For full/partial payment, use the centralized method which handles PDF generation
-                await UnifiedNotificationService.notifyPaymentReceived(paymentId);
+                await UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true);
             }
             console.log(`[KasirController] ✅ Payment notification processed successfully`);
             // Try to process queue immediately (non-blocking)
@@ -1994,7 +1994,7 @@ class KasirController {
             if (paymentId) {
                 try {
                     const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../services/notification/UnifiedNotificationService')));
-                    UnifiedNotificationService.notifyPaymentReceived(paymentId).catch(e => console.error('Background notification error in kasir verification:', e));
+                    UnifiedNotificationService.notifyPaymentReceived(paymentId, true, true).catch(e => console.error('Background notification error in kasir verification:', e));
                 }
                 catch (e) {
                     console.warn('Failed to initiate unified notification in kasir:', e);
@@ -2099,7 +2099,7 @@ class KasirController {
                 return;
             }
             const { UnifiedNotificationService } = await Promise.resolve().then(() => __importStar(require('../services/notification/UnifiedNotificationService')));
-            await UnifiedNotificationService.notifyPaymentReceived(parseInt(paymentId));
+            await UnifiedNotificationService.notifyPaymentReceived(parseInt(paymentId), true, true);
             // Try to process queue immediately
             try {
                 const result = await UnifiedNotificationService.sendPendingNotifications(5);

@@ -120,7 +120,7 @@ router.get('/rekap/unpaid', async (req, res) => {
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
-                WHERE i.status IN ('unpaid', 'sent', 'partial', 'overdue')
+                WHERE i.status IN ('unpaid', 'sent', 'partial', 'overdue') AND c.status = 'active'
             `;
             const params: any[] = [];
             if (period) { query += " AND i.period = ?"; params.push(period); }
@@ -151,7 +151,7 @@ router.get('/rekap/tunggakan', async (req, res) => {
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
                 WHERE (i.status IN ('overdue', 'hutang') OR (i.status IN ('unpaid', 'sent', 'partial') AND i.due_date < CURDATE()))
-                  AND c.status != 'deleted'
+                  AND c.status = 'active'
             `;
             const params: any[] = [];
             
@@ -267,7 +267,7 @@ router.post('/tagihan/bulk-reminder', async (req, res) => {
                 `SELECT i.*, c.name, c.phone 
                  FROM invoices i 
                  JOIN customers c ON i.customer_id = c.id 
-                 WHERE i.id IN (?) AND i.status IN ('unpaid', 'partial', 'sent', 'overdue') AND i.period = DATE_FORMAT(CURDATE(), '%Y-%m')`,
+                  WHERE i.id IN (?) AND i.status IN ('unpaid', 'partial', 'sent', 'overdue') AND i.period = DATE_FORMAT(CURDATE(), '%Y-%m') AND c.status = 'active'`,
                 [invoiceIds]
             ) as any;
 
@@ -354,6 +354,7 @@ router.get('/tagihan/print-no-odc', async (req, res) => {
                 FROM invoices i
                 INNER JOIN customers c ON i.customer_id = c.id
                 WHERE (c.odc_id IS NULL OR c.odc_id = 0)
+                AND c.status = 'active'
                 AND i.status IN ('sent', 'partial', 'overdue')
                 AND i.id = (SELECT id FROM invoices WHERE customer_id = i.customer_id AND status IN ('sent', 'partial', 'overdue') ORDER BY period DESC, created_at DESC LIMIT 1)
             `;
@@ -472,6 +473,7 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                 FROM invoices i
                 INNER JOIN customers c ON i.customer_id = c.id
                 WHERE c.odc_id = ?
+                AND c.status = 'active'
                 AND i.status IN ('sent', 'partial', 'overdue')
                 AND i.id = (SELECT id FROM invoices WHERE customer_id = i.customer_id AND status IN ('sent', 'partial', 'overdue') ORDER BY period DESC, created_at DESC LIMIT 1)
             `;
@@ -575,7 +577,7 @@ router.get('/tagihan/print-all', async (req, res) => {
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
-                WHERE 1=1 AND (c.exclude_from_print = 0 OR c.exclude_from_print IS NULL)
+                WHERE 1=1 AND c.status = 'active' AND (c.exclude_from_print = 0 OR c.exclude_from_print IS NULL)
             `;
 
 
@@ -711,7 +713,7 @@ router.get('/tagihan/print-bulk-thermal', async (req, res) => {
                     (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
-                WHERE i.id IN (?)`,
+                WHERE i.id IN (?) AND c.status = 'active'`,
                 [invoiceIds]
             ) as any;
 
@@ -785,7 +787,7 @@ router.get('/tagihan/export/pdf', async (req, res) => {
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
-                WHERE 1=1
+                WHERE 1=1 AND c.status = 'active'
             `;
 
             const queryParams: any[] = [];

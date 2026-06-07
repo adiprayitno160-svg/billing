@@ -64,6 +64,10 @@ class InvoiceController {
                 // Default: Hide 'paid' AND 'hutang' invoices as per user request to keep view clean, UNLESS searching
                 whereConditions.push("i.status NOT IN ('paid', 'hutang')");
             }
+            // Hide invoices of inactive customers by default unless searching
+            if (!search) {
+                whereConditions.push("c.status = 'active'");
+            }
             if (period) {
                 whereConditions.push('i.period = ?');
                 queryParams.push(period);
@@ -867,7 +871,7 @@ class InvoiceController {
                 `, [id]);
                 if (paymentRows.length > 0) {
                     // Use false to avoid fire-and-forget, we want to wait manually
-                    notificationIds = await UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id, false);
+                    notificationIds = await UnifiedNotificationService.notifyPaymentReceived(paymentRows[0].id, false, true);
                 }
                 else {
                     notificationIds = await UnifiedNotificationService.notifyInvoiceCreated(parseInt(id), false);

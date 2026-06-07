@@ -262,7 +262,7 @@ export class KasirController {
                          AND pv.confidence_score >= 80) > 0 as ai_verified
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
-                    WHERE (SELECT COUNT(*) FROM invoices 
+                    WHERE c.status = 'active' AND (SELECT COUNT(*) FROM invoices 
                            WHERE customer_id = c.id 
                            AND status IN ('sent', 'overdue')
                 `;
@@ -334,7 +334,7 @@ export class KasirController {
                          AND status IN ('sent', 'overdue')) as pending_periods
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
-                    WHERE (c.customer_code LIKE ? 
+                    WHERE c.status = 'active' AND (c.customer_code LIKE ? 
                        OR c.name LIKE ? 
                        OR c.phone LIKE ?
                        OR c.pppoe_username LIKE ?)

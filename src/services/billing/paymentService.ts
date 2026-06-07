@@ -120,6 +120,9 @@ export class PaymentService {
 
         await connection.execute(updateQuery, [totalPaid, remainingAmount, newStatus, newStatus, invoiceId]);
 
+        // Call the adjustment for carried over invoices!
+        await this.adjustCarriedOverInvoicesAfterPayment(invoiceId, connection);
+
         // Handle Overpayment (Excess balance)
         if (totalPaid > totalAmount) {
             const excess = totalPaid - totalAmount;
@@ -435,6 +438,108 @@ export class PaymentService {
         } catch (error) {
             console.error('[PaymentService] Error in trackLatePayment:', error);
             // Don't throw - this is non-critical
+        }
+    }
+
+    /**
+     * If an invoice is paid (fully or partially), check if there is a newer invoice
+     * that carried over this invoice's debt. If so, deduct the paid amount from the newer invoice's
+     * carry-over items and total/remaining amounts.
+     */
+    static async adjustCarriedOverInvoicesAfterPayment(invoiceId: number, connection: PoolConnection | Pool): Promise<void> {
+        try {
+            // 1. Get the invoice details of the invoice that was paid
+            const [invoiceRows] = await connection.execute(
+                "SELECT customer_id, period, paid_amount, total_amount, remaining_amount, status FROM invoices WHERE id = ?",
+                [invoiceId]
+            );
+            const paidInvoice = (invoiceRows as any[])[0];
+            if (!paidInvoice) return;
+
+            const paidAmountVal = parseFloat(paidInvoice.paid_amount || 0);
+            if (paidAmountVal <= 0) return;
+
+            // 2. Get the month name for the paid invoice period
+            const monthName = paidInvoice.period; // e.g. "2026-05"
+            // Let's get the Indonesian month name to match description in items
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            const [year, month] = monthName.split('-');
+            const monthIndex = parseInt(month, 10) - 1;
+            const indonesianMonthName = `${months[monthIndex]} ${year}`; // e.g. "Mei 2026"
+
+            // Look for newer invoices of the same customer that carry over this invoice's period.
+            // A carry-over item has a description containing "Tunggakan Tagihan Bulan [Mei 2026]" or "Kekurangan Tagihan Bulan [Mei 2026]".
+            const searchPattern1 = `%Tunggakan Tagihan Bulan ${indonesianMonthName}%`;
+            const searchPattern2 = `%Kekurangan Tagihan Bulan ${indonesianMonthName}%`;
+
+            const [itemsRows] = await connection.execute(
+                `SELECT ii.id, ii.invoice_id, ii.total_price, i.total_amount, i.remaining_amount, i.status
+                 FROM invoice_items ii
+                 JOIN invoices i ON ii.invoice_id = i.id
+                 WHERE i.customer_id = ?
+                 AND i.period > ?
+                 AND i.status != 'paid'
+                 AND (ii.description LIKE ? OR ii.description LIKE ? OR ii.description LIKE ?)`,
+                [paidInvoice.customer_id, paidInvoice.period, searchPattern1, searchPattern2, `%${paidInvoice.period}%`]
+            );
+
+            const carryOverItems = itemsRows as any[];
+            if (carryOverItems.length === 0) return;
+
+            console.log(`[PaymentService] Found ${carryOverItems.length} newer invoice item(s) carrying over period ${paidInvoice.period} for customer ${paidInvoice.customer_id}`);
+
+            for (const item of carryOverItems) {
+                // The carry-over item should have unit_price/total_price set exactly equal to paidInvoice.remaining_amount!
+                const newPrice = parseFloat(paidInvoice.remaining_amount || 0);
+                const oldPrice = parseFloat(item.total_price || 0);
+                const difference = oldPrice - newPrice;
+
+                if (difference <= 0) continue; // No deduction needed
+
+                console.log(`[PaymentService] Adjusting carry-over item ${item.id} from ${oldPrice} to ${newPrice} (diff: ${difference})`);
+
+                // Update the invoice item unit_price and total_price
+                await connection.execute(
+                    "UPDATE invoice_items SET unit_price = ?, total_price = ? WHERE id = ?",
+                    [newPrice, newPrice, item.id]
+                );
+
+                // Update the parent invoice's total_amount and remaining_amount
+                const currentTotalAmount = parseFloat(item.total_amount || 0);
+                const currentRemainingAmount = parseFloat(item.remaining_amount || 0);
+
+                const newTotalAmount = Math.max(0, currentTotalAmount - difference);
+                const newRemainingAmount = Math.max(0, currentRemainingAmount - difference);
+
+                // Determine new status for the parent invoice
+                const [parentPayments] = await connection.execute(
+                    "SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE invoice_id = ?",
+                    [item.invoice_id]
+                );
+                const parentTotalPaid = parseFloat((parentPayments as any[])[0].total_paid || 0);
+
+                let parentStatus = item.status || 'sent';
+                if (parentTotalPaid >= newTotalAmount) {
+                    parentStatus = 'paid';
+                } else if (parentTotalPaid > 0) {
+                    parentStatus = 'partial';
+                }
+
+                await connection.execute(
+                    `UPDATE invoices 
+                     SET total_amount = ?, 
+                         remaining_amount = ?, 
+                         status = ?, 
+                         updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = ?`,
+                    [newTotalAmount, newRemainingAmount, parentStatus, item.invoice_id]
+                );
+                
+                console.log(`[PaymentService] Updated parent invoice ${item.invoice_id}: total_amount=${newTotalAmount}, remaining_amount=${newRemainingAmount}, status=${parentStatus}`);
+            }
+
+        } catch (e: any) {
+            console.error('[PaymentService] Error in adjustCarriedOverInvoicesAfterPayment:', e.message);
         }
     }
 }

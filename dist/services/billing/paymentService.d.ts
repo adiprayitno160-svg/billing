@@ -67,5 +67,11 @@ export declare class PaymentService {
      * Track late payment (internal helper)
      */
     private static trackLatePayment;
+    /**
+     * If an invoice is paid (fully or partially), check if there is a newer invoice
+     * that carried over this invoice's debt. If so, deduct the paid amount from the newer invoice's
+     * carry-over items and total/remaining amounts.
+     */
+    static adjustCarriedOverInvoicesAfterPayment(invoiceId: number, connection: PoolConnection | Pool): Promise<void>;
 }
 //# sourceMappingURL=paymentService.d.ts.map

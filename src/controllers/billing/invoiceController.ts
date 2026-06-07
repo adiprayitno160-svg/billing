@@ -35,6 +35,11 @@ export class InvoiceController {
                 whereConditions.push("i.status NOT IN ('paid', 'hutang')");
             }
 
+            // Hide invoices of inactive customers by default unless searching
+            if (!search) {
+                whereConditions.push("c.status = 'active'");
+            }
+
             if (period) {
                 whereConditions.push('i.period = ?');
                 queryParams.push(period);
