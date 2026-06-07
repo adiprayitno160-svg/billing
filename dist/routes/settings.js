@@ -86,7 +86,8 @@ const TelegramSettingsController_1 = require("../controllers/settings/TelegramSe
 // WhatsApp & Telegram Settings
 router.get('/whatsapp', WhatsAppSettingsController_1.WhatsAppSettingsController.showSettings);
 router.post('/telegram', TelegramSettingsController_1.TelegramSettingsController.saveSettings);
-router.post('/telegram/test-connection', TelegramSettingsController_1.TelegramSettingsController.testConnection);
+router.post('/telegram/test', TelegramSettingsController_1.TelegramSettingsController.testConnection);
+router.post('/telegram/restart', TelegramSettingsController_1.TelegramSettingsController.restartBot);
 router.get('/whatsapp/status', WhatsAppSettingsController_1.WhatsAppSettingsController.getStatus);
 router.post('/whatsapp/regenerate-qr', WhatsAppSettingsController_1.WhatsAppSettingsController.regenerateQR);
 router.post('/whatsapp/test-send', WhatsAppSettingsController_1.WhatsAppSettingsController.testSendMessage);

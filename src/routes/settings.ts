@@ -90,7 +90,8 @@ import { TelegramSettingsController } from '../controllers/settings/TelegramSett
 // WhatsApp & Telegram Settings
 router.get('/whatsapp', WhatsAppSettingsController.showSettings);
 router.post('/telegram', TelegramSettingsController.saveSettings);
-router.post('/telegram/test-connection', TelegramSettingsController.testConnection);
+router.post('/telegram/test', TelegramSettingsController.testConnection);
+router.post('/telegram/restart', TelegramSettingsController.restartBot);
 router.get('/whatsapp/status', WhatsAppSettingsController.getStatus);
 router.post('/whatsapp/regenerate-qr', WhatsAppSettingsController.regenerateQR);
 router.post('/whatsapp/test-send', WhatsAppSettingsController.testSendMessage);
