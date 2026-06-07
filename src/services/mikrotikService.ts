@@ -663,7 +663,7 @@ export async function removeActivePppConnection(cfg: MikroTikConfig, name: strin
         const res = await mikrotikPool.execute<any[]>(cfg, '/ppp/active/print', [`?name=${name}`], `active_chk:${name}`, 1000);
         if (res && res.length > 0) {
             for (const r of res) {
-                await mikrotikPool.execute(cfg, '/ppp/active/remove', [`.id=${r['.id']}`]);
+                await mikrotikPool.execute(cfg, '/ppp/active/remove', [`=.id=${r['.id']}`]);
             }
             console.log(`[MikroTik] Removed active connection for: ${name}`);
         }
