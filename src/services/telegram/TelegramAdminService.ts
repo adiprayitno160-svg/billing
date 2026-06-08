@@ -213,6 +213,12 @@ export class TelegramAdminService {
                     await this.handleToggleNotifications(chatId);
                 } else if (data.startsWith('quick_')) {
                     await this.handleQuickReply(chatId, data);
+                } else if (data.startsWith('cmd_iso_')) {
+                    const cid = parseInt(data.replace('cmd_iso_', ''));
+                    await this.processIsolirAction(chatId, cid, 'isolate');
+                } else if (data.startsWith('cmd_uniso_')) {
+                    const cid = parseInt(data.replace('cmd_uniso_', ''));
+                    await this.processIsolirAction(chatId, cid, 'restore');
                 }
 
                 await this.bot?.answerCallbackQuery(query.id);
@@ -1465,46 +1471,18 @@ export class TelegramAdminService {
     /**
      * Handle /isolir command
      */
-    private async handleIsolir(msg: TelegramBot.Message, customerIdStr: string): Promise<void> {
-        const chatId = msg.chat.id;
-        const customerId = parseInt(customerIdStr);
-
-        try {
-            const user = await this.getUser(chatId);
-            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
-                await this.sendMessage(chatId, '❌ Anda tidak memiliki akses untuk command ini.');
-                return;
-            }
-
-            if (isNaN(customerId)) {
-                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /isolir [ID_Pelanggan]');
-                return;
-            }
-
-            const { IsolationService } = await import('../billing/isolationService');
-            
-            await this.sendMessage(chatId, '⏳ Sedang memproses isolir...');
-            const result = await IsolationService.isolateCustomer({
-                customer_id: customerId,
-                action: 'isolate',
-                reason: 'Isolir manual via Telegram',
-                performed_by: 'admin'
-            });
-
-            await this.sendMessage(chatId, `✅ Berhasil mengisolir pelanggan ID ${customerId}`);
-        } catch (error: any) {
-            console.error('[TelegramAdmin] Isolir error:', error);
-            await this.sendMessage(chatId, `❌ Gagal: ${error.message}`);
-        }
+    private async handleIsolir(msg: TelegramBot.Message, searchTerm: string): Promise<void> {
+        await this.handleIsolirSearch(msg.chat.id, searchTerm, 'isolate');
     }
 
     /**
      * Handle /unisolir command
      */
-    private async handleUnisolir(msg: TelegramBot.Message, customerIdStr: string): Promise<void> {
-        const chatId = msg.chat.id;
-        const customerId = parseInt(customerIdStr);
+    private async handleUnisolir(msg: TelegramBot.Message, searchTerm: string): Promise<void> {
+        await this.handleIsolirSearch(msg.chat.id, searchTerm, 'restore');
+    }
 
+    private async handleIsolirSearch(chatId: number, searchTerm: string, action: 'isolate' | 'restore'): Promise<void> {
         try {
             const user = await this.getUser(chatId);
             if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
@@ -1512,27 +1490,98 @@ export class TelegramAdminService {
                 return;
             }
 
-            if (isNaN(customerId)) {
-                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /unisolir [ID_Pelanggan]');
+            if (!searchTerm || searchTerm.trim() === '') {
+                const cmd = action === 'isolate' ? '/nonactive' : '/active';
+                await this.sendMessage(chatId, `❌ Format salah. Gunakan: ${cmd} [Nama Pelanggan / ID]`);
                 return;
             }
 
-            const { IsolationService } = await import('../billing/isolationService');
-            
-            await this.sendMessage(chatId, '⏳ Sedang memproses un-isolir...');
-            const result = await IsolationService.isolateCustomer({
-                customer_id: customerId,
-                action: 'restore',
-                reason: 'Un-Isolir manual via Telegram',
-                performed_by: 'admin'
-            });
+            const term = searchTerm.trim();
+            const isNumeric = /^\d+$/.test(term);
+            let targetId: number | null = null;
 
-            await this.sendMessage(chatId, `✅ Berhasil membuka koneksi pelanggan ID ${customerId}`);
+            if (isNumeric) {
+                targetId = parseInt(term);
+                // Verify existence
+                const [rows] = await pool.query<RowDataPacket[]>('SELECT id FROM customers WHERE customer_id = ? OR id = ?', [targetId, targetId]);
+                if (rows.length === 0) {
+                    await this.sendMessage(chatId, `❌ Pelanggan dengan ID ${targetId} tidak ditemukan.`);
+                    return;
+                }
+                targetId = rows[0].id; // Ensure we use the internal ID for isolation service
+            } else {
+                // Search by name
+                const [customers] = await pool.query<RowDataPacket[]>(`
+                    SELECT id, name, customer_id, area 
+                    FROM customers 
+                    WHERE (name LIKE ? OR customer_id LIKE ?) AND is_deleted = 0
+                    LIMIT 10
+                `, [`%${term}%`, `%${term}%`]);
+
+                if (customers.length === 0) {
+                    await this.sendMessage(chatId, `❌ Pelanggan dengan pencarian "${term}" tidak ditemukan.`);
+                    return;
+                }
+
+                if (customers.length > 1) {
+                    const actionText = action === 'isolate' ? 'NONAKTIFKAN' : 'AKTIFKAN';
+                    const prefix = action === 'isolate' ? 'cmd_iso_' : 'cmd_uniso_';
+                    const icon = action === 'isolate' ? '❌' : '✅';
+                    
+                    let message = `🔍 Ditemukan ${customers.length} pelanggan dengan pencarian *${term}*:\nSilakan pilih mana yang ingin Anda *${actionText}*:\n\n`;
+                    const keyboard: any[] = [];
+                    
+                    customers.forEach((c: any) => {
+                        keyboard.push([{
+                            text: `${icon} ${c.name} (${c.customer_id})`,
+                            callback_data: `${prefix}${c.id}`
+                        }]);
+                    });
+                    
+                    await this.sendMessage(chatId, message, {
+                        parse_mode: 'Markdown',
+                        reply_markup: { inline_keyboard: keyboard }
+                    });
+                    return;
+                }
+
+                targetId = customers[0].id;
+            }
+
+            // Exactly 1 found, process it directly
+            await this.processIsolirAction(chatId, targetId, action);
+
         } catch (error: any) {
-            console.error('[TelegramAdmin] Unisolir error:', error);
+            console.error('[TelegramAdmin] Isolir search error:', error);
             await this.sendMessage(chatId, `❌ Gagal: ${error.message}`);
         }
     }
+
+    private async processIsolirAction(chatId: number, customerId: number, action: 'isolate' | 'restore'): Promise<void> {
+        try {
+            const { IsolationService } = await import('../billing/isolationService');
+            
+            const actionText = action === 'isolate' ? 'mengisolir' : 'membuka isolir';
+            const actionReason = action === 'isolate' ? 'Isolir manual via Telegram' : 'Un-Isolir manual via Telegram';
+            
+            await this.sendMessage(chatId, `⏳ Sedang memproses ${actionText}...`);
+            
+            const result = await IsolationService.isolateCustomer({
+                customer_id: customerId,
+                action: action,
+                reason: actionReason,
+                performed_by: 'admin'
+            });
+
+            const successText = action === 'isolate' ? 'Berhasil menonaktifkan' : 'Berhasil mengaktifkan';
+            await this.sendMessage(chatId, `✅ ${successText} koneksi pelanggan! (ID Internal: ${customerId})`);
+        } catch (error: any) {
+            console.error(`[TelegramAdmin] Process action error:`, error);
+            await this.sendMessage(chatId, `❌ Gagal memproses: ${error.message}`);
+        }
+    }
+
+    // Unisolir logic is now handled by handleIsolirSearch using action='restore'
 
     /**
      * Handle /ping command
