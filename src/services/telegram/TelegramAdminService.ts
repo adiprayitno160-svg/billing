@@ -102,8 +102,8 @@ export class TelegramAdminService {
             await this.handleRegister(msg, match?.[1] || '');
         });
 
-        // Command: /help
-        this.bot.onText(/\/help/, async (msg) => {
+        // Command: /help or /menu
+        this.bot.onText(/\/(help|menu)/, async (msg) => {
             await this.handleHelp(msg);
         });
 
