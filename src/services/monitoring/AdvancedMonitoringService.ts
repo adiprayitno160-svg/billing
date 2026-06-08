@@ -59,6 +59,7 @@ let monitoringCache: {
     customerStatusCache: Map<number, MonitoringStatus>;
     odpOfflineCustomers: Map<number, Set<number>>; // ODP ID -> Set of offline customer IDs
     odpAlertSent: Map<number, boolean>; // ODP ID -> whether mass alert has been sent
+    pppoeOfflineCandidates: Map<number, number>;
     lastRefresh: Date | null;
     refreshInterval: number; // ms
 } = {
@@ -66,6 +67,7 @@ let monitoringCache: {
     customerStatusCache: new Map(),
     odpOfflineCustomers: new Map(),
     odpAlertSent: new Map(),
+    pppoeOfflineCandidates: new Map(),
     lastRefresh: null,
     refreshInterval: 10000 // Reduced to 10s for better "Live" feel
 };
@@ -832,12 +834,26 @@ export class AdvancedMonitoringService {
                 }
 
                 const currentStatus = isOnline ? 'online' : 'offline';
-
-                // Only handle transition if status changed
                 const cached = monitoringCache.customerStatusCache.get(customer.id);
-                if (!cached || cached.status !== currentStatus) {
-                    console.log(`[AMS] PPPoE Transition detected: ${customer.name} (${customer.pppoe_username || customer.customer_code}) -> ${currentStatus}`);
-                    await this.handleStatusTransition(customer.id, 'pppoe', currentStatus);
+
+                if (isOnline) {
+                    if (monitoringCache.pppoeOfflineCandidates.has(customer.id)) {
+                        monitoringCache.pppoeOfflineCandidates.delete(customer.id);
+                    }
+                    if (!cached || cached.status !== 'online') {
+                        console.log(`[AMS] PPPoE Transition detected: ${customer.name} (${customer.pppoe_username || customer.customer_code}) -> online`);
+                        await this.handleStatusTransition(customer.id, 'pppoe', 'online');
+                    }
+                } else {
+                    if (!cached || cached.status !== 'offline') {
+                        const currentCount = monitoringCache.pppoeOfflineCandidates.get(customer.id) || 0;
+                        if (currentCount >= 6) {
+                            console.log(`[AMS] PPPoE Transition detected: ${customer.name} (${customer.pppoe_username || customer.customer_code}) -> offline (Grace period exceeded)`);
+                            await this.handleStatusTransition(customer.id, 'pppoe', 'offline');
+                        } else {
+                            monitoringCache.pppoeOfflineCandidates.set(customer.id, currentCount + 1);
+                        }
+                    }
                 }
             }
         } catch (error) {
