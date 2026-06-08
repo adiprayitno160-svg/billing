@@ -6,12 +6,14 @@ ssh.connect({ host: '192.168.239.154', username: 'adi', password: 'adi' })
         const cmd = `node -e "
         require('dotenv').config();
         const { databasePool } = require('./dist/db/pool');
-        const { NetworkMonitoringService } = require('./dist/services/monitoring/NetworkMonitoringService');
         
         async function run() {
             try {
-                const customers = await NetworkMonitoringService.getTroubleCustomers(false);
-                console.log(JSON.stringify(customers, null, 2));
+                const [cols1] = await databasePool.query('DESCRIBE sla_incidents');
+                console.log('sla_incidents:', cols1.map(c => c.Field).join(', '));
+                
+                const [cols2] = await databasePool.query('DESCRIBE tickets');
+                console.log('tickets:', cols2.map(c => c.Field).join(', '));
             } catch(e) {
                 console.error(e);
             } finally {
@@ -24,7 +26,6 @@ ssh.connect({ host: '192.168.239.154', username: 'adi', password: 'adi' })
     })
     .then(result => {
         console.log('STDOUT:\n' + result.stdout);
-        console.log('STDERR:\n' + result.stderr);
         process.exit(0);
     })
     .catch(console.error);

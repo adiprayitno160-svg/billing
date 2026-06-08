@@ -1126,6 +1126,7 @@ export class NetworkMonitoringService {
 
             // Check if issue_type column exists in maintenance_schedules
             let hasIssueType = false;
+            let hasMaintenanceCustomerId = false;
             if (hasMaintenance) {
                 try {
                     const [cols] = await databasePool.query(
@@ -1134,6 +1135,14 @@ export class NetworkMonitoringService {
                     hasIssueType = Array.isArray(cols) && cols.length > 0;
                 } catch {
                     hasIssueType = false;
+                }
+                try {
+                    const [cols] = await databasePool.query(
+                        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintenance_schedules' AND COLUMN_NAME = 'customer_id'"
+                    ) as any[];
+                    hasMaintenanceCustomerId = Array.isArray(cols) && cols.length > 0;
+                } catch {
+                    hasMaintenanceCustomerId = false;
                 }
             }
 
@@ -1144,6 +1153,10 @@ export class NetworkMonitoringService {
             // 1. Customers with maintenance schedules
             if (hasMaintenance) {
                 const issueTypeColumn = hasIssueType ? "COALESCE(m.issue_type, 'Maintenance')" : "'Maintenance'";
+                const maintenanceJoin = hasMaintenanceCustomerId 
+                    ? "ON c.id = m.customer_id" 
+                    : "ON JSON_CONTAINS(COALESCE(m.affected_customers, '[]'), CAST(c.id AS CHAR), '$')";
+                    
                 queries.push(`
                     SELECT DISTINCT
                         c.id, c.name, c.customer_code, c.pppoe_username, c.status, c.connection_type,
@@ -1153,7 +1166,7 @@ export class NetworkMonitoringService {
                         m.created_at as trouble_since,
                         'maintenance' as trouble_type
                     FROM customers c
-                    INNER JOIN maintenance_schedules m ON c.id = m.customer_id 
+                    INNER JOIN maintenance_schedules m ${maintenanceJoin}
                     WHERE m.status IN ('scheduled', 'in_progress')
                         AND c.status = 'active'
                         ${isolatedFilter}
