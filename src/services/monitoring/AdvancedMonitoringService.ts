@@ -577,16 +577,28 @@ export class AdvancedMonitoringService {
                     arpList = await getArpList(mikrotikConfig);
                 }
                 const activeIPs = new Set(arpList);
+                
+                // Get MikrotikService for verification
+                const { MikrotikService } = await import('../mikrotik/MikrotikService');
+                const mkService = await MikrotikService.getInstance();
 
                 // Update database
-                // Verify offline candidates with DB instead of PingService
-                // PingService (runs every 10m) is authoritative for offline status.
-                // ARP (runs every 30s) is authoritative for instant online detection.
                 for (const customer of staticIPCustomers) {
                     let status = 'offline';
 
                     if (activeIPs.has(customer.static_ip)) {
-                        status = 'online'; // ARP detected traffic -> definitely online
+                        // ARP detected traffic. But ARP can be stale!
+                        // If DB says offline, we MUST verify with ping to avoid false recoveries
+                        if (customer.db_status === 'offline') {
+                            const pingSuccess = await mkService.ping(customer.static_ip);
+                            status = pingSuccess ? 'online' : 'offline';
+                            if (!pingSuccess) {
+                                console.log(`[AMS] Prevented false recovery for ${customer.static_ip}: ARP exists but Ping failed.`);
+                            }
+                        } else {
+                            // If they were already online, trust ARP to keep them online
+                            status = 'online'; 
+                        }
                     } else {
                         // Fallback to PingService's last known status in DB
                         // This prevents flip-flops if ARP cache expires or API fails
@@ -608,7 +620,6 @@ export class AdvancedMonitoringService {
                     `, [customer.id, customer.static_ip, status, status, status, status, status]);
 
                     // Centralized status management
-                    // checking previous status logic is handled inside handleStatusTransition
                     await this.handleStatusTransition(customer.id, 'static_ip', status);
                 }
                 result.static_ip_checked = staticIPCustomers.length;

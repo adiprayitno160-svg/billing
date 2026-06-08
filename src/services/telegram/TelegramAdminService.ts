@@ -153,18 +153,23 @@ export class TelegramAdminService {
         });
 
         // Command: /isolir
-        this.bot.onText(/\/isolir (.+)/, async (msg, match) => {
-            await this.handleIsolir(msg, match?.[1] || '');
+        this.bot.onText(/\/(isolir|nonactive) (.+)/, async (msg, match) => {
+            await this.handleIsolir(msg, match?.[2] || '');
         });
 
         // Command: /unisolir
-        this.bot.onText(/\/unisolir (.+)/, async (msg, match) => {
-            await this.handleUnisolir(msg, match?.[1] || '');
+        this.bot.onText(/\/(unisolir|active) (.+)/, async (msg, match) => {
+            await this.handleUnisolir(msg, match?.[2] || '');
         });
 
         // Command: /ping
         this.bot.onText(/\/ping (.+)/, async (msg, match) => {
             await this.handlePing(msg, match?.[1] || '');
+        });
+
+        // Command: /clear
+        this.bot.onText(/\/clear/, async (msg) => {
+            await this.handleClear(msg);
         });
 
         // Command: /bayarlunas
@@ -1333,7 +1338,36 @@ export class TelegramAdminService {
     }
 
     /**
-     * Send downtime alert to teknisi
+     * Handle /clear command
+     */
+    private async handleClear(msg: TelegramBot.Message): Promise<void> {
+        const chatId = msg.chat.id;
+        
+        try {
+            const user = await this.getUser(chatId);
+            if (!user) {
+                await this.sendMessage(chatId, '❌ Anda belum terdaftar.');
+                return;
+            }
+
+            const message = 
+                `🧹 *Hapus Pesan Bot*\n\n` +
+                `Karena keterbatasan sistem Telegram, bot tidak bisa menghapus pesan lama secara otomatis.\n\n` +
+                `Untuk membersihkan chat dari notifikasi lama:\n` +
+                `1. Tekan tombol titik tiga (⋮) di pojok kanan atas chat ini\n` +
+                `2. Pilih *"Clear History"* atau *"Bersihkan Riwayat"*\n` +
+                `3. Centang pilihan *"Delete for Bot"* (jika ada)\n` +
+                `4. Tekan *"Clear History"*\n\n` +
+                `Ini akan mengosongkan semua pesan bot sehingga chat terlihat bersih kembali.`;
+                
+            await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('[TelegramAdmin] Clear command error:', error);
+        }
+    }
+
+    /**
+     * Cek koneksi manual (Ping dari router mikrotik)
      */
     async sendDowntimeAlert(incident: {
         incident_id: number;
