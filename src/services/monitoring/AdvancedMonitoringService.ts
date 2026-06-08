@@ -558,8 +558,10 @@ export class AdvancedMonitoringService {
                 SELECT 
                     c.id,
                     c.static_ip,
-                    c.is_isolated
+                    c.is_isolated,
+                    s.status as db_status
                 FROM customers c
+                LEFT JOIN static_ip_ping_status s ON c.id = s.customer_id
                 WHERE c.connection_type = 'static_ip'
                     AND c.status = 'active'
                     AND c.static_ip IS NOT NULL
@@ -577,32 +579,19 @@ export class AdvancedMonitoringService {
                 const activeIPs = new Set(arpList);
 
                 // Update database
-                const offlineCandidates = [];
-                const finalStatus = new Map<number, string>();
-
+                // Verify offline candidates with DB instead of PingService
+                // PingService (runs every 10m) is authoritative for offline status.
+                // ARP (runs every 30s) is authoritative for instant online detection.
                 for (const customer of staticIPCustomers) {
+                    let status = 'offline';
+
                     if (activeIPs.has(customer.static_ip)) {
-                        finalStatus.set(customer.id, 'online');
+                        status = 'online'; // ARP detected traffic -> definitely online
                     } else {
-                        offlineCandidates.push(customer);
+                        // Fallback to PingService's last known status in DB
+                        // This prevents flip-flops if ARP cache expires or API fails
+                        status = customer.db_status || 'offline';
                     }
-                }
-
-                // Verify offline candidates with ping to prevent false offline from expired ARP cache
-                if (offlineCandidates.length > 0) {
-                    const ipsToPing = offlineCandidates.map(c => c.static_ip);
-                    const pingResults = await this.batchPingStaticIPs(ipsToPing);
-                    for (const customer of offlineCandidates) {
-                        if (pingResults.get(customer.static_ip)) {
-                            finalStatus.set(customer.id, 'online');
-                        } else {
-                            finalStatus.set(customer.id, 'offline');
-                        }
-                    }
-                }
-
-                for (const customer of staticIPCustomers) {
-                    const status = finalStatus.get(customer.id) || 'offline';
 
                     await databasePool.query(`
                         INSERT INTO static_ip_ping_status (customer_id, ip_address, status, last_check, last_online_at, last_offline_at)
