@@ -1837,9 +1837,21 @@ export class TelegramAdminService {
         if (rows.length === 0) return null;
 
         const user = rows[0] as any;
+        
+        let parsedAreaCoverage = [];
+        if (typeof user.area_coverage === 'string') {
+            try {
+                parsedAreaCoverage = JSON.parse(user.area_coverage || '[]');
+            } catch (e) {
+                parsedAreaCoverage = [];
+            }
+        } else if (Array.isArray(user.area_coverage)) {
+            parsedAreaCoverage = user.area_coverage;
+        }
+
         return {
             ...user,
-            area_coverage: JSON.parse(user.area_coverage || '[]')
+            area_coverage: parsedAreaCoverage
         };
     }
 
