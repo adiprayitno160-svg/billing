@@ -60,6 +60,7 @@ let monitoringCache: {
     odpOfflineCustomers: Map<number, Set<number>>; // ODP ID -> Set of offline customer IDs
     odpAlertSent: Map<number, boolean>; // ODP ID -> whether mass alert has been sent
     pppoeOfflineCandidates: Map<number, number>;
+    staticIpOfflineCandidates: Map<number, number>;
     lastRefresh: Date | null;
     refreshInterval: number; // ms
 } = {
@@ -68,6 +69,7 @@ let monitoringCache: {
     odpOfflineCustomers: new Map(),
     odpAlertSent: new Map(),
     pppoeOfflineCandidates: new Map(),
+    staticIpOfflineCandidates: new Map(),
     lastRefresh: null,
     refreshInterval: 10000 // Reduced to 10s for better "Live" feel
 };
@@ -621,8 +623,26 @@ export class AdvancedMonitoringService {
                             last_offline_at = CASE WHEN ? = 'offline' AND status != 'offline' THEN NOW() ELSE last_offline_at END
                     `, [customer.id, customer.static_ip, status, status, status, status, status]);
 
-                    // Centralized status management
-                    await this.handleStatusTransition(customer.id, 'static_ip', status);
+                    // Centralized status management with grace period
+                    const cached = monitoringCache.customerStatusCache.get(customer.id);
+                    if (status === 'online') {
+                        if (monitoringCache.staticIpOfflineCandidates.has(customer.id)) {
+                            monitoringCache.staticIpOfflineCandidates.delete(customer.id);
+                        }
+                        if (!cached || cached.status !== 'online') {
+                            await this.handleStatusTransition(customer.id, 'static_ip', 'online');
+                        }
+                    } else {
+                        if (!cached || cached.status !== 'offline') {
+                            const currentCount = monitoringCache.staticIpOfflineCandidates.get(customer.id) || 0;
+                            if (currentCount >= 30) { // 30 cycles * 10s = 5 minutes
+                                console.log(`[AMS] Static IP Transition detected: ${customer.static_ip} -> offline (Grace period exceeded)`);
+                                await this.handleStatusTransition(customer.id, 'static_ip', 'offline');
+                            } else {
+                                monitoringCache.staticIpOfflineCandidates.set(customer.id, currentCount + 1);
+                            }
+                        }
+                    }
                 }
                 result.static_ip_checked = staticIPCustomers.length;
             }
@@ -847,7 +867,7 @@ export class AdvancedMonitoringService {
                 } else {
                     if (!cached || cached.status !== 'offline') {
                         const currentCount = monitoringCache.pppoeOfflineCandidates.get(customer.id) || 0;
-                        if (currentCount >= 6) {
+                        if (currentCount >= 30) {
                             console.log(`[AMS] PPPoE Transition detected: ${customer.name} (${customer.pppoe_username || customer.customer_code}) -> offline (Grace period exceeded)`);
                             await this.handleStatusTransition(customer.id, 'pppoe', 'offline');
                         } else {
