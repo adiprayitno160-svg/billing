@@ -81,6 +81,22 @@ export class TelegramAdminService {
             // Log chat logs
             this.logSystemMessage('Bot started successfully');
 
+            // Register commands in Telegram UI
+            this.bot.setMyCommands([
+                { command: 'menu', description: 'Tampilkan semua opsi menu bantuan' },
+                { command: 'help', description: 'Tampilkan semua opsi bantuan' },
+                { command: 'status', description: 'Lihat ringkasan jaringan' },
+                { command: 'incidents', description: 'Lihat daftar gangguan' },
+                { command: 'mytickets', description: 'Lihat tugas saya' },
+                { command: 'customers', description: 'Cari pelanggan' },
+                { command: 'offline', description: 'Daftar pelanggan offline' },
+                { command: 'isolir', description: 'Isolir pelanggan' },
+                { command: 'unisolir', description: 'Aktifkan kembali pelanggan' },
+                { command: 'ping', description: 'Cek koneksi' },
+                { command: 'clear', description: 'Cara hapus riwayat notifikasi' }
+            ]).catch(err => console.error('Failed to set commands:', err));
+
+
         } catch (error) {
             console.error('[TelegramAdmin] ❌ Failed to initialize bot:', error);
         }
