@@ -128,13 +128,16 @@ class MikroTikPoolManager {
     }
     getFromCache(key) {
         const entry = this.cache.get(key);
-        if (entry && Date.now() - entry.timestamp < this.defaultCacheTTL)
+        if (!entry)
+            return null;
+        const entryTTL = entry.ttl || this.defaultCacheTTL;
+        if (Date.now() - entry.timestamp < entryTTL)
             return entry.data;
         this.cache.delete(key);
         return null;
     }
     setCache(key, data, ttl) {
-        this.cache.set(key, { data, timestamp: Date.now() });
+        this.cache.set(key, { data, timestamp: Date.now(), ttl });
     }
     clearCache() {
         this.cache.clear();

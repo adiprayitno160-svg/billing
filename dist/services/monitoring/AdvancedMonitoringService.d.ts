@@ -98,6 +98,10 @@ export declare class AdvancedMonitoringService {
         static_ip_statuses: number;
         last_refresh: Date | null;
     };
+    /**
+     * Get cached PPPoE sessions directly
+     */
+    static getCachedPppoeSessions(): Map<string, any>;
 }
 export default AdvancedMonitoringService;
 //# sourceMappingURL=AdvancedMonitoringService.d.ts.map

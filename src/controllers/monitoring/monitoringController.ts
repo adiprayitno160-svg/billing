@@ -235,29 +235,44 @@ export class MonitoringController {
             const [odpList] = await databasePool.query('SELECT id, name FROM ftth_odp ORDER BY name') as [RowDataPacket[], any];
             console.log(`Found ${odpList.length} ODP entries`);
 
-            // Get online sessions from MikroTik
-            let onlineSessions: any[] = [];
-            try {
-                console.log('Fetching MikroTik config...');
-                const mikrotikConfig = await getMikrotikConfig();
-                if (mikrotikConfig) {
-                    console.log('MikroTik config found, fetching active connections...');
-                    onlineSessions = await getPppoeActiveConnections(mikrotikConfig);
-                    console.log(`Found ${onlineSessions.length} active sessions`);
-                } else {
-                    console.log('⚠️  MikroTik config not found, skipping session check');
-                }
-            } catch (error: any) {
-                console.error('Error fetching active sessions:', error instanceof Error ? error.message : String(error));
-            }
+            // Get online sessions from AdvancedMonitoringService cache instead of direct MikroTik call
+            const { AdvancedMonitoringService } = await import('../../services/monitoring/AdvancedMonitoringService');
+            
+            // Ensure cache is fresh enough, though background loop usually handles this
+            await AdvancedMonitoringService.refreshCacheIfNeeded();
+            const cachedSessions = AdvancedMonitoringService.getCachedPppoeSessions();
 
-            // Merge online status
+            // Merge online status (Case Insensitive like AMS)
             console.log('Merging online status with customers...');
-            let customersWithStatus = customers.map(customer => ({
-                ...customer,
-                is_online: onlineSessions.some(session => session.name === customer.pppoe_username),
-                session_info: onlineSessions.find(session => session.name === customer.pppoe_username) || null
-            }));
+            let customersWithStatus = customers.map(customer => {
+                let sessionInfo = null;
+                let isOnline = false;
+                
+                const identifiers = [customer.pppoe_username, customer.customer_code].filter(Boolean);
+                for (const identifier of identifiers) {
+                    if (isOnline) break;
+                    const searchTarget = identifier.toLowerCase();
+                    if (cachedSessions.has(identifier)) {
+                        isOnline = true;
+                        sessionInfo = cachedSessions.get(identifier);
+                    } else {
+                        // Case insensitive search
+                        for (const [name, session] of cachedSessions.entries()) {
+                            if (name.toLowerCase() === searchTarget) {
+                                isOnline = true;
+                                sessionInfo = session;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                return {
+                    ...customer,
+                    is_online: isOnline,
+                    session_info: sessionInfo
+                };
+            });
 
             // Apply status filter if provided
             if (statusFilter === 'online') {
@@ -282,11 +297,11 @@ export class MonitoringController {
                 total_secret: globalStats[0].total || 0,
                 active_db: globalStats[0].active_db || 0,
                 isolated: globalStats[0].isolated || 0,
-                realtime_online: onlineSessions.length, // Raw count from MikroTik
+                realtime_online: cachedSessions.size, // Count from AMS Cache
                 // Trouble indication: Active in DB but not Online
                 // Note: This is an estimation. Exact match requires checking all rows.
                 // We use (Active DB - Realtime) as a rough indicator, or just show Realtime
-                trouble_estimation: Math.max(0, (globalStats[0].active_db || 0) - onlineSessions.length)
+                trouble_estimation: Math.max(0, (globalStats[0].active_db || 0) - cachedSessions.size)
             };
 
             console.log('Rendering view with stats:', stats);

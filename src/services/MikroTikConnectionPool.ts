@@ -17,6 +17,7 @@ export type MikroTikConfig = {
 interface CacheEntry {
     data: any;
     timestamp: number;
+    ttl?: number;
 }
 
 class MikroTikConnection {
@@ -155,13 +156,15 @@ class MikroTikPoolManager {
 
     private getFromCache(key: string): any | null {
         const entry = this.cache.get(key);
-        if (entry && Date.now() - entry.timestamp < this.defaultCacheTTL) return entry.data;
+        if (!entry) return null;
+        const entryTTL = entry.ttl || this.defaultCacheTTL;
+        if (Date.now() - entry.timestamp < entryTTL) return entry.data;
         this.cache.delete(key);
         return null;
     }
 
     private setCache(key: string, data: any, ttl?: number): void {
-        this.cache.set(key, { data, timestamp: Date.now() });
+        this.cache.set(key, { data, timestamp: Date.now(), ttl });
     }
 
     public clearCache(): void {

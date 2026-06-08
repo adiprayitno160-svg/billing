@@ -250,7 +250,7 @@ export async function getInterfaceTraffic(cfg: MikroTikConfig, interfaceName: st
 
 export async function getArpList(cfg: MikroTikConfig): Promise<string[]> {
     try {
-        const res = await mikrotikPool.execute<any[]>(cfg, '/ip/arp/print', [], 'arp_list', 30000);
+        const res = await mikrotikPool.execute<any[]>(cfg, '/ip/arp/print', [], 'arp_list', 5000);
         if (!Array.isArray(res)) return [];
         return res.map(r => r.address).filter(Boolean);
     } catch (e) {
@@ -264,7 +264,7 @@ export type PppoeActiveConnection = {
 };
 
 export async function getPppoeActiveConnections(cfg: MikroTikConfig): Promise<PppoeActiveConnection[]> {
-    const res = await mikrotikPool.execute<PppoeActiveConnection[]>(cfg, '/ppp/active/print', [], 'active_connections', 60000);
+    const res = await mikrotikPool.execute<PppoeActiveConnection[]>(cfg, '/ppp/active/print', [], 'active_connections', 5000);
     return Array.isArray(res) ? res : [];
 }
 

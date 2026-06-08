@@ -22,7 +22,7 @@ const execAsync = (0, util_1.promisify)(child_process_1.exec);
 // Cache for monitoring data
 let monitoringCache = {
     pppoeOnlineSessions: new Map(),
-    staticIPStatus: new Map(),
+    customerStatusCache: new Map(),
     odpOfflineCustomers: new Map(),
     odpAlertSent: new Map(),
     lastRefresh: null,
@@ -113,13 +113,14 @@ class AdvancedMonitoringService {
                         status = 'online';
                     }
                     else {
-                        // Fallback to database status if cache missed (e.g. on web worker instances in PM2 cluster)
-                        status = (dbOffline?.status === 'online') ? 'online' : 'offline';
+                        // Jika tidak ada di active sessions = OFFLINE (untuk PPPoE)
+                        // Jangan fallback ke DB karena DB bisa stale
+                        status = 'offline';
                     }
                 }
                 else if (customer.connection_type === 'static_ip') {
                     // Check Static IP status from cache
-                    const cachedStatus = monitoringCache.staticIPStatus.get(customer.id);
+                    const cachedStatus = monitoringCache.customerStatusCache.get(customer.id);
                     status = cachedStatus?.status || dbOffline?.status || 'unknown';
                     if (cachedStatus)
                         lastCheck = cachedStatus.last_check;
@@ -251,7 +252,7 @@ class AdvancedMonitoringService {
                 }
                 else if (customer.connection_type === 'static_ip') {
                     // Check Static IP status
-                    const cachedStatus = monitoringCache.staticIPStatus.get(customer.id);
+                    const cachedStatus = monitoringCache.customerStatusCache.get(customer.id);
                     if (cachedStatus?.status === 'offline') {
                         isOffline = true;
                         offlineSince = customer.static_ip_offline_since;
@@ -322,11 +323,14 @@ class AdvancedMonitoringService {
             if (mikrotikConfig) {
                 try {
                     const sessions = await (0, mikrotikService_1.getPppoeActiveConnections)(mikrotikConfig);
-                    monitoringCache.pppoeOnlineSessions.clear();
-                    sessions.forEach((session) => {
-                        monitoringCache.pppoeOnlineSessions.set(session.name, session);
-                    });
-                    console.log(`[AdvancedMonitoringService] Cached ${sessions.length} PPPoE sessions`);
+                    if (Array.isArray(sessions)) {
+                        const newSessions = new Map();
+                        sessions.forEach((session) => {
+                            newSessions.set(session.name, session);
+                        });
+                        monitoringCache.pppoeOnlineSessions = newSessions; // Atomic swap
+                        console.log(`[AdvancedMonitoringService] Cached ${sessions.length} PPPoE sessions`);
+                    }
                 }
                 catch (e) {
                     console.error('[AdvancedMonitoringService] Failed to get PPPoE sessions in refreshCache:', e);
@@ -335,7 +339,7 @@ class AdvancedMonitoringService {
                 }
             }
             // Refresh Static IP status from database
-            const [staticIPStatus] = await pool_1.databasePool.query(`
+            const [customerStatusCache] = await pool_1.databasePool.query(`
                 SELECT 
                     customer_id,
                     status,
@@ -344,15 +348,15 @@ class AdvancedMonitoringService {
                 FROM static_ip_ping_status
             `);
             // Instead of clearing, we update the existing map to preserve history for transition detection
-            staticIPStatus.forEach((status) => {
-                monitoringCache.staticIPStatus.set(status.customer_id, {
+            customerStatusCache.forEach((status) => {
+                monitoringCache.customerStatusCache.set(status.customer_id, {
                     customer_id: status.customer_id,
                     status: status.status || 'unknown',
                     last_check: status.last_check,
                     response_time_ms: status.response_time_ms
                 });
             });
-            console.log(`[AdvancedMonitoringService] Updated ${staticIPStatus.length} Static IP statuses in cache`);
+            console.log(`[AdvancedMonitoringService] Updated ${customerStatusCache.length} Static IP statuses in cache`);
             monitoringCache.lastRefresh = new Date();
         }
         catch (error) {
@@ -415,14 +419,14 @@ class AdvancedMonitoringService {
         };
         try {
             // First Priority: Initialize cache from DB if empty to prevent false notifications on restart
-            if (monitoringCache.staticIPStatus.size === 0) {
+            if (monitoringCache.customerStatusCache.size === 0) {
                 console.log('[AMS] Initializing cache from database...');
                 const [dbStatuses] = await pool_1.databasePool.query(`
                     SELECT customer_id, status, last_check, response_time_ms 
                     FROM static_ip_ping_status
                 `);
                 dbStatuses.forEach((s) => {
-                    monitoringCache.staticIPStatus.set(s.customer_id, {
+                    monitoringCache.customerStatusCache.set(s.customer_id, {
                         customer_id: s.customer_id,
                         status: s.status || 'unknown',
                         last_check: s.last_check,
@@ -435,11 +439,12 @@ class AdvancedMonitoringService {
             if (mikrotikConfig) {
                 try {
                     const sessions = await (0, mikrotikService_1.getPppoeActiveConnections)(mikrotikConfig);
-                    monitoringCache.pppoeOnlineSessions.clear();
                     if (Array.isArray(sessions)) {
+                        const newSessions = new Map();
                         sessions.forEach((session) => {
-                            monitoringCache.pppoeOnlineSessions.set(session.name, session);
+                            newSessions.set(session.name, session);
                         });
+                        monitoringCache.pppoeOnlineSessions = newSessions; // Atomic swap
                         result.pppoe_checked = sessions.length;
                     }
                 }
@@ -476,9 +481,31 @@ class AdvancedMonitoringService {
                 }
                 const activeIPs = new Set(arpList);
                 // Update database
+                const offlineCandidates = [];
+                const finalStatus = new Map();
                 for (const customer of staticIPCustomers) {
-                    const isOnline = activeIPs.has(customer.static_ip);
-                    const status = isOnline ? 'online' : 'offline';
+                    if (activeIPs.has(customer.static_ip)) {
+                        finalStatus.set(customer.id, 'online');
+                    }
+                    else {
+                        offlineCandidates.push(customer);
+                    }
+                }
+                // Verify offline candidates with ping to prevent false offline from expired ARP cache
+                if (offlineCandidates.length > 0) {
+                    const ipsToPing = offlineCandidates.map(c => c.static_ip);
+                    const pingResults = await this.batchPingStaticIPs(ipsToPing);
+                    for (const customer of offlineCandidates) {
+                        if (pingResults.get(customer.static_ip)) {
+                            finalStatus.set(customer.id, 'online');
+                        }
+                        else {
+                            finalStatus.set(customer.id, 'offline');
+                        }
+                    }
+                }
+                for (const customer of staticIPCustomers) {
+                    const status = finalStatus.get(customer.id) || 'offline';
                     await pool_1.databasePool.query(`
                         INSERT INTO static_ip_ping_status (customer_id, ip_address, status, last_check, last_online_at, last_offline_at)
                         VALUES (?, ?, ?, NOW(), 
@@ -542,7 +569,7 @@ class AdvancedMonitoringService {
     static async handleStatusTransition(customerId, type, newStatus) {
         try {
             // Check previous status in cache to avoid duplicate notifications
-            const previous = monitoringCache.staticIPStatus.get(customerId);
+            const previous = monitoringCache.customerStatusCache.get(customerId);
             if (previous && previous.status === newStatus)
                 return;
             // Get full customer info for notification (includes address and ODP name)
@@ -558,7 +585,7 @@ class AdvancedMonitoringService {
                 const odpId = customer.odp_id;
                 const odpName = customer.odp_name || (odpId ? `ODP-${odpId}` : null);
                 // Update Cache immediately
-                monitoringCache.staticIPStatus.set(customerId, {
+                monitoringCache.customerStatusCache.set(customerId, {
                     customer_id: customerId,
                     status: newStatus,
                     last_check: new Date()
@@ -670,7 +697,7 @@ class AdvancedMonitoringService {
                 }
                 const currentStatus = isOnline ? 'online' : 'offline';
                 // Only handle transition if status changed
-                const cached = monitoringCache.staticIPStatus.get(customer.id);
+                const cached = monitoringCache.customerStatusCache.get(customer.id);
                 if (!cached || cached.status !== currentStatus) {
                     console.log(`[AMS] PPPoE Transition detected: ${customer.name} (${customer.pppoe_username || customer.customer_code}) -> ${currentStatus}`);
                     await this.handleStatusTransition(customer.id, 'pppoe', currentStatus);
@@ -687,9 +714,15 @@ class AdvancedMonitoringService {
     static getCacheStats() {
         return {
             pppoe_sessions: monitoringCache.pppoeOnlineSessions.size,
-            static_ip_statuses: monitoringCache.staticIPStatus.size,
+            static_ip_statuses: monitoringCache.customerStatusCache.size,
             last_refresh: monitoringCache.lastRefresh
         };
+    }
+    /**
+     * Get cached PPPoE sessions directly
+     */
+    static getCachedPppoeSessions() {
+        return monitoringCache.pppoeOnlineSessions;
     }
 }
 exports.AdvancedMonitoringService = AdvancedMonitoringService;

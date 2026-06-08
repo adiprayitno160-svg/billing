@@ -294,7 +294,7 @@ async function getInterfaceTraffic(cfg, interfaceName) {
 }
 async function getArpList(cfg) {
     try {
-        const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ip/arp/print', [], 'arp_list', 30000);
+        const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ip/arp/print', [], 'arp_list', 5000);
         if (!Array.isArray(res))
             return [];
         return res.map(r => r.address).filter(Boolean);
@@ -305,7 +305,7 @@ async function getArpList(cfg) {
     }
 }
 async function getPppoeActiveConnections(cfg) {
-    const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/print', [], 'active_connections', 60000);
+    const res = await MikroTikConnectionPool_1.mikrotikPool.execute(cfg, '/ppp/active/print', [], 'active_connections', 5000);
     return Array.isArray(res) ? res : [];
 }
 async function getPppoeSecrets(cfg) {
