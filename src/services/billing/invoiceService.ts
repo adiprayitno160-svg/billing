@@ -248,7 +248,7 @@ export class InvoiceService {
                 JOIN customers c ON i.customer_id = c.id
                 WHERE c.auto_pay_enabled = 1
                 AND c.auto_pay_date = ?
-                AND i.status IN ('sent', 'partial', 'overdue')
+                AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                 AND i.remaining_amount > 0
             `;
 
@@ -332,13 +332,16 @@ export class InvoiceService {
                 JOIN customers c ON s.customer_id = c.id
                 WHERE s.status = 'active' 
                 AND LOWER(c.status) = 'active'
-                /* ANTI-PREMATURE-BILLING: Pasang bulan ini, bayar bulan depan.
-                   Hanya tagih periode yang LEBIH BESAR DARI bulan pemasangan.
-                   (Aturan ketat, tidak bisa di-bypass oleh forceAll) */
-                AND DATE_FORMAT(COALESCE(s.activation_date, s.start_date), '%Y-%m') < ?
             `;
 
-            const queryParams: any[] = [period];
+            const queryParams: any[] = [];
+            
+            // ANTI-PREMATURE-BILLING: Pasang bulan ini, bayar bulan depan.
+            // Bisa dibypass JIKA di-generate manual (forceAll = true)
+            if (!forceAll) {
+                subscriptionQuery += ` AND DATE_FORMAT(COALESCE(s.activation_date, s.start_date), '%Y-%m') < ? `;
+                queryParams.push(period);
+            }
             if (!forceAll && !customerIds) {
                 // Modified: check for current day and past days to catch up, up to H-7
                 // If it's the start of the month (Day 1), bypass the day check to generate for ALL active customers

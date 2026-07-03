@@ -10,6 +10,7 @@ import { databasePool } from '../../db/pool';
 import { RowDataPacket } from 'mysql2';
 import { whatsappService, WhatsAppService } from '../whatsapp/WhatsAppService';
 import { ChatBotService } from '../ai/ChatBotService';
+import telegramAdminService from '../telegram/TelegramAdminService';
 
 interface NotificationEvent {
     customer_id: number;
@@ -204,52 +205,21 @@ export class CustomerNotificationService {
         customer: CustomerInfo,
         status: 'offline' | 'online'
     ): Promise<void> {
-        try {
-            // Anti-spam cooldown: 5 minutes per customer per status change
-            const cooldownKey = `admin_broadcast_${customer.id}_${status}`;
-            const lastSent = this.adminBroadcastCooldowns.get(cooldownKey) || 0;
-            const now = Date.now();
+        // DISABLED: Customer status broadcasts to admin disabled per user request to reduce spam
+        console.log(`[Notification] SKIPPED admin broadcast for ${customer.name} status ${status} (Service Disabled)`);
+        return;
+    }
 
-            if (now - lastSent < 5 * 60 * 1000) {
-                console.log(`[Notification] Cooldown active for ${customer.name} ${status}, skipping Telegram broadcast.`);
-                return;
-            }
-
-            // Send via Telegram Admin Bot
-            const TelegramAdminService = (await import('../telegram/TelegramAdminService')).default;
-
-            const emoji = status === 'offline' ? '🔴' : '🟢';
-            const statusText = status === 'offline' ? 'OFFLINE / DOWN' : 'ONLINE / RECOVERED';
-            const priority = status === 'offline' ? 'high' : 'medium';
-
-            const connectionInfo = customer.connection_type === 'PPPoE'
-                ? `PPPoE: ${customer.pppoe_username || 'N/A'}`
-                : `Static IP: ${customer.static_ip || 'N/A'}`;
-
-            const message =
-                `${emoji} *${statusText}*\n\n` +
-                `👤 ${customer.name} (ID: ${customer.id})\n` +
-                `🔗 ${connectionInfo}\n` +
-                `📍 ${customer.address || 'N/A'}\n` +
-                `🕐 ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
-
-            await TelegramAdminService.sendNotification({
-                type: status === 'offline' ? 'downtime' : 'custom',
-                priority: priority as any,
-                title: `Customer ${statusText}`,
-                message,
-                targetRole: 'admin',
-                customerId: customer.id
-            });
-
-            // Update cooldown
-            this.adminBroadcastCooldowns.set(cooldownKey, now);
-
-            console.log(`[Notification] Telegram admin broadcast sent for ${customer.name} -> ${status}`);
-
-        } catch (error) {
-            console.error(`[Notification] Failed to send Telegram admin broadcast for ${customer.name}:`, error);
+    private formatDuration(minutes: number): string {
+        if (minutes < 60) {
+            return `${minutes} Menit`;
         }
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        if (mins === 0) {
+            return `${hours} Jam`;
+        }
+        return `${hours} Jam ${mins} Menit`;
     }
 
     /**
@@ -260,11 +230,100 @@ export class CustomerNotificationService {
         locationName: string,
         type: 'ODP' | 'ODC',
         status: 'offline' | 'online',
-        affectedCount: number
+        affectedCount: number,
+        details?: {
+            odcName?: string;
+            totalCount?: number;
+            affectedCustomers?: string[];
+            durationMinutes?: number;
+        }
     ): Promise<void> {
-        // DISABLED: Infrastructure issue broadcasts disabled per user request
-        console.log(`[Notification] SKIPPED infra alert for ${locationName} status ${status} (Service Disabled)`);
-        return;
+        console.log(`[Notification] Sending NMS Alert for ${type} ${locationName} status ${status}`);
+        try {
+            const nowStr = new Date().toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            }) + ' ' + new Date().toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit'
+            }) + ' WIB';
+
+            let emptyPortsText = '';
+            if (type === 'ODP') {
+                try {
+                    const [odpRows] = await databasePool.query<RowDataPacket[]>(
+                        `SELECT total_ports, used_ports FROM ftth_odp WHERE name = ?`,
+                        [locationName]
+                    );
+                    if (odpRows.length > 0) {
+                        const total = odpRows[0].total_ports || 0;
+                        const used = odpRows[0].used_ports || 0;
+                        const empty = total - used;
+                        emptyPortsText = `\n🔌 Port Kosong: ${empty} dari ${total}`;
+                    }
+                } catch (dbErr) {
+                    console.error('[Notification] Error fetching ODP ports:', dbErr);
+                }
+            }
+
+            let message = '';
+            let title = '';
+
+            if (status === 'offline') {
+                title = `NMS ALERT — ${type} DOWN`;
+                if (type === 'ODP') {
+                    const odcStr = details?.odcName ? ` (berinduk ke ${details.odcName})` : '';
+                    const percent = details?.totalCount ? Math.round((affectedCount / details.totalCount) * 100) : 50;
+                    const customersList = details?.affectedCustomers && details.affectedCustomers.length > 0 
+                        ? details.affectedCustomers.map(c => `• ${c}`).join('\n') 
+                        : '• Tidak ada data pelanggan aktif';
+                    message = `📍 ODP: ${locationName}${odcStr}\n` +
+                              `🔴 Status: DOWN (${percent}% Offline)\n` +
+                              `👥 Klien Offline: ${affectedCount} dari ${details?.totalCount || '?'}${emptyPortsText}\n` +
+                              `⏰ Waktu: ${nowStr}\n\n` +
+                              `📋 Pelanggan Terdampak:\n${customersList}\n\n` +
+                              `💡 Cek: Putus listrik atau kabel distribusi?`;
+                } else {
+                    message = `📍 ODC: ${locationName}\n` +
+                              `🔴 Status: DOWN (Semua ODP Mati)\n` +
+                              `⏰ Waktu: ${nowStr}\n\n` +
+                              `💡 Cek: Kabel backbone putus, OLT down, atau pemadaman listrik massal?`;
+                }
+
+                await telegramAdminService.sendNotification({
+                    type: 'downtime',
+                    priority: 'critical',
+                    title: title,
+                    message: message,
+                    targetRole: 'all'
+                });
+            } else {
+                title = `NMS RECOVERY — ${type} NORMAL`;
+                const durationStr = details?.durationMinutes ? this.formatDuration(details.durationMinutes) : 'Beberapa saat';
+                if (type === 'ODP') {
+                    message = `📍 ODP: ${locationName}\n` +
+                              `🟢 Status: NORMAL (Semua Online)${emptyPortsText}\n` +
+                              `⏱️ Durasi Gangguan: ${durationStr}\n` +
+                              `⏰ Pulih: ${nowStr}`;
+                } else {
+                    message = `📍 ODC: ${locationName}\n` +
+                              `🟢 Status: NORMAL (Semua Online)\n` +
+                              `⏱️ Durasi Gangguan: ${durationStr}\n` +
+                              `⏰ Pulih: ${nowStr}`;
+                }
+
+                await telegramAdminService.sendNotification({
+                    type: 'downtime',
+                    priority: 'medium',
+                    title: title,
+                    message: message,
+                    targetRole: 'all'
+                });
+            }
+        } catch (err) {
+            console.error('[Notification] Error sending NMS Telegram notification:', err);
+        }
     }
 }
 

@@ -325,8 +325,8 @@ export class WhatsAppHandler {
                 return;
             }
 
-            // 3. Handle WA Confirmations (Hutang / Janji Bayar)
-            if (keyword === 'setuju' && customer) {
+            // 3.5. Kasir Confirmation Logic (Tunggakan / Janji Bayar)
+            if ((keyword === 'setuju' || keyword === 'ya') && customer) {
                 try {
                     // Check if there is an active pending confirmation for this customer
                     const [confirms]: any = await databasePool.query(
@@ -385,14 +385,32 @@ export class WhatsAppHandler {
                             );
                         }
 
-                        // For hutang: try to restore isolation if they qualify
-                        // For janji_bayar: do NOT restore - they haven't paid yet, isolation stays active until payment
+                        // For hutang: insert into payment_deferments to defer isolation until next month, and try to restore if they were already isolated
+                        // For janji_bayar: do NOT restore immediately if they haven't paid, isolation stays active until payment
                         if (confType === 'debt' || confType === 'hutang') {
                             try {
+                                // Defer until the end of the current month (or next month if it's already late in the month)
+                                const deferUntil = new Date();
+                                deferUntil.setMonth(deferUntil.getMonth() + 1);
+                                deferUntil.setDate(5); // Arbitrary grace period next month
+                                const deferUntilStr = deferUntil.toISOString().split('T')[0];
+
+                                await databasePool.query(
+                                    `INSERT INTO payment_deferments (customer_id, invoice_id, requested_date, deferred_until_date, reason, status)
+                                     VALUES (?, ?, CURDATE(), ?, ?, 'approved')`,
+                                    [customer.id, invId, deferUntilStr, 'Konfirmasi Tunggakan via WA Kasir']
+                                );
+
+                                // Mark customer as deferred
+                                await databasePool.query(
+                                    'UPDATE customers SET is_deferred = TRUE, isolation_enabled = 1, updated_at = NOW() WHERE id = ?',
+                                    [customer.id]
+                                );
+
                                 const { IsolationService } = await import('../../services/billing/isolationService');
                                 await IsolationService.restoreIfQualified(customer.id);
                             } catch (isoErr) {
-                                console.error('[WhatsAppHandler] Failed to auto-restore after confirmation:', isoErr);
+                                console.error('[WhatsAppHandler] Failed to auto-restore or set deferment after confirmation:', isoErr);
                             }
                         } else {
                             console.log(`[WhatsAppHandler] Janji bayar confirmed for ${customer.name} (#${customer.id}). Isolation stays active until payment.`);
@@ -1648,6 +1666,32 @@ _Jam Operasional: 08:00 - 17:00_`);
                     );
 
                     await service.sendMessage(jid, `✅ Terima kasih *${userData.name}*.\nData & Lokasi Anda telah kami terima.\n\nAdmin kami akan segera menghubungi Anda untuk proses selanjutnya.`);
+
+                    // Send notifications to Admin via WhatsApp and Telegram
+                    try {
+                        const { UnifiedNotificationService } = await import('../notification/UnifiedNotificationService');
+                        const mapLink = userData.latitude && userData.longitude 
+                            ? `\n📍 *Maps:* https://maps.google.com/?q=${userData.latitude},${userData.longitude}` 
+                            : '';
+                        const adminMsg = `🔔 *PENDAFTARAN BARU (WhatsApp)*\n\n` +
+                                         `👤 *Nama:* ${userData.name}\n` +
+                                         `📍 *Alamat Pemasangan:* ${userData.address}\n` +
+                                         `📱 *No. HP:* ${userData.phone}${mapLink}\n\n` +
+                                         `Silakan cek menu *Permintaan Registrasi* di dashboard untuk memproses.`;
+                        
+                        await UnifiedNotificationService.broadcastToAdmins(adminMsg);
+                        
+                        const telegramAdminService = (await import('../telegram/TelegramAdminService')).default;
+                        await telegramAdminService.sendNotification({
+                            type: 'system',
+                            priority: 'high',
+                            title: '📝 PENDAFTARAN BARU',
+                            message: `Ada pendaftaran baru dari WhatsApp:\n👤 Nama: ${userData.name}\n📍 Alamat Pemasangan: ${userData.address}\n📱 No. HP: ${userData.phone}${userData.latitude ? `\nMaps: https://maps.google.com/?q=${userData.latitude},${userData.longitude}` : ''}`,
+                            targetRole: 'admin'
+                        });
+                    } catch (notifErr) {
+                        console.error('Error sending registration alert to admins:', notifErr);
+                    }
                 } catch (error) {
                     console.error('Error saving registration request:', error);
                     await service.sendMessage(jid, 'Maaf, terjadi kesalahan sistem saat menyimpan data registrasi. Silakan coba lagi nanti.');

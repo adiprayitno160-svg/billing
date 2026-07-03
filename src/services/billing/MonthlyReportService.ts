@@ -69,7 +69,7 @@ export class MonthlyReportService {
                     c.phone as customer_phone
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
-                WHERE i.status IN ('sent', 'partial', 'overdue')
+                WHERE i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                 AND i.period = ?
                 ORDER BY c.name ASC
             `, [periodKey]);

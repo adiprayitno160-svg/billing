@@ -93,7 +93,7 @@ export class InvoiceMatchingService {
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
             WHERE i.customer_id = ?
-            AND i.status IN ('sent', 'partial', 'overdue')
+            AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
             AND i.remaining_amount > 0
             ORDER BY i.due_date ASC, i.created_at DESC
         `;

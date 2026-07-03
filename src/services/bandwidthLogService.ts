@@ -187,15 +187,17 @@ export class BandwidthLogService {
 
             console.log(`[BandwidthLogService] Found ${sessions.length} active sessions on ${mikrotikConfig.host}`);
 
-            // Create a map of username -> session
+            // Create a map of username -> session (case-insensitive)
             const sessionMap = new Map<string, PPPoEActiveSession>();
             sessions.forEach(session => {
-                sessionMap.set(session.name, session);
+                if (session.name) {
+                    sessionMap.set(session.name.toLowerCase(), session);
+                }
             });
 
             // Process each customer
             for (const customer of customers) {
-                const session = sessionMap.get(customer.username);
+                const session = customer.username ? sessionMap.get(customer.username.toLowerCase()) : undefined;
 
                 if (session) {
                     // Customer is online - save bandwidth data

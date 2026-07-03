@@ -39,6 +39,7 @@ router.post('/transactions', kasirController.processPayment.bind(kasirController
 // Payments
 router.get('/payments', kasirController.payments.bind(kasirController));
 router.post('/payments', kasirController.processPayment.bind(kasirController));
+router.post('/payments/bulk', kasirController.processBulkPayment.bind(kasirController));
 
 // Manual Verification
 router.get('/manual-verifications', kasirController.manualVerifications.bind(kasirController));
@@ -110,7 +111,7 @@ router.get('/print-odc/:odc_id', async (req, res) => {
                     INNER JOIN customers c ON i.customer_id = c.id
                     WHERE c.odc_id IS NULL
                     AND (c.exclude_from_print = 0 OR c.exclude_from_print IS NULL)
-                    AND i.status IN ('sent', 'partial', 'overdue')
+                    AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                 `;
             } else {
                 // Get ODC info
@@ -145,7 +146,7 @@ router.get('/print-odc/:odc_id', async (req, res) => {
                     INNER JOIN customers c ON i.customer_id = c.id
                     WHERE c.odc_id = ?
                     AND (c.exclude_from_print = 0 OR c.exclude_from_print IS NULL)
-                    AND i.status IN ('sent', 'partial', 'overdue')
+                    AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                 `;
                 queryParams.push(odc_id);
             }
@@ -242,12 +243,12 @@ router.get('/print-all', async (req, res) => {
                     o.name as odc_name,
                     o.location as odc_location,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
-                WHERE i.status IN ('sent', 'partial', 'overdue')
+                WHERE i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                 AND (c.exclude_from_print = 0 OR c.exclude_from_print IS NULL)
                 AND i.period = DATE_FORMAT(CURDATE(), '%Y-%m')
             `;

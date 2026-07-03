@@ -58,7 +58,8 @@ let monitoringCache: {
     pppoeOnlineSessions: Map<string, any>;
     customerStatusCache: Map<number, MonitoringStatus>;
     odpOfflineCustomers: Map<number, Set<number>>; // ODP ID -> Set of offline customer IDs
-    odpAlertSent: Map<number, boolean>; // ODP ID -> whether mass alert has been sent
+    odpAlertSent: Map<number, boolean>; // ODP ID -> whether ODP alert has been sent
+    odcAlertSent: Map<number, boolean>; // ODC ID -> whether ODC alert has been sent
     pppoeOfflineCandidates: Map<number, number>;
     staticIpOfflineCandidates: Map<number, number>;
     lastRefresh: Date | null;
@@ -68,6 +69,7 @@ let monitoringCache: {
     customerStatusCache: new Map(),
     odpOfflineCustomers: new Map(),
     odpAlertSent: new Map(),
+    odcAlertSent: new Map(),
     pppoeOfflineCandidates: new Map(),
     staticIpOfflineCandidates: new Map(),
     lastRefresh: null,
@@ -109,15 +111,29 @@ export class AdvancedMonitoringService {
                     c.static_ip,
                     c.phone,
                     c.area,
+                    c.address,
                     c.odp_id,
                     odp.name as odp_name,
                     odp.latitude as odp_latitude,
                     odp.longitude as odp_longitude,
-                    COALESCE(s.package_name, pp.name) as package_name
+                    odp.total_ports as odp_total_ports,
+                    odp.used_ports as odp_used_ports,
+                    odp.location as odp_location,
+                    odc.latitude as odc_latitude,
+                    odc.longitude as odc_longitude,
+                    nd.metadata as device_metadata,
+                    COALESCE(s.package_name, pp.name) as package_name,
+                    c.parent_customer_id,
+                    parent.name as parent_name,
+                    parent.latitude as parent_latitude,
+                    parent.longitude as parent_longitude
                 FROM customers c
+                LEFT JOIN customers parent ON c.parent_customer_id = parent.id
                 LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
+                LEFT JOIN ftth_odc odc ON odp.odc_id = odc.id
                 LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
                 LEFT JOIN pppoe_packages pp ON s.package_id = pp.id
+                LEFT JOIN network_devices nd ON (nd.genieacs_serial = c.serial_number OR nd.genieacs_id = c.serial_number) AND nd.device_type = 'ont'
                 WHERE c.status = 'active'
             `;
 
@@ -197,6 +213,7 @@ export class AdvancedMonitoringService {
                     name: customer.name,
                     customer_code: customer.customer_code,
                     pppoe_username: customer.pppoe_username,
+                    phone: customer.phone,
                     connection_type: customer.connection_type,
                     latitude: customer.latitude ? parseFloat(customer.latitude) : null,
                     longitude: customer.longitude ? parseFloat(customer.longitude) : null,
@@ -206,8 +223,20 @@ export class AdvancedMonitoringService {
                     odp_name: customer.odp_name,
                     odp_latitude: customer.odp_latitude ? parseFloat(customer.odp_latitude) : null,
                     odp_longitude: customer.odp_longitude ? parseFloat(customer.odp_longitude) : null,
+                    odc_latitude: customer.odc_latitude ? parseFloat(customer.odc_latitude) : null,
+                    odc_longitude: customer.odc_longitude ? parseFloat(customer.odc_longitude) : null,
+                    device_metadata: customer.device_metadata,
                     package_name: customer.package_name,
-                    area: customer.area
+                    area: customer.area,
+                    address: customer.address,
+                    odp_id: customer.odp_id,
+                    odp_total_ports: customer.odp_total_ports,
+                    odp_used_ports: customer.odp_used_ports,
+                    odp_location: customer.odp_location,
+                    parent_customer_id: customer.parent_customer_id,
+                    parent_name: customer.parent_name,
+                    parent_latitude: customer.parent_latitude ? parseFloat(customer.parent_latitude) : null,
+                    parent_longitude: customer.parent_longitude ? parseFloat(customer.parent_longitude) : null
                 };
             });
 
@@ -244,6 +273,7 @@ export class AdvancedMonitoringService {
         customers: any[];
         stats: any;
         odc_olt_links?: any[];
+        all_odps?: any[];
     }> {
         if (forceRefresh) {
             await this.refreshCache();
@@ -266,7 +296,21 @@ export class AdvancedMonitoringService {
             console.error('Error fetching odc_olt_links:', e);
         }
 
-        return { ...result, odc_olt_links };
+        let all_odps = [];
+        try {
+            const [odps] = await databasePool.query(`
+                SELECT 
+                    o.id, o.name, o.latitude, o.longitude, o.location, o.total_ports,
+                    (SELECT COUNT(*) FROM customers WHERE odp_id = o.id AND status = 'active' AND parent_customer_id IS NULL) as used_ports
+                FROM ftth_odp o
+                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+            `) as [import('mysql2').RowDataPacket[], any];
+            all_odps = odps as any[];
+        } catch (e) {
+            console.error('Error fetching all_odps:', e);
+        }
+
+        return { ...result, odc_olt_links, all_odps };
     }
 
     /**
@@ -393,6 +437,70 @@ export class AdvancedMonitoringService {
     }
 
     /**
+     * Initialize NMS cache from database (survives restarts)
+     */
+    static async initializeNmsCache(): Promise<void> {
+        try {
+            console.log('[AMS-NMS] Initializing cache from database...');
+            // 1. Initialize customerStatusCache from static_ip_ping_status (excluding isolated customers)
+            const [dbStatuses] = await databasePool.query(`
+                SELECT sips.customer_id, sips.status, sips.last_check, sips.response_time_ms 
+                FROM static_ip_ping_status sips
+                JOIN customers c ON sips.customer_id = c.id
+                WHERE (c.is_isolated = 0 OR c.is_isolated IS NULL)
+            `) as [RowDataPacket[], any];
+
+            dbStatuses.forEach((s: any) => {
+                monitoringCache.customerStatusCache.set(s.customer_id, {
+                    customer_id: s.customer_id,
+                    status: s.status || 'unknown',
+                    last_check: s.last_check || new Date(),
+                    response_time_ms: s.response_time_ms
+                });
+            });
+
+            // 2. Initialize odpOfflineCustomers by looking up active offline customers
+            const [offlineRows] = await databasePool.query<RowDataPacket[]>(`
+                SELECT c.id, c.odp_id 
+                FROM customers c
+                JOIN static_ip_ping_status s ON c.id = s.customer_id
+                WHERE c.status = 'active' 
+                  AND (c.is_isolated = 0 OR c.is_isolated IS NULL)
+                  AND s.status = 'offline'
+                  AND c.odp_id IS NOT NULL
+            `);
+
+            monitoringCache.odpOfflineCustomers.clear();
+            offlineRows.forEach((r: any) => {
+                if (!monitoringCache.odpOfflineCustomers.has(r.odp_id)) {
+                    monitoringCache.odpOfflineCustomers.set(r.odp_id, new Set());
+                }
+                monitoringCache.odpOfflineCustomers.get(r.odp_id)!.add(r.id);
+            });
+
+            // 3. Initialize alert sent maps from active outages in DB
+            const [activeOutages] = await databasePool.query<RowDataPacket[]>(`
+                SELECT type, odp_id, odc_id FROM nms_odp_outages WHERE status = 'active'
+            `);
+
+            monitoringCache.odpAlertSent.clear();
+            monitoringCache.odcAlertSent.clear();
+            activeOutages.forEach((outage: any) => {
+                if (outage.type === 'ODP' && outage.odp_id) {
+                    monitoringCache.odpAlertSent.set(outage.odp_id, true);
+                } else if (outage.type === 'ODC' && outage.odc_id) {
+                    monitoringCache.odcAlertSent.set(outage.odc_id, true);
+                }
+            });
+
+            console.log(`[AMS-NMS] Cache initialized: ${monitoringCache.customerStatusCache.size} customers, ` +
+                        `${offlineRows.length} offline, ${activeOutages.length} active alerts.`);
+        } catch (error) {
+            console.error('[AMS-NMS] Error initializing cache:', error);
+        }
+    }
+
+    /**
      * Force refresh monitoring cache
      */
     static async refreshCache(): Promise<void> {
@@ -419,14 +527,16 @@ export class AdvancedMonitoringService {
                 }
             }
 
-            // Refresh Static IP status from database
+            // Refresh Static IP status from database (excluding isolated customers)
             const [customerStatusCache] = await databasePool.query(`
                 SELECT 
-                    customer_id,
-                    status,
-                    response_time_ms,
-                    last_check
-                FROM static_ip_ping_status
+                    sips.customer_id,
+                    sips.status,
+                    sips.response_time_ms,
+                    sips.last_check
+                FROM static_ip_ping_status sips
+                JOIN customers c ON sips.customer_id = c.id
+                WHERE (c.is_isolated = 0 OR c.is_isolated IS NULL)
             `) as [RowDataPacket[], any];
 
             // Instead of clearing, we update the existing map to preserve history for transition detection
@@ -516,21 +626,7 @@ export class AdvancedMonitoringService {
         try {
             // First Priority: Initialize cache from DB if empty to prevent false notifications on restart
             if (monitoringCache.customerStatusCache.size === 0) {
-                console.log('[AMS] Initializing cache from database...');
-                const [dbStatuses] = await databasePool.query(`
-                    SELECT customer_id, status, last_check, response_time_ms 
-                    FROM static_ip_ping_status
-                `) as [RowDataPacket[], any];
-
-                dbStatuses.forEach((s: any) => {
-                    monitoringCache.customerStatusCache.set(s.customer_id, {
-                        customer_id: s.customer_id,
-                        status: s.status || 'unknown',
-                        last_check: s.last_check,
-                        response_time_ms: s.response_time_ms
-                    });
-                });
-                console.log(`[AMS] Cache initialized with ${dbStatuses.length} customer statuses.`);
+                await this.initializeNmsCache();
             }
 
             const mikrotikConfig = await getMikrotikConfig();
@@ -581,28 +677,17 @@ export class AdvancedMonitoringService {
                     arpList = await getArpList(mikrotikConfig);
                 }
                 const activeIPs = new Set(arpList);
-                
-                // Get MikrotikService for verification
-                const { MikrotikService } = await import('../mikrotik/MikrotikService');
-                const mkService = await MikrotikService.getInstance();
 
                 // Update database
                 for (const customer of staticIPCustomers) {
                     let status = 'offline';
 
                     if (activeIPs.has(customer.static_ip)) {
-                        // ARP detected traffic. But ARP can be stale!
-                        // If DB says offline, we MUST verify with ping to avoid false recoveries
-                        if (customer.db_status === 'offline') {
-                            const pingSuccess = await mkService.ping(customer.static_ip);
-                            status = pingSuccess ? 'online' : 'offline';
-                            if (!pingSuccess) {
-                                console.log(`[AMS] Prevented false recovery for ${customer.static_ip}: ARP exists but Ping failed.`);
-                            }
-                        } else {
-                            // If they were already online, trust ARP to keep them online
-                            status = 'online'; 
-                        }
+                        // ARP entry exists (dynamic + complete) = device is communicating
+                        // on the network at Layer 2. This is reliable evidence of connectivity.
+                        // Many customer routers/ONUs block ICMP ping but still work fine
+                        // for internet access, so we trust ARP without requiring ping.
+                        status = 'online';
                     } else {
                         // Fallback to PingService's last known status in DB
                         // This prevents flip-flops if ARP cache expires or API fails
@@ -674,6 +759,49 @@ export class AdvancedMonitoringService {
                 }
             }
 
+            // Clean up isolated customers from ODP offline lists to avoid false alerts
+            try {
+                const [isolatedCustomers] = await databasePool.query<RowDataPacket[]>(
+                    `SELECT c.id, c.odp_id, odp.name as odp_name, odp.odc_id, odc.name as odc_name
+                     FROM customers c
+                     LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
+                     LEFT JOIN ftth_odc odc ON odp.odc_id = odc.id
+                     WHERE c.is_isolated = 1`
+                );
+                for (const c of isolatedCustomers) {
+                    // Remove from candidates lists
+                    if (monitoringCache.staticIpOfflineCandidates.has(c.id)) {
+                        monitoringCache.staticIpOfflineCandidates.delete(c.id);
+                    }
+                    if (monitoringCache.pppoeOfflineCandidates.has(c.id)) {
+                        monitoringCache.pppoeOfflineCandidates.delete(c.id);
+                    }
+
+                    // Clear offline status in cache to avoid false alerts
+                    const cached = monitoringCache.customerStatusCache.get(c.id);
+                    if (cached && cached.status === 'offline') {
+                        monitoringCache.customerStatusCache.set(c.id, {
+                            customer_id: c.id,
+                            status: 'online',
+                            last_check: new Date()
+                        });
+                    }
+
+                    if (c.odp_id && monitoringCache.odpOfflineCustomers.has(c.odp_id)) {
+                        const offlineSet = monitoringCache.odpOfflineCustomers.get(c.odp_id)!;
+                        if (offlineSet.has(c.id)) {
+                            console.log(`[AMS-NMS] Proactively removing isolated customer ${c.id} from ODP ${c.odp_id} offline list.`);
+                            offlineSet.delete(c.id);
+                            
+                            // Check recovery for ODP/ODC
+                            await this.checkOdpOdcRecovery(c.id, c.odp_id, c);
+                        }
+                    }
+                }
+            } catch (cleanupErr) {
+                console.error('[AMS-NMS] Error cleaning up isolated customers from cache:', cleanupErr);
+            }
+
             // 5. Count offline alerts (excluding isolated)
             const offlineCustomers = await this.getOfflineCustomersForAlarm();
             result.offline_alerts = offlineCustomers.length;
@@ -704,14 +832,15 @@ export class AdvancedMonitoringService {
             const previous = monitoringCache.customerStatusCache.get(customerId);
             if (previous && previous.status === newStatus) return;
 
-            // Get full customer info for notification (includes address and ODP name)
+            // Get full customer info for notification (includes address and ODP/ODC name)
             const [customers] = await databasePool.query<RowDataPacket[]>(
                 `SELECT 
                     c.id, c.name, c.customer_code, c.phone, c.connection_type, 
                     c.pppoe_username, c.static_ip, c.address, c.odp_id,
-                    odp.name as odp_name
+                    odp.name as odp_name, odp.odc_id, odc.name as odc_name
                  FROM customers c
                  LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
+                 LEFT JOIN ftth_odc odc ON odp.odc_id = odc.id
                  WHERE c.id = ?`,
                 [customerId]
             );
@@ -757,12 +886,136 @@ export class AdvancedMonitoringService {
 
                         const offlineCount = monitoringCache.odpOfflineCustomers.get(odpId)!.size;
 
-                        if (offlineCount >= this.MASS_OUTAGE_THRESHOLD && !monitoringCache.odpAlertSent.get(odpId)) {
-                            console.log(`[Mass-Outage] ODP ${odpName} has ${offlineCount} offline customers. Sending mass alert.`);
-                            await CustomerNotificationService.broadcastInfrastructureIssue(
-                                odpName!, 'ODP', 'offline', offlineCount
-                            );
-                            monitoringCache.odpAlertSent.set(odpId, true);
+                        // Count total active, non-isolated customers on this ODP
+                        const [totalRes] = await databasePool.query<RowDataPacket[]>(
+                            `SELECT COUNT(*) as cnt FROM customers 
+                             WHERE odp_id = ? AND status = 'active' AND (is_isolated = 0 OR is_isolated IS NULL)`,
+                            [odpId]
+                        );
+                        const totalCount = totalRes[0].cnt;
+
+                        if (totalCount > 0 && (offlineCount / totalCount) >= 0.50) {
+                            const odcId = customer.odc_id;
+                            const odcName = customer.odc_name || (odcId ? `ODC-${odcId}` : null);
+
+                            // Check Cascade Logic: Is the ODC down?
+                            let odcIsDown = false;
+                            let odcTotalCustomers = 0;
+                            let odcOfflineCustomers = 0;
+
+                            if (odcId) {
+                                // Get all ODPs under this ODC
+                                const [odps] = await databasePool.query<RowDataPacket[]>(
+                                    `SELECT id FROM ftth_odp WHERE odc_id = ?`,
+                                    [odcId]
+                                );
+
+                                if (odps.length > 0) {
+                                    let checkedOdpsCount = 0;
+                                    let downOdpsCount = 0;
+
+                                    for (const o of odps) {
+                                        const [oTotal] = await databasePool.query<RowDataPacket[]>(
+                                            `SELECT COUNT(*) as cnt FROM customers 
+                                             WHERE odp_id = ? AND status = 'active' AND (is_isolated = 0 OR is_isolated IS NULL)`,
+                                            [o.id]
+                                        );
+                                        const oTotalCount = oTotal[0].cnt;
+                                        if (oTotalCount > 0) {
+                                            checkedOdpsCount++;
+                                            odcTotalCustomers += oTotalCount;
+                                            const oOfflineSet = monitoringCache.odpOfflineCustomers.get(o.id);
+                                            const oOfflineCount = oOfflineSet ? oOfflineSet.size : 0;
+                                            odcOfflineCustomers += oOfflineCount;
+                                            if ((oOfflineCount / oTotalCount) >= 0.50) {
+                                                downOdpsCount++;
+                                            }
+                                        }
+                                    }
+
+                                    // If all ODPs that have active customers under the ODC are down, then ODC is down
+                                    if (checkedOdpsCount > 0 && downOdpsCount === checkedOdpsCount) {
+                                        odcIsDown = true;
+                                    }
+                                }
+                            }
+
+                            if (odcIsDown && odcId) {
+                                // ODC DOWN Alert
+                                if (!monitoringCache.odcAlertSent.get(odcId)) {
+                                    // Check if active alert already in DB to avoid duplicate
+                                    const [activeOdcAlert] = await databasePool.query<RowDataPacket[]>(
+                                        `SELECT id FROM nms_odp_outages WHERE odc_id = ? AND type = 'ODC' AND status = 'active' LIMIT 1`,
+                                        [odcId]
+                                    );
+
+                                    if (activeOdcAlert.length === 0) {
+                                        console.log(`[NMS] ODC ${odcName} is DOWN. Sending alert.`);
+                                        
+                                        // Save ODC Outage to DB
+                                        await databasePool.query(
+                                            `INSERT INTO nms_odp_outages (type, odc_id, odc_name, total_customers, offline_customers, offline_percent, alert_sent_at, status)
+                                             VALUES ('ODC', ?, ?, ?, ?, ?, NOW(), 'active')`,
+                                            [odcId, odcName, odcTotalCustomers, odcOfflineCustomers, (odcOfflineCustomers / odcTotalCustomers) * 100]
+                                        );
+
+                                        await CustomerNotificationService.broadcastInfrastructureIssue(
+                                            odcName!, 'ODC', 'offline', odcOfflineCustomers, {
+                                                totalCount: odcTotalCustomers
+                                            }
+                                        );
+                                    }
+                                    monitoringCache.odcAlertSent.set(odcId, true);
+                                }
+                            } else {
+                                // ODP DOWN Alert (Only if parent ODC is not down)
+                                if (!monitoringCache.odpAlertSent.get(odpId)) {
+                                    // Check if active outage already exists in DB
+                                    const [activeOdpAlert] = await databasePool.query<RowDataPacket[]>(
+                                        `SELECT id FROM nms_odp_outages WHERE odp_id = ? AND type = 'ODP' AND status = 'active' LIMIT 1`,
+                                        [odpId]
+                                    );
+
+                                    // Check cooldown (30 mins cooldown to prevent notification flapping)
+                                    const [recentCooldown] = await databasePool.query<RowDataPacket[]>(
+                                        `SELECT id FROM nms_odp_outages 
+                                         WHERE odp_id = ? AND type = 'ODP' AND alert_sent_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+                                         LIMIT 1`,
+                                        [odpId]
+                                    );
+
+                                    if (activeOdpAlert.length === 0 && recentCooldown.length === 0) {
+                                        console.log(`[NMS] ODP ${odpName} has ${offlineCount}/${totalCount} offline. Sending alert.`);
+                                        
+                                        // Find names of offline customers on this ODP
+                                        const [offlineCustNames] = await databasePool.query<RowDataPacket[]>(
+                                            `SELECT c.name FROM customers c
+                                             JOIN static_ip_ping_status s ON c.id = s.customer_id
+                                             WHERE c.odp_id = ? AND c.status = 'active' 
+                                               AND (c.is_isolated = 0 OR c.is_isolated IS NULL)
+                                               AND s.status = 'offline'`,
+                                            [odpId]
+                                        );
+                                        const affectedNames = offlineCustNames.map(c => c.name);
+
+                                        // Save ODP Outage to DB
+                                        await databasePool.query(
+                                            `INSERT INTO nms_odp_outages (type, odp_id, odc_id, odp_name, odc_name, total_customers, offline_customers, offline_percent, alert_sent_at, status, affected_customers)
+                                             VALUES ('ODP', ?, ?, ?, ?, ?, ?, ?, NOW(), 'active', ?)`,
+                                            [odpId, odcId, odpName, odcName, totalCount, offlineCount, (offlineCount / totalCount) * 100, JSON.stringify(affectedNames)]
+                                        );
+
+                                        await CustomerNotificationService.broadcastInfrastructureIssue(
+                                            odpName!, 'ODP', 'offline', offlineCount, {
+                                                odcName: odcName || undefined,
+                                                totalCount: totalCount,
+                                                affectedCustomers: affectedNames
+                                            }
+                                        );
+                                    }
+                                    monitoringCache.odpAlertSent.set(odpId, true);
+                                }
+                            }
                         }
                     }
 
@@ -771,17 +1024,15 @@ export class AdvancedMonitoringService {
                     const wasOffline = previous && previous.status === 'offline';
 
                     if (!wasOffline) {
-                        // If previous status was unknown, undefined, or 'online', do NOT notify 'online'.
-                        // This prevents spam on restart/init.
-                        console.log(`[Status-Transition] Customer ${customer.name} detected ONLINE (Initial/Unknown -> Online). Notification suppressed.`);
+                        console.log(`[Status-Transition] Customer ${customer.name} detected ONLINE (Initial/Unknown -> Online). Suppressed.`);
                     } else {
-                        console.log(`[Status-Transition] Customer ${customer.name} is back ONLINE (Recovered).`);
+                        console.log(`[Status-Transition] Customer ${customer.name} is back ONLINE.`);
 
                         await databasePool.query(`
                             UPDATE static_ip_ping_status SET status = 'online', last_check = NOW(), last_online_at = NOW() WHERE customer_id = ?
                         `, [customerId]);
 
-                        // Notify Admins & Operators that customer is back online
+                        // Notify Admins
                         await CustomerNotificationService.broadcastCustomerStatusToAdmins(customer, 'online');
 
                         // Notify Customer (Recovered)
@@ -790,32 +1041,113 @@ export class AdvancedMonitoringService {
                         );
                     }
 
-                    // Mass Outage Recovery Detection (Always run logic to clean up ODP state)
-
-                    // Mass Outage Recovery Detection
+                    // NMS Outage Recovery Detection
                     if (odpId && monitoringCache.odpOfflineCustomers.has(odpId)) {
                         monitoringCache.odpOfflineCustomers.get(odpId)!.delete(customerId);
-                        const remainingOffline = monitoringCache.odpOfflineCustomers.get(odpId)!.size;
-
-                        // If ODP was in mass outage and now recovered below threshold
-                        if (remainingOffline < this.MASS_OUTAGE_THRESHOLD && monitoringCache.odpAlertSent.get(odpId)) {
-                            console.log(`[Mass-Outage] ODP ${odpName} recovered. ${remainingOffline} still offline.`);
-                            await CustomerNotificationService.broadcastInfrastructureIssue(
-                                odpName!, 'ODP', 'online', remainingOffline
-                            );
-                            monitoringCache.odpAlertSent.set(odpId, false);
-                        }
-
-                        // Cleanup empty sets
-                        if (remainingOffline === 0) {
-                            monitoringCache.odpOfflineCustomers.delete(odpId);
-                            monitoringCache.odpAlertSent.delete(odpId);
-                        }
+                        await this.checkOdpOdcRecovery(customerId, odpId, customer);
                     }
                 }
             }
         } catch (error) {
             console.error('[Status-Transition] Error:', error);
+        }
+    }
+
+    /**
+     * Helper to detect ODP / ODC recovery based on remaining offline count
+     */
+    private static async checkOdpOdcRecovery(customerId: number, odpId: number, customer: any): Promise<void> {
+        const remainingOffline = monitoringCache.odpOfflineCustomers.get(odpId) ? monitoringCache.odpOfflineCustomers.get(odpId)!.size : 0;
+
+        const odcId = customer.odc_id;
+        const odcName = customer.odc_name || (odcId ? `ODC-${odcId}` : null);
+        const odpName = customer.odp_name || (odpId ? `ODP-${odpId}` : null);
+
+        // A. Check ODC Recovery (All ODPs under ODC must have 0 offline)
+        if (odcId && monitoringCache.odcAlertSent.get(odcId)) {
+            const [odps] = await databasePool.query<RowDataPacket[]>(
+                `SELECT id FROM ftth_odp WHERE odc_id = ?`,
+                [odcId]
+            );
+            
+            let totalOdcOffline = 0;
+            for (const o of odps) {
+                const oOfflineSet = monitoringCache.odpOfflineCustomers.get(o.id);
+                totalOdcOffline += oOfflineSet ? oOfflineSet.size : 0;
+            }
+
+            if (totalOdcOffline === 0) {
+                console.log(`[NMS] ODC ${odcName} recovered fully.`);
+                
+                // Find active ODC outage in DB
+                const [activeOdcOutage] = await databasePool.query<RowDataPacket[]>(
+                    `SELECT id, alert_sent_at FROM nms_odp_outages 
+                     WHERE odc_id = ? AND type = 'ODC' AND status = 'active'
+                     ORDER BY alert_sent_at DESC LIMIT 1`,
+                    [odcId]
+                );
+
+                let durationMinutes = 0;
+                if (activeOdcOutage.length > 0) {
+                    const alertTime = new Date(activeOdcOutage[0].alert_sent_at);
+                    durationMinutes = Math.round((Date.now() - alertTime.getTime()) / 60000);
+
+                    await databasePool.query(
+                        `UPDATE nms_odp_outages 
+                         SET status = 'recovered', recovered_at = NOW(), duration_minutes = ?
+                         WHERE id = ?`,
+                        [durationMinutes, activeOdcOutage[0].id]
+                    );
+                }
+
+                await CustomerNotificationService.broadcastInfrastructureIssue(
+                    odcName!, 'ODC', 'online', 0, {
+                        durationMinutes: durationMinutes
+                    }
+                );
+
+                monitoringCache.odcAlertSent.set(odcId, false);
+            }
+        }
+
+        // B. Check ODP Recovery (remainingOffline === 0)
+        if (remainingOffline === 0 && monitoringCache.odpAlertSent.get(odpId)) {
+            console.log(`[NMS] ODP ${odpName} recovered fully.`);
+
+            // Find active ODP outage in DB
+            const [activeOdpOutage] = await databasePool.query<RowDataPacket[]>(
+                `SELECT id, alert_sent_at FROM nms_odp_outages 
+                 WHERE odp_id = ? AND type = 'ODP' AND status = 'active'
+                 ORDER BY alert_sent_at DESC LIMIT 1`,
+                [odpId]
+            );
+
+            let durationMinutes = 0;
+            if (activeOdpOutage.length > 0) {
+                const alertTime = new Date(activeOdpOutage[0].alert_sent_at);
+                durationMinutes = Math.round((Date.now() - alertTime.getTime()) / 60000);
+
+                await databasePool.query(
+                    `UPDATE nms_odp_outages 
+                     SET status = 'recovered', recovered_at = NOW(), duration_minutes = ?
+                     WHERE id = ?`,
+                    [durationMinutes, activeOdpOutage[0].id]
+                );
+            }
+
+            await CustomerNotificationService.broadcastInfrastructureIssue(
+                odpName!, 'ODP', 'online', 0, {
+                    durationMinutes: durationMinutes
+                }
+            );
+
+            monitoringCache.odpAlertSent.set(odpId, false);
+        }
+
+        // Cleanup sets in memory
+        if (remainingOffline === 0) {
+            monitoringCache.odpOfflineCustomers.delete(odpId);
+            monitoringCache.odpAlertSent.delete(odpId);
         }
     }
 
@@ -901,6 +1233,13 @@ export class AdvancedMonitoringService {
      */
     static getCachedPppoeSessions(): Map<string, any> {
         return monitoringCache.pppoeOnlineSessions;
+    }
+
+    /**
+     * Get the full monitoring cache for debugging and tests
+     */
+    static getMonitoringCache(): any {
+        return monitoringCache;
     }
 }
 

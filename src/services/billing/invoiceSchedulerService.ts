@@ -227,7 +227,7 @@ export class InvoiceSchedulerService {
                     `SELECT i.*, c.name, c.phone 
                      FROM invoices i 
                      JOIN customers c ON i.customer_id = c.id 
-                     WHERE i.status IN ('unpaid', 'partial', 'sent', 'overdue') 
+                     WHERE i.status IN ('unpaid', 'partial', 'sent', 'partial', 'overdue', 'carried_over', 'carried_over') 
                      AND i.remaining_amount > 0 
                      AND c.status = 'active'
                      AND i.customer_id NOT IN (SELECT customer_id FROM scheduler_settings WHERE task_name = 'suppress_reminders')`

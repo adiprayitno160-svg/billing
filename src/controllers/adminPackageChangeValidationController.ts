@@ -125,7 +125,7 @@ export async function getPendingCustomers(req: Request, res: Response, next: Nex
               SUM(i.remaining_amount) as total_outstanding
        FROM customers c
        LEFT JOIN invoices i ON c.id = i.customer_id 
-           AND i.status IN ('sent', 'partial', 'overdue')
+           AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
            AND i.remaining_amount > 0
        LEFT JOIN subscriptions s ON c.id = s.customer_id AND s.status = 'active'
        LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id

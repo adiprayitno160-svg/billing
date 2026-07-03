@@ -524,7 +524,7 @@ PENTING:
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
                 WHERE i.customer_id = ?
-                AND i.status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
+                AND i.status IN ('sent', 'partial', 'overdue', 'carried_over', 'janji_bayar', 'hutang')
                 AND i.remaining_amount > 0
             `;
             const invoiceParams: any[] = [customerId];
@@ -1061,7 +1061,7 @@ PENTING:
                 // Check for other unpaid invoices
                 const [unpaidCheck] = await connection.query<RowDataPacket[]>(
                     `SELECT COUNT(*) as count FROM invoices 
-                     WHERE customer_id = ? AND id != ? AND status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang') AND remaining_amount > 0`,
+                     WHERE customer_id = ? AND id != ? AND status IN ('sent', 'partial', 'overdue', 'carried_over', 'janji_bayar', 'hutang') AND remaining_amount > 0`,
                     [customerId, invoice.id]
                 );
 

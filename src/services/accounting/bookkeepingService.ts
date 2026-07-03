@@ -50,7 +50,7 @@ export class BookkeepingService {
                 FROM invoices i
                 INNER JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
-                WHERE i.status IN ('sent', 'partial', 'overdue')
+                WHERE i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                   AND i.remaining_amount > 0
             `;
             

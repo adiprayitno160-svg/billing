@@ -117,8 +117,8 @@ export class NotificationScheduler {
           }
         }
 
-        // Limit 4 messages per minute as requested
-        const result = await UnifiedNotificationService.sendPendingNotifications(4);
+        // Limit 2 messages per minute as requested
+        const result = await UnifiedNotificationService.sendPendingNotifications(2);
         if (result.sent > 0 || result.failed > 0) {
           this.totalSentInCycle += result.sent;
           console.log(`[NotificationScheduler] 📨 Processed: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped (cycle total: ${this.totalSentInCycle})`);
@@ -198,7 +198,7 @@ export class NotificationScheduler {
       const [invoices] = await connection.query<RowDataPacket[]>(
         `SELECT i.id, i.customer_id, i.invoice_number, i.due_date, i.remaining_amount
          FROM invoices i
-         WHERE i.status IN ('sent', 'overdue')
+         WHERE i.status IN ('sent', 'partial', 'overdue', 'carried_over')
            AND i.due_date < CURDATE()
            AND CAST(i.remaining_amount AS DECIMAL(10,2)) > 100
            AND DATEDIFF(CURDATE(), i.due_date) IN (1, 3, 7, 14, 21, 28)

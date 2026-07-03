@@ -183,7 +183,7 @@ export async function ensureInitialSchema(): Promise<void> {
 		// Ensure additional columns exist on static_ip_packages (used by app)
 		const addCol = async (sql: string) => {
 			try { await conn.query(sql); } catch (err: any) {
-				if (!('message' in err) || (!err.message.includes('Duplicate column name') && !err.message.includes("check that column/key exists"))) {
+				if (!('message' in err) || (!err.message.includes('Duplicate column name') && !err.message.includes("check that column/key exists") && err.code !== 'ER_NO_SUCH_TABLE')) {
 					throw err;
 				}
 			}
@@ -221,6 +221,9 @@ export async function ensureInitialSchema(): Promise<void> {
 		await addCol(`ALTER TABLE customers ADD COLUMN bonus_speed_limit VARCHAR(50) NULL COMMENT 'e.g. 40M/40M'`);
 		await addCol(`ALTER TABLE customers ADD COLUMN bonus_start_time TIME NULL`);
 		await addCol(`ALTER TABLE customers ADD COLUMN bonus_end_time TIME NULL`);
+		await addCol(`ALTER TABLE customers ADD COLUMN late_payment_count INT DEFAULT 0 COMMENT 'Jumlah keterlambatan pembayaran'`);
+		await addCol(`ALTER TABLE customer_balance_logs ADD COLUMN created_by INT NULL`);
+
 
 		// Create customer_traffic_usage table for FUP tracking
 		await conn.query(`CREATE TABLE IF NOT EXISTS customer_traffic_usage (
@@ -1092,6 +1095,68 @@ export async function ensureInitialSchema(): Promise<void> {
 		await addCol(`ALTER TABLE customers ADD COLUMN notification_cooldown_hours INT DEFAULT 1`);
 		await addCol(`ALTER TABLE customers ADD COLUMN is_isolated TINYINT(1) DEFAULT 0`);
 		await addCol(`ALTER TABLE customers ADD COLUMN isolated_at DATETIME NULL`);
+
+		// FTTH Pole Management Tables
+		await conn.query(`CREATE TABLE IF NOT EXISTS ftth_poles (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			code VARCHAR(50) NOT NULL UNIQUE,
+			name VARCHAR(100) NOT NULL,
+			latitude DECIMAL(10, 8) NULL,
+			longitude DECIMAL(11, 8) NULL,
+			pole_type VARCHAR(50) DEFAULT 'besi',
+			height_meters DECIMAL(5, 2) DEFAULT 7.00,
+			status VARCHAR(50) DEFAULT 'active',
+			description TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		await conn.query(`CREATE TABLE IF NOT EXISTS ftth_pole_devices (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			pole_id INT NOT NULL,
+			code VARCHAR(50) NOT NULL UNIQUE,
+			name VARCHAR(100) NOT NULL,
+			device_type VARCHAR(50) NOT NULL,
+			brand VARCHAR(50) NULL,
+			total_ports INT NOT NULL DEFAULT 4,
+			status VARCHAR(50) DEFAULT 'active',
+			notes TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			CONSTRAINT fk_pole_device_pole FOREIGN KEY (pole_id) REFERENCES ftth_poles(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+		// Add pole_id to customers table
+		await addCol(`ALTER TABLE customers ADD COLUMN pole_id INT NULL DEFAULT NULL AFTER odp_id`);
+		
+		// Ensure foreign key constraint for pole_id on customers table
+		try {
+			await conn.query(`ALTER TABLE customers ADD CONSTRAINT fk_customer_pole FOREIGN KEY (pole_id) REFERENCES ftth_poles(id) ON DELETE SET NULL`);
+		} catch (fkErr) {
+			// Constraint might already exist
+		}
+
+		// Ensure cables ENUM values support POLE and ODP
+		try {
+			await conn.query(`ALTER TABLE ftth_cables MODIFY COLUMN source_type ENUM('OLT', 'ODC', 'CLOSURE', 'POLE', 'ODP') NOT NULL`);
+			await conn.query(`ALTER TABLE ftth_cables MODIFY COLUMN destination_type ENUM('OLT', 'ODC', 'CLOSURE', 'POLE', 'ODP') NOT NULL`);
+		} catch (enumErr) {
+			// Might already be modified
+		}
+
+		await addCol(`ALTER TABLE ftth_cables ADD COLUMN color VARCHAR(50) DEFAULT '#3388ff' AFTER capacity_core`);
+		await addCol(`ALTER TABLE ftth_closures ADD COLUMN pole_id INT NULL DEFAULT NULL AFTER id`);
+		await addCol(`ALTER TABLE ftth_cables ADD COLUMN path_nodes JSON NULL AFTER destination_id`);
+
+		await conn.query(`CREATE TABLE IF NOT EXISTS nms_odp_outages (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			type VARCHAR(50) NOT NULL,
+			odp_id INT NULL,
+			odc_id INT NULL,
+			status VARCHAR(50) DEFAULT 'active',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
 	} finally {
 		conn.release();

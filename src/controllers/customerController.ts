@@ -614,7 +614,8 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
                 END as package_id,
                 olt.name as olt_name,
                 odc.name as odc_name,
-                odp.name as odp_name
+                odp.name as odp_name,
+                c.parent_customer_id
             FROM customers c
             LEFT JOIN static_ip_clients sic ON c.id = sic.customer_id AND c.connection_type = 'static_ip'
             LEFT JOIN subscriptions s ON c.id = s.customer_id AND c.connection_type = 'pppoe' AND s.status = 'active'
@@ -638,6 +639,12 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         }
 
         const customer = customers[0];
+        
+        let parentCustomer = null;
+        if (customer.parent_customer_id) {
+            const [parents] = await databasePool.query<RowDataPacket[]>('SELECT id, name FROM customers WHERE id = ?', [customer.parent_customer_id]);
+            if (parents.length > 0) parentCustomer = parents[0];
+        }
 
         // Get packages based on connection type
         // Get packages based on connection type
@@ -696,6 +703,7 @@ export const getCustomerEdit = async (req: Request, res: Response) => {
         res.render('customers/edit', {
             title: `Edit Pelanggan - ${customer.name}`,
             customer: customerForView,
+            parentCustomer,
             pppoePackages: pppoePackages,
             staticIpPackages: staticIpPackages,
             packages: customer.connection_type === 'pppoe' ? pppoePackages : staticIpPackages, // Fallback for general usage
@@ -774,7 +782,8 @@ export const updateCustomer = async (req: Request, res: Response) => {
             bonus_speed_limit,
             bonus_start_time,
             bonus_end_time,
-            isolation_enabled
+            isolation_enabled,
+            parent_customer_id
         } = req.body;
 
         console.log('[DEBUG UPDATE] ODP ID from body:', odp_id);
@@ -893,6 +902,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
             if (req.body.odp_id !== undefined) {
                 updateFields.push('odp_id = ?');
                 updateValues.push(req.body.odp_id || null);
+            }
+            if (parent_customer_id !== undefined) {
+                updateFields.push('parent_customer_id = ?');
+                updateValues.push(parent_customer_id || null);
             }
             if (req.body.odc_id !== undefined) {
                 updateFields.push('odc_id = ?');
@@ -1429,6 +1442,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
                     if (req.body.gateway) { staticIpUpdates.push('gateway_ip = ?'); staticIpValues.push(req.body.gateway); }
                     if (req.body.interface) { staticIpUpdates.push('interface = ?'); staticIpValues.push(req.body.interface); }
                     if (req.body.static_ip_package) { staticIpUpdates.push('package_id = ?'); staticIpValues.push(req.body.static_ip_package); }
+                    if (req.body.name) {
+                        staticIpUpdates.push('client_name = ?');
+                        staticIpValues.push(req.body.name.trim());
+                    }
 
                     if (staticClient && staticClient.length > 0) {
                         if (staticIpUpdates.length > 0) {
@@ -1453,6 +1470,22 @@ export const updateCustomer = async (req: Request, res: Response) => {
                                     { oldClientName: oldName } // option to cleanup old queues if name changed
                                 );
                                 console.log('[UpdateCustomer] ✅ Static IP Queues Synced.');
+
+                                // Synchronize /ip address comment on MikroTik
+                                const config = await getMikrotikConfig();
+                                if (config) {
+                                    const { findIpAddressId, updateIpAddress } = await import('../services/mikrotikService');
+                                    let ipId = await findIpAddressId(config, finalIp);
+                                    if (!ipId) {
+                                        ipId = await findIpAddressId(config, finalIp.split('/')[0]);
+                                    }
+                                    if (ipId) {
+                                        await updateIpAddress(config, ipId, { comment: req.body.name || oldName });
+                                        console.log(`[UpdateCustomer] ✅ Synced comment "${req.body.name || oldName}" to MikroTik IP Address`);
+                                    } else {
+                                        console.warn(`[UpdateCustomer] ⚠️ Could not find IP Address ID on MikroTik to sync comment.`);
+                                    }
+                                }
                             } catch (qError) {
                                 console.error('[UpdateCustomer] ❌ Queue Sync Failed:', qError);
                             }
@@ -1789,6 +1822,23 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             // Handle subscriptions and IP clients
             await conn.query('DELETE FROM subscriptions WHERE customer_id = ?', [customerId]).catch(()=>{});
             await conn.query('DELETE FROM static_ip_clients WHERE customer_id = ?', [customerId]).catch(()=>{});
+
+            // Handle missing foreign keys that block deletion
+            await conn.query('DELETE FROM customer_discounts WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM payment_deferments WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM payment_verifications WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM prepaid_transactions WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM purchase_codes WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM static_ip_ping_status WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM whatsapp_bot_conversations WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM wifi_change_requests WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM customer_wa_lids WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM two_hour_notification_logs WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM payment_transactions WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM customer_traffic_usage WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('DELETE FROM payment_confirmations WHERE customer_id = ?', [customerId]).catch(()=>{});
+            await conn.query('UPDATE customers SET parent_customer_id = NULL, referred_by_id = NULL WHERE parent_customer_id = ? OR referred_by_id = ?', [customerId, customerId]).catch(()=>{});
+
 
             // Handle invoices and payments
             const [customerInvoices] = await conn.query<RowDataPacket[]>('SELECT id FROM invoices WHERE customer_id = ?', [customerId]);

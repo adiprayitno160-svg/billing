@@ -149,7 +149,18 @@ export async function postOdpUpdate(req: Request, res: Response, next: NextFunct
 export async function postOdpDelete(req: Request, res: Response, next: NextFunction) {
     try {
         const id = Number(req.params.id);
+        
+        // Get old ODP to know which ODC to recalculate
+        const oldOdp = await getOdpById(id);
+        const oldOdcId = oldOdp?.odc_id;
+
         await deleteOdp(id);
+
+        // Recalculate parent ODC usage if existed
+        if (oldOdcId) {
+            await recalculateOdcUsage(oldOdcId);
+        }
+
         res.redirect('/ftth/odp');
     } catch (err) { next(err); }
 }

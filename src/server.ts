@@ -38,6 +38,7 @@ import { loggingMiddleware, errorLoggingMiddleware } from './middlewares/logging
 import { BillingLogService } from './services/billing/BillingLogService';
 import { AIAnomalyDetectionService } from './services/billing/AIAnomalyDetectionService';
 import { pppoeStatsMiddleware } from './middlewares/pppoeStatsMiddleware';
+import { registrationBadgeMiddleware } from './middlewares/registrationBadgeMiddleware';
 
 // Load .env but don't override existing environment variables (e.g., from PM2)
 dotenv.config({ override: false });
@@ -199,6 +200,9 @@ app.use(injectAppVersion);
 
 // PPPoE Stats middleware - for sidebar
 app.use(pppoeStatsMiddleware);
+
+// Registration Badge middleware - for sidebar
+app.use(registrationBadgeMiddleware);
 
 // Root router
 app.use('/', router);

@@ -402,7 +402,7 @@ export class WhatsAppSettingsController {
                 SELECT id, invoice_number, total_amount, paid_amount, remaining_amount, status, due_date
                 FROM invoices
                 WHERE customer_id = ?
-                AND status IN ('sent', 'partial', 'overdue')
+                AND status IN ('sent', 'partial', 'overdue', 'carried_over')
                 AND remaining_amount > 0
                 ORDER BY due_date ASC
             `, [customerId]);

@@ -177,12 +177,12 @@ export class UnifiedNotificationService {
         // Inject dynamic notification info for cicilan and tunggakan/janji bayar
         const vars = allVariables as any;
         if (data.notification_type === 'payment_partial') {
-          message += `\n\nðŸ“Œ *Info Pembayaran*: Anda telah melakukan cicilan pembayaran sebesar *Rp ${vars.paid_amount || 0}*. Kekurangan tagihan sebesar *Rp ${vars.remaining_amount || 0}* mohon dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan.`;
+          message += `\n\n📌 *Info Pembayaran*: Anda telah melakukan cicilan pembayaran sebesar *Rp ${vars.paid_amount || 0}*. Kekurangan tagihan sebesar *Rp ${vars.remaining_amount || 0}* mohon dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan.`;
         } else if (data.notification_type === 'payment_debt') {
           if (vars.due_date && vars.due_date !== '-') {
-            message += `\n\nðŸ“Œ *Info Janji Bayar*: Tagihan Anda dialihkan menjadi tunggakan/janji bayar dengan sisa tagihan sebesar *Rp ${vars.remaining_amount || 0}*. Mohon komitmen pembayaran sesuai dengan janji bayar yang disepakati, yaitu paling lambat *${vars.due_date}*.`;
+            message += `\n\n📌 *Info Janji Bayar*: Tagihan Anda dialihkan menjadi tunggakan/janji bayar dengan sisa tagihan sebesar *Rp ${vars.remaining_amount || 0}*. Mohon komitmen pembayaran sesuai dengan janji bayar yang disepakati, yaitu paling lambat *${vars.due_date}*.`;
           } else {
-            message += `\n\nðŸ“Œ *Info Tunggakan*: Tagihan Anda sebesar *Rp ${vars.remaining_amount || 0}* telah dialihkan menjadi tunggakan. Mohon pembayaran segera dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan untuk menghindari pemblokiran layanan.`;
+            message += `\n\n📌 *Info Tunggakan*: Tagihan Anda sebesar *Rp ${vars.remaining_amount || 0}* telah dialihkan menjadi tunggakan. Mohon pembayaran segera dilunasi selambat-lambatnya bersamaan dengan tagihan bulan depan untuk menghindari pemblokiran layanan.`;
           }
         }
 
@@ -473,14 +473,14 @@ export class UnifiedNotificationService {
 
       let processedInThisBatch = 0;
       for (const notif of notifications) {
-        // Anti-spam: Fixed delay 15 seconds for mass notifications to achieve 4 msgs/minute
+        // Anti-spam: Fixed delay 25 seconds for mass notifications to achieve 2 msgs/minute
         if (processedInThisBatch > 0) {
-          const delay = 15000;
-          console.log(`[UnifiedNotification] â³ Waiting ${Math.round(delay / 1000)} seconds before next message (Anti-Ban 15s Delay)...`);
+          const delay = 25000;
+          console.log(`[UnifiedNotification] ⏳ Waiting ${Math.round(delay / 1000)} seconds before next message (Anti-Ban 25s Delay)...`);
           await this.delay(delay);
         }
 
-        console.log(`[UnifiedNotification] ðŸ” Processing notification ID: ${notif.id}`, {
+        console.log(`[UnifiedNotification] ðŸ”  Processing notification ID: ${notif.id}`, {
           customer_id: notif.customer_id,
           notification_type: notif.notification_type,
           channel: notif.channel,
@@ -1348,12 +1348,12 @@ export class UnifiedNotificationService {
       if (users.length === 0) return;
 
       const waClient = whatsappService;
-      for (const user of users) {
-        // Send directly
-        await waClient.sendMessage(user.phone, message).catch(err => {
+      const promises = users.map(user => 
+        waClient.sendMessage(user.phone, message).catch(err => {
           console.warn(`[UnifiedNotification] Failed to broadcast to admin ${user.phone}:`, err.message);
-        });
-      }
+        })
+      );
+      await Promise.all(promises);
     } catch (error) {
       console.error('[UnifiedNotification] Broadcast Error:', error);
     }

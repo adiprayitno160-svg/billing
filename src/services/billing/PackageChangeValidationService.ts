@@ -42,7 +42,7 @@ export class PackageChangeValidationService {
           status
         FROM invoices 
         WHERE customer_id = ? 
-          AND status IN ('sent', 'partial', 'overdue')
+          AND status IN ('sent', 'partial', 'overdue', 'carried_over')
           AND remaining_amount > 0
         ORDER BY due_date ASC
       `;
@@ -92,7 +92,7 @@ export class PackageChangeValidationService {
         status
       FROM invoices 
       WHERE customer_id = ? 
-        AND status IN ('sent', 'partial', 'overdue')
+        AND status IN ('sent', 'partial', 'overdue', 'carried_over')
         AND remaining_amount > 0
       ORDER BY due_date ASC
     `;

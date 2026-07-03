@@ -120,7 +120,7 @@ router.get('/rekap/unpaid', async (req, res) => {
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
-                WHERE i.status IN ('unpaid', 'sent', 'partial', 'overdue') AND c.status = 'active'
+                WHERE i.status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over') AND c.status = 'active'
             `;
             const params: any[] = [];
             if (period) { query += " AND i.period = ?"; params.push(period); }
@@ -267,7 +267,7 @@ router.post('/tagihan/bulk-reminder', async (req, res) => {
                 `SELECT i.*, c.name, c.phone 
                  FROM invoices i 
                  JOIN customers c ON i.customer_id = c.id 
-                  WHERE i.id IN (?) AND i.status IN ('unpaid', 'partial', 'sent', 'overdue') AND i.period = DATE_FORMAT(CURDATE(), '%Y-%m') AND c.status = 'active'`,
+                  WHERE i.id IN (?) AND i.status IN ('unpaid', 'partial', 'sent', 'partial', 'overdue', 'carried_over', 'carried_over') AND i.period = DATE_FORMAT(CURDATE(), '%Y-%m') AND c.status = 'active'`,
                 [invoiceIds]
             ) as any;
 
@@ -349,14 +349,14 @@ router.get('/tagihan/print-no-odc', async (req, res) => {
                     c.address as customer_address,
                     c.customer_code,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as unpaid_periods
                 FROM invoices i
                 INNER JOIN customers c ON i.customer_id = c.id
                 WHERE (c.odc_id IS NULL OR c.odc_id = 0)
                 AND c.status = 'active'
-                AND i.status IN ('sent', 'partial', 'overdue')
-                AND i.id = (SELECT id FROM invoices WHERE customer_id = i.customer_id AND status IN ('sent', 'partial', 'overdue') ORDER BY period DESC, created_at DESC LIMIT 1)
+                AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
+                AND i.id = (SELECT id FROM invoices WHERE customer_id = i.customer_id AND status IN ('sent', 'partial', 'overdue', 'carried_over') ORDER BY period DESC, created_at DESC LIMIT 1)
             `;
 
             const queryParams: any[] = [];
@@ -468,14 +468,14 @@ router.get('/tagihan/print-odc/:odc_id', async (req, res) => {
                     c.address as customer_address,
                     c.customer_code,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as unpaid_periods
                 FROM invoices i
                 INNER JOIN customers c ON i.customer_id = c.id
                 WHERE c.odc_id = ?
                 AND c.status = 'active'
-                AND i.status IN ('sent', 'partial', 'overdue')
-                AND i.id = (SELECT id FROM invoices WHERE customer_id = i.customer_id AND status IN ('sent', 'partial', 'overdue') ORDER BY period DESC, created_at DESC LIMIT 1)
+                AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
+                AND i.id = (SELECT id FROM invoices WHERE customer_id = i.customer_id AND status IN ('sent', 'partial', 'overdue', 'carried_over') ORDER BY period DESC, created_at DESC LIMIT 1)
             `;
 
             const queryParams: any[] = [odc_id];
@@ -572,8 +572,8 @@ router.get('/tagihan/print-all', async (req, res) => {
                     o.name as odc_name,
                     o.location as odc_location,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 LEFT JOIN ftth_odc o ON c.odc_id = o.id
@@ -604,7 +604,7 @@ router.get('/tagihan/print-all', async (req, res) => {
                 } else if (status === 'paid') {
                     query += " AND i.status = 'paid'";
                 } else {
-                    query += " AND i.status IN ('sent', 'partial', 'overdue')";
+                    query += " AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')";
                     query += " AND i.period = DATE_FORMAT(CURDATE(), '%Y-%m')"; // 100% fix for Sadida (only current month prints)
                 }
 
@@ -709,8 +709,8 @@ router.get('/tagihan/print-bulk-thermal', async (req, res) => {
                     c.address as customer_address,
                     c.customer_code,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over', 'hutang')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over', 'hutang')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 WHERE i.id IN (?) AND c.status = 'active'`,
@@ -868,8 +868,8 @@ router.get('/tagihan/:id/print', async (req, res) => {
                     c.address as customer_address,
                     c.customer_code,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over', 'hutang')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over', 'hutang')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 WHERE i.id = ?`,
@@ -944,8 +944,8 @@ router.get('/tagihan/:id/print-thermal', async (req, res) => {
                     c.address as customer_address,
                     c.customer_code,
                     i.period as raw_period,
-                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as total_balance,
-                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'hutang')) as unpaid_periods
+                    (SELECT COALESCE(SUM(total_amount - paid_amount), 0) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over', 'hutang')) as total_balance,
+                    (SELECT GROUP_CONCAT(period ORDER BY period ASC) FROM invoices WHERE customer_id = i.customer_id AND status IN ('unpaid', 'sent', 'partial', 'overdue', 'carried_over', 'hutang')) as unpaid_periods
                 FROM invoices i
                 LEFT JOIN customers c ON i.customer_id = c.id
                 WHERE i.id = ?`,
@@ -1518,6 +1518,9 @@ router.post('/payments/:id/resend-notification', paymentController.resendNotific
 // Payment history view
 router.get('/payments/history', paymentController.getPaymentHistory.bind(paymentController));
 
+// Restore Payment (Admin Only)
+router.post('/payments/:id/restore', paymentController.restorePayment.bind(paymentController));
+
 // Payment detail
 router.get('/payments/:id', async (req, res) => {
     // Will be implemented with PaymentController
@@ -1560,7 +1563,7 @@ router.get('/tagihan/:invoiceId/pay', async (req, res) => {
                     (IF(i.id = ?, 1, 0)) as is_primary 
                  FROM invoices i 
                  WHERE i.customer_id = ? 
-                 AND i.status IN ('sent', 'partial', 'overdue')
+                 AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                  ORDER BY i.period ASC`,
                 [invoice.id, invoice.customer_id]
             ) as any;
@@ -1758,6 +1761,7 @@ router.post('/payments/process', paymentController.processPayment.bind(paymentCo
 
 // Process payment - LEGACY HANDLERS (Consider deprecating)
 router.post('/payments/full', paymentController.processPayment.bind(paymentController));
+router.post('/payments/bulk', paymentController.processBulkPayment.bind(paymentController));
 router.post('/payments/partial', paymentController.processPayment.bind(paymentController));
 router.post('/payments/debt', paymentController.processPayment.bind(paymentController));
 

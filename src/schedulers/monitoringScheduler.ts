@@ -12,6 +12,7 @@ import NetworkMonitoringService from '../services/monitoring/NetworkMonitoringSe
 import { TwoHourNotificationService } from '../services/monitoring/TwoHourNotificationService';
 
 import { AdvancedMonitoringService } from '../services/monitoring/AdvancedMonitoringService';
+import { OfflineNotificationService } from '../services/monitoring/OfflineNotificationService';
 
 export class MonitoringScheduler {
     private jobs: Map<string, cron.ScheduledTask> = new Map();
@@ -67,9 +68,8 @@ export class MonitoringScheduler {
             // DISABLED: Sends timeout/recovery notifications
             // this.startEnhancedCustomerMonitoring();
 
-            // 9. Two Hour Notification Service - Every 2 hours
-            // DISABLED: Sends 2-hour offline notifications
-            // this.startTwoHourNotificationService();
+            // 9. 30-Minute Offline Notification Service - Every 5 minutes
+            this.startOfflineNotificationService();
 
             // 10. GenieACS Device Sync - Every 1 hour
             this.startGenieacsSync();
@@ -261,6 +261,28 @@ export class MonitoringScheduler {
         this.jobs.set('two-hour-notification-service', job);
         console.log('[MonitoringScheduler] ✓ Two Hour Notification Service scheduled (every 2 hours)');
     }
+
+    /**
+     * Start Offline Notification Service (30 minutes offline)
+     * Runs every 5 minutes
+     */
+    private startOfflineNotificationService(): void {
+        console.log('[MonitoringScheduler] Starting Offline Notification Service (every 5 mins)...');
+        
+        // Run every 5 minutes
+        const offlineNotifJob = cron.schedule('*/5 * * * *', async () => {
+            console.log('[MonitoringScheduler] Running Offline Notification Service...');
+            try {
+                const service = OfflineNotificationService.getInstance();
+                await service.processOfflineCustomers();
+            } catch (error) {
+                console.error('[MonitoringScheduler] Error in Offline Notification Service:', error);
+            }
+        });
+
+        this.jobs.set('offline_notification_service', offlineNotifJob);
+    }
+
     /**
      * 10. GenieACS Device Sync - Every 1 hour
      */

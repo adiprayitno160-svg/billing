@@ -91,7 +91,7 @@ export async function deleteOdp(id: number): Promise<void> {
 export async function recalculateOdpUsage(id: number): Promise<void> {
 	// Count all customers assigned to this ODP
 	const [rows] = await databasePool.query(
-		'SELECT COUNT(*) as count FROM customers WHERE odp_id = ?',
+		'SELECT COUNT(*) as count FROM customers WHERE odp_id = ? AND parent_customer_id IS NULL',
 		[id]
 	);
 	const count = (rows as any)[0]?.count || 0;

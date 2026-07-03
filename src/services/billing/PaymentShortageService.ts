@@ -41,7 +41,7 @@ export class PaymentShortageService {
                     DATEDIFF(CURDATE(), i.due_date) as days_overdue
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
-                WHERE i.status IN ('overdue', 'sent')
+                WHERE i.status IN ('overdue', 'sent', 'partial', 'carried_over')
                 AND i.remaining_amount > 0
                 AND c.status = 'active'
                 AND c.is_isolated = FALSE

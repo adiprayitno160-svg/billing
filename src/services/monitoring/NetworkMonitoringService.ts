@@ -569,7 +569,7 @@ export class NetworkMonitoringService {
                         const username = metadata.pppoe_username;
 
                         if (username) {
-                            const isOnline = activeUsernames.has(username);
+                            const isOnline = activeUsernames.has(username.toLowerCase());
                             // If isOnline is true, set status to online. 
                             // If false, set to offline (override DB status which might be 'active' but offline)
                             const newStatus = isOnline ? 'online' : 'offline';
@@ -581,7 +581,7 @@ export class NetworkMonitoringService {
                             else offlineCount++;
 
                             // Optional: Inject session details
-                            const session = sessionMap.get(username);
+                            const session = sessionMap.get(username.toLowerCase());
 
                             return {
                                 ...device,
@@ -1310,7 +1310,7 @@ export class NetworkMonitoringService {
                 const mikrotikConfig = await getMikrotikConfig();
                 if (mikrotikConfig) {
                     const activeSessions = await getPppoeActiveConnections(mikrotikConfig);
-                    const onlineUsernames = new Set(activeSessions.map(s => s.name));
+                    const onlineUsernames = new Set(activeSessions.map(s => s.name?.toLowerCase() || ''));
 
                     // 1. Identify customers who are Active in DB but NOT online in MikroTik (Realtime Offline)
                     // We need to fetch ALL active PPPoE customers to check this, 
@@ -1333,7 +1333,8 @@ export class NetworkMonitoringService {
 
                     for (const activeCust of allActivePppoe) {
                         // Use activeCust.pppoe_username to check online status
-                        if (!onlineUsernames.has(activeCust.pppoe_username)) {
+                        const pppoeUserLower = activeCust.pppoe_username?.toLowerCase() || '';
+                        if (!onlineUsernames.has(pppoeUserLower)) {
                             // Customer is Active in DB but NOT Online in Mikrotik -> Trouble!
 
                             // Only add if not already present (e.g. from maintenance or logs)
@@ -1367,7 +1368,7 @@ export class NetworkMonitoringService {
 
                         for (const cust of rows as any[]) {
                             if (cust.trouble_type === 'offline') {
-                                const isOnline = onlineUsernames.has(cust.pppoe_username);
+                                const isOnline = onlineUsernames.has(cust.pppoe_username?.toLowerCase() || '');
                                 const wasOnlinePreviously = previousStates.get(cust.id) === 'online';
 
                                 if (!isOnline) {
@@ -1535,7 +1536,7 @@ export class NetworkMonitoringService {
         try {
             // Update states for all customers in the report
             for (const customer of customers) {
-                const status = customer.pppoe_username && onlineUsernames.has(customer.pppoe_username)
+                const status = customer.pppoe_username && onlineUsernames.has(customer.pppoe_username.toLowerCase())
                     ? 'online'
                     : 'offline';
 

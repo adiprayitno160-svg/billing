@@ -243,17 +243,17 @@ export class KasirController {
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')
+                         AND status IN ('sent', 'partial', 'overdue', 'carried_over')
                          ${selectedPeriod !== 'all' ? `AND period = ?` : ''}
                         ) as pending_count,
                         (SELECT GROUP_CONCAT(period SEPARATOR ', ') FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')
+                         AND status IN ('sent', 'partial', 'overdue', 'carried_over')
                          ${selectedPeriod !== 'all' ? `AND period = ?` : ''}
                         ) as pending_periods,
                         (SELECT SUM(total_amount - paid_amount) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')
+                         AND status IN ('sent', 'partial', 'overdue', 'carried_over')
                          ${selectedPeriod !== 'all' ? `AND period = ?` : ''}
                         ) as total_pending,
                         (SELECT COUNT(*) FROM payment_verifications pv
@@ -264,7 +264,7 @@ export class KasirController {
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     WHERE c.status = 'active' AND (SELECT COUNT(*) FROM invoices 
                            WHERE customer_id = c.id 
-                           AND status IN ('sent', 'overdue')
+                           AND status IN ('sent', 'partial', 'overdue', 'carried_over')
                 `;
 
                 const queryParams: any[] = [];
@@ -328,10 +328,10 @@ export class KasirController {
                         pp.name as package_name,
                         (SELECT COUNT(*) FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')) as pending_count,
+                         AND status IN ('sent', 'partial', 'overdue', 'carried_over')) as pending_count,
                         (SELECT GROUP_CONCAT(period SEPARATOR ', ') FROM invoices 
                          WHERE customer_id = c.id 
-                         AND status IN ('sent', 'overdue')) as pending_periods
+                         AND status IN ('sent', 'partial', 'overdue', 'carried_over')) as pending_periods
                     FROM customers c
                     LEFT JOIN pppoe_profiles pp ON c.pppoe_profile_id = pp.id
                     WHERE c.status = 'active' AND (c.customer_code LIKE ? 
@@ -340,7 +340,7 @@ export class KasirController {
                        OR c.pppoe_username LIKE ?)
                        AND (SELECT COUNT(*) FROM invoices 
                             WHERE customer_id = c.id 
-                            AND status IN ('sent', 'overdue')) > 0
+                            AND status IN ('sent', 'partial', 'overdue', 'carried_over')) > 0
                     LIMIT 20
                 `, [`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`]);
 
@@ -373,7 +373,7 @@ export class KasirController {
                 } else if (status === 'all') {
                     // No filter
                 } else {
-                    query += " AND status IN ('sent', 'overdue')";
+                    query += " AND status IN ('sent', 'partial', 'overdue', 'carried_over')";
                 }
 
                 // Default to DESC (newest first) but support ASC (oldest first for payment selection)
@@ -410,6 +410,76 @@ export class KasirController {
         } catch (error) {
             console.error('Error getting customer invoices:', error);
             res.json({ success: false, message: 'Gagal mengambil data tagihan' });
+        }
+    }
+
+    // Proses Bulk Payment (Pembayaran Masal)
+    public async processBulkPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            const { invoice_ids, payment_method, notes } = req.body;
+            const kasirId = (req.session as any)?.userId;
+
+            if (!invoice_ids || !Array.isArray(invoice_ids) || invoice_ids.length === 0 || !payment_method) {
+                res.status(400).json({ success: false, message: 'Data tidak lengkap. Pilih minimal satu tagihan.' });
+                return;
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+
+            const [invoiceRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id, customer_id, remaining_amount, total_amount, paid_amount, status FROM invoices WHERE id IN (?) AND status != "paid"',
+                [invoice_ids]
+            );
+
+            const invoicesByCustomer = invoiceRows.reduce((acc: any, inv: any) => {
+                if (!acc[inv.customer_id]) acc[inv.customer_id] = { ids: [], amount: 0 };
+                acc[inv.customer_id].ids.push(inv.id);
+                
+                let amt = parseFloat(inv.remaining_amount);
+                if (inv.status === 'carried_over') {
+                    amt = Math.max(0, parseFloat(inv.total_amount) - parseFloat(inv.paid_amount || 0));
+                } else if (!amt && amt !== 0) {
+                    amt = parseFloat(inv.total_amount);
+                }
+                
+                acc[inv.customer_id].amount += amt;
+                return acc;
+            }, {});
+
+            for (const customerId of Object.keys(invoicesByCustomer)) {
+                const group = invoicesByCustomer[customerId];
+                try {
+                    const result = await this.processPaymentTransaction(
+                        Number(customerId),
+                        group.amount,
+                        payment_method,
+                        notes || 'Pembayaran Masal (Kasir)',
+                        kasirId,
+                        'full',
+                        false, // useBalance
+                        group.ids
+                    );
+
+                    if (result.success) {
+                        successCount += group.ids.length;
+                    } else {
+                        failCount += group.ids.length;
+                    }
+                } catch (err: any) {
+                    console.error(`Error bulk payment for customer ${customerId}:`, err.message);
+                    failCount += group.ids.length;
+                }
+            }
+
+            res.json({
+                success: true,
+                message: `Berhasil memproses ${successCount} tagihan. ${failCount > 0 ? `Gagal: ${failCount}` : ''}`
+            });
+
+        } catch (error) {
+            console.error('Error during bulk payment:', error);
+            res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server' });
         }
     }
 
@@ -464,7 +534,7 @@ export class KasirController {
                 const [invoices] = await conn.query<RowDataPacket[]>(
                     `SELECT id, invoice_number, total_amount, paid_amount, period, due_date 
                      FROM invoices 
-                     WHERE customer_id = ? AND status IN ('sent', 'overdue')
+                     WHERE customer_id = ? AND status IN ('sent', 'partial', 'overdue', 'carried_over')
                      ORDER BY period DESC LIMIT 1`,
                     [customerId]
                 );
@@ -576,7 +646,7 @@ export class KasirController {
 
                 // Calculate total debt
                 const [debtResult] = await conn.query<RowDataPacket[]>(
-                    "SELECT SUM(total_amount - paid_amount) as total_debt FROM invoices WHERE customer_id = ? AND status IN ('sent', 'overdue')",
+                    "SELECT SUM(total_amount - paid_amount) as total_debt FROM invoices WHERE customer_id = ? AND status IN ('sent', 'partial', 'overdue', 'carried_over')",
                     [customerId]
                 );
                 const totalDebt = debtResult[0]?.total_debt || 0;
@@ -635,7 +705,7 @@ export class KasirController {
                     FROM ftth_odc o
                     LEFT JOIN customers c ON c.odc_id = o.id
                     LEFT JOIN invoices i ON i.customer_id = c.id 
-                        AND i.status IN ('sent', 'overdue')
+                        AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                     GROUP BY o.id
                     ORDER BY o.name ASC
                 `);
@@ -647,7 +717,7 @@ export class KasirController {
                         COUNT(DISTINCT i.id) as pending_invoice_count
                     FROM customers c
                     LEFT JOIN invoices i ON i.customer_id = c.id 
-                        AND i.status IN ('sent', 'overdue')
+                        AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                     WHERE c.odc_id IS NULL AND c.status = 'active'
                 `);
 
@@ -678,7 +748,7 @@ export class KasirController {
                         SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue,
                         SUM(total_amount - paid_amount) as total_amount
                     FROM invoices
-                    WHERE status IN ('sent', 'overdue')
+                    WHERE status IN ('sent', 'partial', 'overdue', 'carried_over')
                 `);
 
                 res.render('kasir/print-group', {
@@ -743,7 +813,7 @@ export class KasirController {
                             COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
                         FROM customers c
                         LEFT JOIN invoices i ON i.customer_id = c.id 
-                            AND i.status IN ('sent', 'overdue')
+                            AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                         WHERE c.odc_id IS NULL
                         ORDER BY c.name ASC
                     `);
@@ -780,7 +850,7 @@ export class KasirController {
                             COALESCE(i.total_amount - i.paid_amount, 0) as remaining_amount
                         FROM customers c
                         LEFT JOIN invoices i ON i.customer_id = c.id 
-                            AND i.status IN ('sent', 'overdue')
+                            AND i.status IN ('sent', 'partial', 'overdue', 'carried_over')
                         WHERE c.odc_id = ?
                         ORDER BY c.name ASC
                     `, [odc_id]);
@@ -882,7 +952,7 @@ export class KasirController {
                     SELECT period, due_date, remaining_amount, invoice_number 
                     FROM invoices 
                     WHERE customer_id = ? 
-                    AND status IN ('sent', 'overdue')
+                    AND status IN ('sent', 'partial', 'overdue', 'carried_over')
                     ORDER BY period ASC
                 `, [mainPayment.customer_id]);
 
@@ -1137,7 +1207,7 @@ export class KasirController {
             const [pendingStats] = await conn.query<RowDataPacket[]>(`
                 SELECT COUNT(*) as pendingPayments
                 FROM invoices 
-                WHERE status IN ('sent', 'overdue')
+                WHERE status IN ('sent', 'partial', 'overdue', 'carried_over')
             `);
 
             // Get payment method breakdown for today
@@ -1333,7 +1403,7 @@ export class KasirController {
         }
     }
 
-    private async processPaymentTransaction(
+    public async processPaymentTransaction(
         customerId: number,
         amount: number,
         paymentMethod: string,
@@ -1365,7 +1435,7 @@ export class KasirController {
             let invoiceQuery = `
                 SELECT id, invoice_number, customer_id, subscription_id, period, due_date, subtotal, discount_amount, total_amount, paid_amount, remaining_amount, status, notes, created_at, updated_at FROM invoices 
                 WHERE customer_id = ? 
-                AND status IN ('sent', 'overdue')
+                AND status IN ('sent', 'partial', 'overdue', 'carried_over')
             `;
             const queryParams: any[] = [customerId];
 
@@ -1529,8 +1599,16 @@ export class KasirController {
                     WHERE id = ?
                 `, [newPaidTotal, newRem, newStat, newStat, invoice.id]);
 
-                    // Sync with debt_tracking for Admin visibility
-                    if (newRem > 0) {
+                // Cleanup carried-over arrears in newer invoices
+                try {
+                    const { PaymentService } = await import('../services/billing/paymentService');
+                    await PaymentService.adjustCarriedOverInvoicesAfterPayment(invoice.id, conn);
+                } catch (e) {
+                    console.error('Error adjusting carried over invoices in kasir:', e);
+                }
+
+                // Sync with debt_tracking for Admin visibility
+                if (newRem > 0) {
                         if (paymentType === 'debt') {
                             // Insert into payment_confirmations instead of processing debt tracking directly
                             await conn.query(`
@@ -1699,8 +1777,7 @@ export class KasirController {
                         `🆔 *Kode:* ${customer.customer_code}\n` +
                         `🧾 *Invoice:* ${appliedInvoices.join(', ')}\n` +
                         `💰 *Total Hutang:* Rp ${totalAppliedCash.toLocaleString('id-ID')}\n` +
-                        `📝 *Keterangan:* Pembayaran ditunda via Kasir.\n\n` +
-                        `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`
+                        `📝 *Keterangan:* Pembayaran ditunda via Kasir.`
                     );
                 } catch (notifErr) {
                     console.error('Failed to notify admins about debt:', notifErr);
@@ -2219,6 +2296,14 @@ export class KasirController {
                         paid_at = CASE WHEN ? = 'paid' THEN NOW() ELSE paid_at END
                     WHERE id = ?
                 `, [newPaidAmount, newRemainingAmount, newStatus, newStatus, verification.invoice_id]);
+
+                // Cleanup carried-over arrears in newer invoices
+                try {
+                    const { PaymentService } = await import('../services/billing/paymentService');
+                    await PaymentService.adjustCarriedOverInvoicesAfterPayment(verification.invoice_id, conn);
+                } catch (e) {
+                    console.error('Error adjusting carried over invoices in kasir verify:', e);
+                }
             }
 
             // Update verification status

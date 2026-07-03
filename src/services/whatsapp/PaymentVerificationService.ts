@@ -106,7 +106,7 @@ export class PaymentVerificationService {
             const [invoices] = await databasePool.query<RowDataPacket[]>(
                 `SELECT * FROM invoices
                  WHERE customer_id = ?
-                 AND status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
+                 AND status IN ('sent', 'partial', 'overdue', 'carried_over', 'janji_bayar', 'hutang')
                  AND remaining_amount > 0
                  ORDER BY due_date ASC, created_at DESC`,
                 [customerId]

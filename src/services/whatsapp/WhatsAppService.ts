@@ -287,7 +287,19 @@ export class WhatsAppService extends EventEmitter {
         }
 
         // Get latest version
-        const { version, isLatest } = await fetchLatestBaileysVersion();
+        // Get latest version with timeout
+        let version: [number, number, number] = [2, 3000, 1015901307];
+        let isLatest = false;
+        try {
+          const res = await Promise.race([
+            fetchLatestBaileysVersion(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+          ]) as { version: [number, number, number], isLatest: boolean };
+          version = res.version;
+          isLatest = res.isLatest;
+        } catch (e) {
+          this.log('warn', '⚠️ Failed to fetch latest Baileys version (timeout or error), using fallback.');
+        }
         this.log('info', `📦 Baileys Version: ${version.join('.')} (Latest: ${isLatest})`);
 
         // Create socket

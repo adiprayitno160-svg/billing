@@ -11,6 +11,9 @@ import { AuthMiddleware, isAuthenticated } from '../middlewares/authMiddleware';
 import { getOltList, getOltEdit, postOltCreate, postOltDelete, postOltUpdate } from '../controllers/ftth/oltController';
 import { getOdcList, getOdcAdd, getOdcEdit, postOdcCreate, postOdcDelete, postOdcUpdate } from '../controllers/ftth/odcController';
 import { getOdpList, getOdpAdd, getOdpEdit, postOdpCreate, postOdpDelete, postOdpUpdate } from '../controllers/ftth/odpController';
+import { getClosureList, getClosureAdd, getClosureEdit, postClosureCreate, postClosureUpdate, postClosureDelete } from '../controllers/ftth/ClosureController';
+import { getCableList, getCableAdd, getCableEdit, postCableCreate, postCableUpdate, postCableDelete, getMapCablesClosures } from '../controllers/ftth/CableController';
+import { getPoleList, getPoleAdd, getPoleEdit, postPoleCreate, postPoleUpdate, postPoleDelete } from '../controllers/ftth/PoleController';
 import { AreaController } from '../controllers/ftth/AreaController';
 import { OntViewController } from '../controllers/ftth/OntViewController';
 import {
@@ -834,6 +837,21 @@ router.get('/api/mikrotik/secrets/search', async (req, res) => {
 // API endpoint for active PPPoE connections (not in billing)
 router.get('/api/mikrotik/pppoe/active-unregistered', isAuthenticated, getActivePppoeConnections);
 
+router.get('/api/customers/search', async (req, res) => {
+    try {
+        const query = req.query.q as string;
+        if (!query || query.length < 2) return res.json([]);
+        const [customers] = await databasePool.query<RowDataPacket[]>(
+            'SELECT id, name, customer_code, connection_type FROM customers WHERE name LIKE ? OR customer_code LIKE ? LIMIT 10',
+            [`%${query}%`, `%${query}%`]
+        );
+        res.json(customers);
+    } catch (error) {
+        console.error('Error searching customers:', error);
+        res.status(500).json({ error: 'Failed to search customers' });
+    }
+});
+
 // API endpoint untuk get customers with device_id (for WiFi admin)
 router.get('/api/customers', async (req, res) => {
     try {
@@ -1175,6 +1193,66 @@ router.get('/ftth/odp/:id', getOdpEdit);
 router.post('/ftth/odp', postOdpCreate);
 router.post('/ftth/odp/:id', postOdpUpdate);
 router.post('/ftth/odp/:id/delete', postOdpDelete);
+
+// FTTH Closures (Titik Sambung)
+router.get('/ftth/closures', getClosureList);
+router.get('/ftth/closures/add', getClosureAdd);
+router.get('/ftth/closures/:id', getClosureEdit);
+router.post('/ftth/closures', postClosureCreate);
+router.post('/ftth/closures/:id', postClosureUpdate);
+router.post('/ftth/closures/:id/delete', postClosureDelete);
+
+// FTTH Cables (Tarikan Kabel)
+router.get('/ftth/cables', getCableList);
+router.get('/ftth/cables/add', getCableAdd);
+router.get('/ftth/cables/:id', getCableEdit);
+router.post('/ftth/cables', postCableCreate);
+router.post('/ftth/cables/:id', postCableUpdate);
+router.post('/ftth/cables/:id/delete', postCableDelete);
+
+// FTTH Poles (Manajemen Tiang)
+router.get('/ftth/poles', getPoleList);
+router.get('/ftth/poles/add', getPoleAdd);
+router.get('/ftth/poles/:id', getPoleEdit);
+router.post('/ftth/poles', postPoleCreate);
+router.post('/ftth/poles/:id', postPoleUpdate);
+router.post('/ftth/poles/:id/delete', postPoleDelete);
+
+// API for Map
+router.get('/api/ftth/map-cables-closures', getMapCablesClosures);
+
+// API: Get customers by ODP ID (for port capacity popup)
+router.get('/api/ftth/odp/:id/customers', async (req: Request, res: Response) => {
+    try {
+        const odpId = Number(req.params.id);
+        if (!odpId) return res.json({ success: false, message: 'Invalid ODP ID' });
+
+        const conn = await databasePool.getConnection();
+        try {
+            // Get ODP info
+            const [odpRows] = await conn.query<RowDataPacket[]>(
+                'SELECT id, name, total_ports, used_ports FROM ftth_odp WHERE id = ?', [odpId]
+            );
+            const odp = odpRows[0] || null;
+
+            // Get customers connected to this ODP
+            const [customers] = await conn.query<RowDataPacket[]>(
+                `SELECT c.id, c.name, c.status
+                 FROM customers c
+                 WHERE c.odp_id = ?
+                 ORDER BY c.name ASC`,
+                [odpId]
+            );
+
+            return res.json({ success: true, odp, customers });
+        } finally {
+            conn.release();
+        }
+    } catch (err: any) {
+        console.error('Error fetching ODP customers:', err);
+        return res.json({ success: false, message: err.message });
+    }
+});
 
 // API: Search ODC
 router.get('/api/ftth/odc/search', async (req: Request, res: Response) => {
@@ -2454,11 +2532,12 @@ router.post('/customers/new-pppoe', async (req, res) => {
                     serial_number, activation_date, custom_payment_deadline,
                     is_fup_enabled, fup_limit_gb, fup_speed_limit,
                     is_bonus_enabled, bonus_speed_limit, bonus_start_time, bonus_end_time,
-                    isolation_enabled
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    isolation_enabled, parent_customer_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pppoe', 'active', ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
             const isolation_enabled_val = req.body.isolation_enabled === '1' || req.body.isolation_enabled === 'on' || req.body.isolation_enabled === true ? 1 : 0;
+            const parent_customer_id_val = req.body.parent_customer_id ? Number(req.body.parent_customer_id) : null;
             const is_fup_enabled_val = req.body.is_fup_enabled === '1' || req.body.is_fup_enabled === 'on' || req.body.is_fup_enabled === true ? 1 : 0;
             const fup_limit_gb_val = req.body.fup_limit_gb ? parseFloat(req.body.fup_limit_gb) : null;
             const fup_speed_limit_val = req.body.fup_speed_limit || null;
@@ -2497,7 +2576,7 @@ router.post('/customers/new-pppoe', async (req, res) => {
                 final_custom_payment_deadline,
                 is_fup_enabled_val, fup_limit_gb_val, fup_speed_limit_val,
                 is_bonus_enabled_val, bonus_speed_limit_val, bonus_start_time_val, bonus_end_time_val,
-                isolation_enabled_val
+                isolation_enabled_val, parent_customer_id_val
             ]);
 
             // Log for debugging
@@ -3862,7 +3941,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                         await addIpAddress(cfg, {
                             interface: iface,
                             address: mikrotikAddress,
-                            comment: `Client ${client_name}`
+                            comment: client_name
                         });
                         console.log(`✅ IP Address ${mikrotikAddress} added to MikroTik`);
                     } catch (err: any) {
@@ -3886,7 +3965,7 @@ router.post('/customers/new-static-ip', async (req, res) => {
                                 }
 
                                 if (finalIpId) {
-                                    await updateIpAddress(cfg, finalIpId, { comment: `Client ${client_name}` });
+                                    await updateIpAddress(cfg, finalIpId, { comment: client_name });
                                     console.log(`✅ Updated comment for IP ${mikrotikAddress}`);
                                 } else {
                                     console.warn(`❌ Could not find IP ${mikrotikAddress} ID to update comment.`);

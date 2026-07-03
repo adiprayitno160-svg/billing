@@ -284,7 +284,7 @@ export class IsolationService {
                         `Sistem mencoba memulihkan koneksi, namun dibatalkan karena pelanggan *masih memiliki tunggakan* di bulan: *${periods}*.\n\n` +
                         `Akses tetap terblokir sampai semua lunas.`;
                     
-                    await UnifiedNotificationService.broadcastToAdmins(adminMsg).catch(e => console.error('Failed to notify admin about remaining debt:', e));
+                    UnifiedNotificationService.broadcastToAdmins(adminMsg).catch(e => console.error('Failed to notify admin about remaining debt:', e));
                     
                     return false; // Silently fail return if auto
                 } else if (hasUnpaidInvoices && isolationData.performed_by !== 'system') {
@@ -295,7 +295,7 @@ export class IsolationService {
                         `Admin *${isolationData.performed_by}* melakukan pemulihan manual akses internet untuk *${customer.name}* (${customer.customer_code}).\n\n` +
                         `⚠️ *CATATAN:* Pelanggan sebenarnya masih memiliki tunggakan di bulan: *${periods}*.`;
                     
-                    await UnifiedNotificationService.broadcastToAdmins(adminMsg).catch(e => console.error('Failed to notify admin about override:', e));
+                    UnifiedNotificationService.broadcastToAdmins(adminMsg).catch(e => console.error('Failed to notify admin about override:', e));
 
                     // Log this override action for audit trail
                     await connection.execute(
@@ -358,20 +358,20 @@ export class IsolationService {
             // Broadcast to Admins/Operators for Both Isolate & Restore
             if (isolationData.action === 'restore') {
                 try {
-                    await UnifiedNotificationService.broadcastToAdmins(`✅ *INFO UN-ISOLIR KONEKSI*\n\nPelanggan: *${customer.name}* (${customer.customer_code})\nTelah aktif kembali / un-isolir.\nAlasan: ${isolationData.reason}\nOleh: ${isolationData.performed_by}`);
+                    UnifiedNotificationService.broadcastToAdmins(`✅ *INFO UN-ISOLIR KONEKSI*\n\nPelanggan: *${customer.name}* (${customer.customer_code})\nTelah aktif kembali / un-isolir.\nAlasan: ${isolationData.reason}\nOleh: ${isolationData.performed_by}`).catch(e => console.error(e));
                 } catch (e) {
                     console.error('Failed to broadcast unisolir to admins', e);
                 }
             } else if (isolationData.action === 'isolate') {
                 try {
                     const unpaidText = isolationData.unpaid_periods ? `\n📆 *Tunggakan Bulan:* ${isolationData.unpaid_periods}` : '';
-                    await UnifiedNotificationService.broadcastToAdmins(
+                    UnifiedNotificationService.broadcastToAdmins(
                         `⛔ *INFO ISOLIR KONEKSI*\n\n` +
                         `Pelanggan: *${customer.name}* (${customer.customer_code})\n` +
                         `Telah diisolir / diblokir akses internetnya.\n` +
                         `Alasan: ${isolationData.reason}${unpaidText}\n` +
                         `Oleh: ${isolationData.performed_by === 'system' ? 'Asisten AI/Sistem Otomatis' : isolationData.performed_by}`
-                    );
+                    ).catch(e => console.error(e));
                 } catch (e) {
                     console.error('Failed to broadcast isolir to admins', e);
                 }
@@ -454,7 +454,7 @@ export class IsolationService {
                     i.id as invoice_id, i.invoice_number, i.remaining_amount, i.due_date
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
-                WHERE i.status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
+                WHERE i.status IN ('sent', 'partial', 'overdue', 'carried_over', 'janji_bayar', 'hutang')
                 AND i.remaining_amount > 0
                 AND c.is_isolated = FALSE
                 AND c.status = 'active'
@@ -520,7 +520,7 @@ export class IsolationService {
                     i.id as invoice_id, i.invoice_number, i.remaining_amount, i.due_date
                 FROM customers c
                 JOIN invoices i ON c.id = i.customer_id
-                WHERE i.status IN ('sent', 'partial', 'overdue', 'janji_bayar', 'hutang')
+                WHERE i.status IN ('sent', 'partial', 'overdue', 'carried_over', 'janji_bayar', 'hutang')
                 AND i.remaining_amount > 0
                 AND i.due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
                 AND c.is_isolated = FALSE
@@ -591,8 +591,8 @@ export class IsolationService {
                     if (typeof config === 'string' && config.trim()) {
                         try {
                             config = JSON.parse(config);
-                        } catch (parseError) {
-                            console.warn('[Isolation] Failed to parse config JSON', parseError);
+                        } catch (parseError: any) {
+                            console.warn('[Isolation] Failed to parse config JSON (line 593):', parseError.message);
                             config = {};
                         }
                     }
@@ -687,7 +687,6 @@ export class IsolationService {
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.status NOT IN ('paid', 'partial', 'cancelled', 'hutang')
-            AND i.period < DATE_FORMAT(CURDATE(), '%Y-%m')
             AND i.due_date < DATE_SUB(CURDATE(), INTERVAL ${GRACE_PERIOD_DAYS} DAY)
             AND c.is_isolated = FALSE
             AND c.is_deferred = FALSE
@@ -803,8 +802,8 @@ export class IsolationService {
                 if (typeof config === 'string' && config.trim()) {
                     try {
                         config = JSON.parse(config);
-                    } catch (parseError) {
-                        console.warn('[Isolation] Failed to parse config JSON, using empty object', parseError);
+                    } catch (parseError: any) {
+                        console.warn('[Isolation] Failed to parse config JSON (line 805):', parseError.message);
                         config = {};
                     }
                 }
@@ -923,8 +922,8 @@ export class IsolationService {
                 SELECT 1 FROM invoices 
                 WHERE customer_id = customers.id 
                 AND status NOT IN ('paid', 'cancelled') 
-                AND remaining_amount > 0
-                AND (status = 'overdue' OR status = 'janji_bayar' OR status = 'hutang' OR ((status = 'sent' OR status = 'partial') AND due_date <= CURDATE()))
+                AND (remaining_amount > 0 OR status = 'carried_over')
+                AND (status = 'overdue' OR status = 'janji_bayar' OR status = 'hutang' OR status = 'carried_over' OR ((status = 'sent' OR status = 'partial') AND due_date <= CURDATE()))
             )
             AND NOT EXISTS (
                 SELECT 1 FROM isolation_logs 
@@ -996,8 +995,8 @@ export class IsolationService {
                  WHERE customer_id = ? 
                  AND status != 'paid' 
                  AND status != 'cancelled' 
-                 AND remaining_amount > 0 
-                 AND (status = 'overdue' OR status = 'janji_bayar' OR status = 'hutang' OR ((status = 'sent' OR status = 'partial') AND due_date <= CURDATE()))`,
+                 AND (remaining_amount > 0 OR status = 'carried_over') 
+                 AND (status = 'overdue' OR status = 'janji_bayar' OR status = 'hutang' OR status = 'carried_over' OR ((status = 'sent' OR status = 'partial') AND due_date <= CURDATE()))`,
                 [customerId]
             );
 

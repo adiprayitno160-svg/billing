@@ -128,7 +128,7 @@ export class PackageChangeNotificationService {
         SELECT DISTINCT c.id, c.name, c.phone
         FROM customers c
         JOIN invoices i ON c.id = i.customer_id
-        WHERE i.status IN ('sent', 'partial', 'overdue')
+        WHERE i.status IN ('sent', 'partial', 'overdue', 'carried_over')
           AND i.remaining_amount > 0
           AND c.billing_mode = 'postpaid'
           AND c.phone IS NOT NULL

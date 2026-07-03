@@ -295,6 +295,23 @@ export class CustomerNotificationService {
       await alertRoutingService.routeAlert(alert);
       console.log(`[CustomerNotification] ✅ Admin notification sent via Telegram`);
 
+      // Also send via WhatsApp to Admins
+      try {
+        const adminMsg = `🆕 *PELANGGAN BARU TERDAFTAR*\n\n` +
+                         `👤 *Nama:* ${customerData.customerName}\n` +
+                         `🆔 *Kode:* ${customerData.customerCode}\n` +
+                         `🔌 *Tipe:* ${customerData.connectionType.toUpperCase()}\n` +
+                         (customerData.packageName ? `📦 *Paket:* ${customerData.packageName}\n` : '') +
+                         (customerData.address ? `📍 *Alamat Pemasangan:* ${customerData.address}\n` : '') +
+                         (customerData.createdBy ? `👨‍💼 *Dibuat oleh:* ${customerData.createdBy}\n` : '') +
+                         `\nCustomer ID: ${customerData.customerId}`;
+        
+        await UnifiedNotificationService.broadcastToAdmins(adminMsg);
+        console.log(`[CustomerNotification] ✅ Admin notification sent via WhatsApp`);
+      } catch (waErr) {
+        console.error('[CustomerNotification] Error sending admin WA notification:', waErr);
+      }
+
     } catch (error) {
       console.error('[CustomerNotification] Error sending admin notification:', error);
       // Non-critical, don't throw

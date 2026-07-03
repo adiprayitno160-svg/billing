@@ -89,9 +89,9 @@ export class PaymentController {
             const queryParams: any[] = [];
 
             if (search) {
-                whereConditions.push('(c.name LIKE ? OR i.invoice_number LIKE ? OR p.reference_number LIKE ?)');
+                whereConditions.push('(c.name LIKE ? OR c.phone LIKE ? OR i.invoice_number LIKE ? OR p.reference_number LIKE ?)');
                 const searchParam = `%${search}%`;
-                queryParams.push(searchParam, searchParam, searchParam);
+                queryParams.push(searchParam, searchParam, searchParam, searchParam);
             }
 
             const offset = (page - 1) * limit;
@@ -238,6 +238,7 @@ export class PaymentController {
             // Otherwise render view
             res.render('billing/payment-history', {
                 title: 'Riwayat Pembayaran',
+                userRole: (req as any).session?.userRole || 'operator',
                 payments,
                 stats,
                 pagination: {
@@ -1445,6 +1446,75 @@ export class PaymentController {
         }
     }
 
+    async processBulkPayment(req: Request, res: Response): Promise<void> {
+        console.log(`[PaymentController] 💰 Handling processBulkPayment request from ${req.ip}`);
+        try {
+            const {
+                invoice_ids,
+                payment_method,
+                notes
+            } = req.body;
+
+            if (!invoice_ids || !Array.isArray(invoice_ids) || invoice_ids.length === 0 || !payment_method) {
+                res.status(400).json({ success: false, message: 'Data tidak lengkap. Pilih minimal satu tagihan.' });
+                return;
+            }
+
+            const kasirName = (req.session as any)?.username || 'admin';
+            let successCount = 0;
+            let failCount = 0;
+
+            // Group invoices by customer_id to use the existing transaction logic
+            const [invoiceRows] = await databasePool.query<RowDataPacket[]>(
+                'SELECT id, customer_id, remaining_amount, total_amount, paid_amount, status FROM invoices WHERE id IN (?) AND status != "paid"',
+                [invoice_ids]
+            );
+
+            const invoicesByCustomer = invoiceRows.reduce((acc: any, inv: any) => {
+                if (!acc[inv.customer_id]) acc[inv.customer_id] = { ids: [], amount: 0 };
+                acc[inv.customer_id].ids.push(inv.id);
+                
+                let amt = parseFloat(inv.remaining_amount);
+                if (inv.status === 'carried_over') {
+                    amt = Math.max(0, parseFloat(inv.total_amount) - parseFloat(inv.paid_amount || 0));
+                } else if (!amt && amt !== 0) {
+                    amt = parseFloat(inv.total_amount);
+                }
+                
+                acc[inv.customer_id].amount += amt;
+                return acc;
+            }, {});
+
+            for (const customerId of Object.keys(invoicesByCustomer)) {
+                const group = invoicesByCustomer[customerId];
+                try {
+                    await this.processPaymentTransaction({
+                        customerId: Number(customerId),
+                        amount: group.amount, // Full amount required to pay all selected
+                        paymentMethod: payment_method,
+                        paymentType: 'full',
+                        selectedInvoiceIds: group.ids,
+                        notes: notes || 'Pembayaran Masal',
+                        kasirName: kasirName
+                    });
+                    successCount += group.ids.length;
+                } catch (err: any) {
+                    console.error(`Error bulk payment for customer ${customerId}:`, err.message);
+                    failCount += group.ids.length;
+                }
+            }
+
+            res.json({
+                success: true,
+                message: `Berhasil memproses ${successCount} tagihan. ${failCount > 0 ? `Gagal: ${failCount}` : ''}`
+            });
+
+        } catch (error: any) {
+            console.error('Error in processBulkPayment:', error);
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
     private async processPaymentTransaction(params: {
         customerId: number,
         amount: number,
@@ -1501,6 +1571,12 @@ export class PaymentController {
                 const invId = inv.id;
                 const invPeriod = inv.period;
                 let invRemaining = parseFloat(inv.remaining_amount);
+                
+                // If status is carried_over, remaining_amount is 0 in DB because it was moved to next month.
+                // But if they are paying it directly now, we need to treat the unpaid portion as the remaining amount.
+                if (inv.status === 'carried_over') {
+                    invRemaining = Math.max(0, parseFloat(inv.total_amount) - parseFloat(inv.paid_amount || 0));
+                }
                 
                 // Determine how much discount to apply to this invoice
                 // For administrative simplicity, we apply full discount to the FIRST invoice in the selected list (usually current or oldest)
@@ -1627,7 +1703,7 @@ export class PaymentController {
                                     isolirTxt = `pada tanggal *${isoDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}* (karena batas akhir tagihan awal adalah ${new Date(custData[0].inv_due).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })})`;
                                 }
 
-                                const confirmMsg = `Halo *${custData[0].name}*,\n\nAdmin kami telah mencatat permohonan *${typeName}* Anda untuk tagihan internet sebesar *Rp ${newRemaining.toLocaleString('id-ID')}*.${requestedDueTxt}\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*SETUJU*\n\n_(Jika Anda tidak membalas SETUJU, maka permohonan tidak akan aktif dan koneksi Anda akan diisolir ${isolirTxt})_.`;
+                                const confirmMsg = `Halo *${custData[0].name}*,\n\nAdmin kami telah mencatat permohonan *${typeName}* Anda untuk tagihan internet sebesar *Rp ${newRemaining.toLocaleString('id-ID')}*.${requestedDueTxt}\n\n*PENTING (MOHON DIBACA):*\nUntuk menyetujui kesepakatan ini dan mencegah pemblokiran/isolir koneksi internet Anda, silakan balas pesan ini dengan mengetik:\n\n*YA* (Atau *SETUJU*)\n\n_(Jika Anda tidak membalas YA, maka permohonan tidak akan aktif dan koneksi Anda akan diisolir ${isolirTxt})_.`;
                                 await waService.sendMessage(phone + '@s.whatsapp.net', confirmMsg);
                             }
                         } catch (notifErr) {
@@ -1675,8 +1751,7 @@ export class PaymentController {
                             `ðŸ§¾ *Invoices:* ${selectedInvoiceIds.join(', ')}\n` +
                             `ðŸ’° *Sisa Tagihan:* Rp ${amount.toLocaleString('id-ID')}\n` +
                             dateInfo +
-                            `ðŸ“ *Keterangan:* Status diupdate via Admin Panel.\n\n` +
-                            `Mohon pimpinan (Nina/Diki) untuk memantau status ini.`
+                            `ðŸ“  *Keterangan:* Status diupdate via Admin Panel.`
                         ).catch(notifErr => console.error('[AdminPayment] Failed to notify admins about status change:', notifErr));
 
                         // [Fix] Auto-Regenerate Next Period Invoice if already created
@@ -1744,6 +1819,109 @@ export class PaymentController {
             if (conn) await conn.rollback();
             if (conn) conn.release();
             throw error;
+        }
+    }
+
+    /**
+     * Restore / Cancel a payment (Admin only)
+     */
+    async restorePayment(req: Request, res: Response): Promise<void> {
+        const paymentId = req.params.id;
+        const adminId = (req as any).session?.userId || 1;
+        const role = (req as any).session?.userRole;
+        
+        if (role !== 'admin' && role !== 'superadmin') {
+            res.status(403).json({ success: false, message: 'Hanya admin yang dapat membatalkan pembayaran.' });
+            return;
+        }
+
+        let conn;
+        try {
+            conn = await databasePool.getConnection();
+            await conn.beginTransaction();
+
+            // 1. Get payment details
+            const [payments] = await conn.query('SELECT * FROM payments WHERE id = ?', [paymentId]) as any;
+            if (payments.length === 0) {
+                await conn.rollback();
+                res.status(404).json({ success: false, message: 'Pembayaran tidak ditemukan.' });
+                return;
+            }
+            const payment = payments[0];
+            const invoiceId = payment.invoice_id;
+            const amount = parseFloat(payment.amount);
+            const paymentMethod = payment.payment_method;
+
+            // 2. Get invoice details
+            const [invoices] = await conn.query('SELECT * FROM invoices WHERE id = ?', [invoiceId]) as any;
+            if (invoices.length === 0) {
+                await conn.rollback();
+                res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan.' });
+                return;
+            }
+            const invoice = invoices[0];
+            const customerId = invoice.customer_id;
+
+            // 3. Revert Invoice Amount
+            let newPaidAmount = parseFloat(invoice.paid_amount) - amount;
+            if (newPaidAmount < 0) newPaidAmount = 0;
+            
+            const totalAmount = parseFloat(invoice.total_amount);
+            let newStatus = invoice.status;
+            
+            if (newPaidAmount === 0) {
+                newStatus = 'unpaid';
+            } else if (newPaidAmount < totalAmount) {
+                newStatus = 'partial';
+            }
+
+            const newRemaining = totalAmount - newPaidAmount;
+
+            await conn.query(
+                'UPDATE invoices SET paid_amount = ?, remaining_amount = ?, status = ? WHERE id = ?',
+                [newPaidAmount, newRemaining, newStatus, invoiceId]
+            );
+
+            // 4. If payment was from saldo, refund it
+            if (paymentMethod === 'saldo' || paymentMethod === 'balance') {
+                await conn.query(
+                    'UPDATE customers SET balance = balance + ? WHERE id = ?',
+                    [amount, customerId]
+                );
+                
+                // Fetch new balance
+                const [custs] = await conn.query('SELECT balance FROM customers WHERE id = ?', [customerId]) as any;
+                const newBalance = custs[0].balance;
+
+                await conn.query(`
+                    INSERT INTO customer_balance_logs 
+                    (customer_id, type, amount, balance_after, description, created_by, created_at)
+                    VALUES (?, 'topup', ?, ?, ?, ?, NOW())
+                `, [customerId, amount, newBalance, `Pengembalian dana (Refund) dari pembatalan pembayaran ID ${paymentId}`, adminId]);
+            }
+
+            // 5. Delete payment record
+            await conn.query('DELETE FROM payments WHERE id = ?', [paymentId]);
+
+            await conn.commit();
+            
+            // 6. Check isolation in background if invoice is now unpaid
+            if (newStatus === 'unpaid' || newStatus === 'partial') {
+                const IsolationService = require('../../services/billing/isolationService').default;
+                setTimeout(() => {
+                    IsolationService.isolateIfOverdue(customerId).catch((e: any) => {
+                        console.warn('Auto-isolate background failed after payment restore:', e.message);
+                    });
+                }, 1000);
+            }
+
+            res.json({ success: true, message: 'Pembayaran berhasil dibatalkan dan dikembalikan.' });
+        } catch (error: any) {
+            if (conn) await conn.rollback();
+            console.error('Error in restorePayment:', error);
+            res.status(500).json({ success: false, message: 'Gagal membatalkan pembayaran: ' + error.message });
+        } finally {
+            if (conn) conn.release();
         }
     }
 }

@@ -42,7 +42,7 @@ export class InvoiceDataService {
              FROM invoices 
              WHERE customer_id = ? 
              AND id != ? 
-             AND status IN ('sent', 'partial', 'overdue')
+             AND status IN ('sent', 'partial', 'overdue', 'carried_over')
              AND remaining_amount > 0
              ORDER BY period ASC`,
             [invoice.customer_id, invoiceId]

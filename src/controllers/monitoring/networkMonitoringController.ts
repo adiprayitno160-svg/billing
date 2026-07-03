@@ -272,7 +272,7 @@ export const getCustomerMapDetail = async (req: Request, res: Response) => {
 
         // 1. Get Customer and ODP coordinates
         const [customerRows] = await databasePool.query<any[]>(`
-            SELECT c.latitude, c.longitude, odp.latitude as odp_latitude, odp.longitude as odp_longitude
+            SELECT c.latitude, c.longitude, c.serial_number, odp.latitude as odp_latitude, odp.longitude as odp_longitude
             FROM customers c
             LEFT JOIN ftth_odp odp ON c.odp_id = odp.id
             WHERE c.id = ?
@@ -304,14 +304,21 @@ export const getCustomerMapDetail = async (req: Request, res: Response) => {
         // 2. Check for GenieACS device
         let signalInfo = null;
         try {
-            const [deviceRows] = await databasePool.query<any[]>(`
-                SELECT genieacs_serial FROM network_devices 
-                WHERE customer_id = ? AND device_type = 'ont' AND genieacs_serial IS NOT NULL 
-                LIMIT 1
-            `, [customerId]);
+            let serial = customer.serial_number;
 
-            if (deviceRows.length > 0) {
-                const serial = deviceRows[0].genieacs_serial;
+            if (!serial) {
+                const [deviceRows] = await databasePool.query<any[]>(`
+                    SELECT genieacs_serial FROM network_devices 
+                    WHERE customer_id = ? AND device_type = 'ont' AND genieacs_serial IS NOT NULL 
+                    LIMIT 1
+                `, [customerId]);
+
+                if (deviceRows.length > 0) {
+                    serial = deviceRows[0].genieacs_serial;
+                }
+            }
+
+            if (serial) {
                 const { GenieacsService } = await import('../../services/genieacs/GenieacsService');
                 const genieacs = await GenieacsService.getInstanceFromDb();
                 

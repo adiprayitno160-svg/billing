@@ -7,6 +7,8 @@
 import TelegramBot from 'node-telegram-bot-api';
 import pool from '../../db/pool';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { TelegramDaftarHandler } from './TelegramDaftarHandler';
+import { TelegramPembayaranHandler } from './TelegramPembayaranHandler';
 
 interface TelegramUser {
     id: number;
@@ -36,6 +38,8 @@ export class TelegramAdminService {
     private botToken: string;
     private isInitialized: boolean = false;
     private messageQueue: any[] = [];
+    private daftarHandler: TelegramDaftarHandler | null = null;
+    private pembayaranHandler: TelegramPembayaranHandler | null = null;
 
     constructor() {
         this.botToken = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -71,6 +75,9 @@ export class TelegramAdminService {
                 }
             });
 
+            this.daftarHandler = new TelegramDaftarHandler(this.bot);
+            this.pembayaranHandler = new TelegramPembayaranHandler(this.bot);
+
             this.setupCommands();
             this.setupCallbackHandlers();
             this.setupErrorHandling();
@@ -85,6 +92,8 @@ export class TelegramAdminService {
             this.bot.setMyCommands([
                 { command: 'menu', description: 'Tampilkan semua opsi menu bantuan' },
                 { command: 'help', description: 'Tampilkan semua opsi bantuan' },
+                { command: 'daftar', description: 'Pendaftaran pelanggan baru (Admin)' },
+                { command: 'pembayaran', description: 'Proses pembayaran tagihan (Kasir/Admin)' },
                 { command: 'status', description: 'Lihat ringkasan jaringan' },
                 { command: 'incidents', description: 'Lihat daftar gangguan' },
                 { command: 'mytickets', description: 'Lihat tugas saya' },
@@ -138,9 +147,9 @@ export class TelegramAdminService {
             await this.handleMyTickets(msg);
         });
 
-        // Command: /customers
-        this.bot.onText(/\/customers (.+)/, async (msg, match) => {
-            await this.handleCustomerSearch(msg, match?.[1] || '');
+        // Command: /customers or /customer
+        this.bot.onText(/\/(customers|customer|xustomer)(?: (.+))?/i, async (msg, match) => {
+            await this.handleCustomerSearch(msg, match?.[2] || '');
         });
 
         // Command: /offline
@@ -154,13 +163,20 @@ export class TelegramAdminService {
         });
 
         // Command: /invoice
-        this.bot.onText(/\/invoice (.+)/, async (msg, match) => {
+        this.bot.onText(/\/invoice(?: (.+))?/i, async (msg, match) => {
             await this.handleInvoice(msg, match?.[1] || '');
         });
 
-        // Command: /payment
-        this.bot.onText(/\/payment (.+)/, async (msg, match) => {
-            await this.handlePayment(msg, match?.[1] || '');
+        // Command: /payment atau /pembayaran
+        this.bot.onText(/\/(payment|pembayaran)/i, async (msg) => {
+            console.log('[TelegramAdmin] Received /pembayaran from:', msg.chat.id);
+            if (this.pembayaranHandler) {
+                const chatId = msg.chat.id;
+                const user = await this.getUser(chatId);
+                await this.pembayaranHandler.handleCommand(msg, user);
+            } else {
+                console.log('[TelegramAdmin] pembayaranHandler is missing!');
+            }
         });
 
         // Command: /areas
@@ -169,12 +185,12 @@ export class TelegramAdminService {
         });
 
         // Command: /isolir
-        this.bot.onText(/\/(isolir|nonactive) (.+)/, async (msg, match) => {
+        this.bot.onText(/\/(isolir|nonactive)(?: (.+))?/i, async (msg, match) => {
             await this.handleIsolir(msg, match?.[2] || '');
         });
 
         // Command: /unisolir
-        this.bot.onText(/\/(unisolir|active) (.+)/, async (msg, match) => {
+        this.bot.onText(/\/(unisolir|active)(?: (.+))?/i, async (msg, match) => {
             await this.handleUnisolir(msg, match?.[2] || '');
         });
 
@@ -189,7 +205,7 @@ export class TelegramAdminService {
         });
 
         // Command: /bayarlunas
-        this.bot.onText(/\/bayarlunas (.+)/, async (msg, match) => {
+        this.bot.onText(/\/bayarlunas(?: (.+))?/i, async (msg, match) => {
             await this.handleBayarLunas(msg, match?.[1] || '');
         });
 
@@ -203,7 +219,53 @@ export class TelegramAdminService {
             await this.handleSettings(msg);
         });
 
+        // Command: /registergroup
+        this.bot.onText(/\/registergroup/, async (msg) => {
+            await this.handleRegisterGroup(msg);
+        });
+
+        // Command: /daftar
+        this.bot.onText(/\/daftar/i, async (msg) => {
+            console.log('[TelegramAdmin] Received /daftar from:', msg.chat.id);
+            if (this.daftarHandler) {
+                const chatId = msg.chat.id;
+                const user = await this.getUser(chatId);
+                await this.daftarHandler.handleCommand(msg, user);
+            } else {
+                console.log('[TelegramAdmin] daftarHandler is missing!');
+            }
+        });
+
         console.log('[TelegramAdmin] Commands registered');
+        this.bot.on('message', async (msg) => {
+            console.log(`[TelegramAdmin] RAW MSG Received: text=${msg.text}, hasLocation=${!!msg.location}, from=${msg.chat.id}`);
+            if (msg.text && msg.text.startsWith('/')) return;
+            if (!msg.text && !msg.location) return;
+            const chatId = msg.chat.id;
+            if (this.daftarHandler?.isRegistering(chatId)) {
+                await this.daftarHandler.handleMessage(msg);
+                return;
+            }
+            if (this.pembayaranHandler?.isPaying(chatId)) {
+                await this.pembayaranHandler.handleMessage(msg);
+                return;
+            }
+        });
+
+        // Explicit location handler - node-telegram-bot-api may route location messages
+        // to a separate 'location' event instead of the general 'message' event
+        this.bot.on('location' as any, async (msg: TelegramBot.Message) => {
+            console.log(`[TelegramAdmin] LOCATION event received: lat=${msg.location?.latitude}, lng=${msg.location?.longitude}, from=${msg.chat.id}`);
+            const chatId = msg.chat.id;
+            if (this.daftarHandler?.isRegistering(chatId)) {
+                await this.daftarHandler.handleMessage(msg);
+                return;
+            }
+            if (this.pembayaranHandler?.isPaying(chatId)) {
+                await this.pembayaranHandler.handleMessage(msg);
+                return;
+            }
+        });
     }
 
     /**
@@ -217,6 +279,15 @@ export class TelegramAdminService {
             const data = query.data;
 
             if (!chatId || !data) return;
+
+            if (this.daftarHandler) {
+                const handled = await this.daftarHandler.handleCallbackQuery(query);
+                if (handled) return;
+            }
+            if (this.pembayaranHandler) {
+                const handled = await this.pembayaranHandler.handleCallbackQuery(query);
+                if (handled) return;
+            }
 
             try {
                 if (data.startsWith('assign_')) {
@@ -303,8 +374,9 @@ export class TelegramAdminService {
             `• 💰 Info tagihan & pembayaran\n` +
             `• 📈 Statistik performa\n\n` +
             `*Untuk memulai:*\n` +
-            `/register <kode_undangan>\n\n` +
-            `Hubungi admin untuk mendapatkan kode undangan.`;
+            `Gunakan: \`/register <kode_undangan>\`\n\n` +
+            `Atau, jika Anda didaftarkan secara manual oleh Admin, berikan Chat ID Anda kepada mereka:\n` +
+            `💬 *Chat ID Anda:* \`${chatId}\``;
 
         await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
         await this.logChatMessage(chatId, 'command', '/start', message, true);
@@ -393,6 +465,45 @@ export class TelegramAdminService {
     }
 
     /**
+     * Handle /registergroup command
+     */
+    private async handleRegisterGroup(msg: TelegramBot.Message): Promise<void> {
+        const chatId = msg.chat.id;
+        const title = msg.chat.title || 'Grup Bot';
+
+        if (chatId > 0) {
+            await this.sendMessage(chatId, '❌ Perintah ini hanya bisa digunakan di dalam Grup.');
+            return;
+        }
+
+        try {
+            // Check if already registered
+            const [existing] = await pool.query<RowDataPacket[]>(`
+                SELECT id FROM telegram_users
+                WHERE telegram_chat_id = ? AND is_active = 1
+            `, [chatId.toString()]);
+
+            if (existing.length > 0) {
+                await this.sendMessage(chatId, '⚠️ Grup ini sudah terdaftar sebagai Admin.');
+                return;
+            }
+
+            // Create a new admin user for the group
+            await pool.query(`
+                INSERT INTO telegram_users 
+                (role, telegram_chat_id, first_name, is_active, registered_at, last_active_at, notification_enabled)
+                VALUES ('admin', ?, ?, 1, NOW(), NOW(), 1)
+            `, [chatId.toString(), title]);
+
+            await this.sendMessage(chatId, '✅ *Registrasi Grup Berhasil!*\n\nGrup ini sekarang akan menerima notifikasi Admin otomatis (seperti pelanggan offline > 30 menit).', { parse_mode: 'Markdown' });
+
+        } catch (error) {
+            console.error('[TelegramAdmin] Register Group error:', error);
+            await this.sendMessage(chatId, '❌ Terjadi kesalahan saat mendaftarkan grup.');
+        }
+    }
+
+    /**
      * Handle /help command
      */
     private async handleHelp(msg: TelegramBot.Message): Promise<void> {
@@ -420,7 +531,7 @@ export class TelegramAdminService {
                 commands += `*Admin:*\n`;
                 commands += `/stats - Statistik hari ini\n`;
                 commands += `/incidents - Lihat incident aktif\n`;
-                commands += `/offline [area] - Customer offline\n`;
+                commands += `/offline (area) - Customer offline\n`;
                 commands += `/customers <nama> - Cari customer\n`;
                 commands += `/invoice <id> - Cek tagihan\n`;
                 commands += `/payment <id> - Cek pembayaran\n`;
@@ -429,14 +540,14 @@ export class TelegramAdminService {
                 commands += `/isolir <id> - Isolir pelanggan manual\n`;
                 commands += `/unisolir <id> - Buka isolir pelanggan\n`;
                 commands += `/ping <id> - Cek status koneksi pelanggan\n`;
-                commands += `/bayarlunas <id_invoice> - Tandai lunas instan\n\n`;
+                commands += `/bayarlunas <id> - Tandai lunas instan\n\n`;
             }
 
             if (user.role === 'teknisi') {
                 commands += `*Teknisi:*\n`;
                 commands += `/mytickets - Tiket saya\n`;
-                commands += `/incidents [area] - Incident aktif\n`;
-                commands += `/offline [area] - Customer offline\n`;
+                commands += `/incidents (area) - Incident aktif\n`;
+                commands += `/offline (area) - Customer offline\n`;
                 commands += `/customers <nama> - Cari customer\n`;
                 commands += `/areas - Daftar area\n\n`;
             }
@@ -543,7 +654,7 @@ export class TelegramAdminService {
             let query = `
                 SELECT 
                     si.id,
-                    c.customer_id,
+                    c.customer_code,
                     c.name AS customer_name,
                     c.area,
                     c.phone,
@@ -586,7 +697,7 @@ export class TelegramAdminService {
                 const techInfo = inc.technician_name ? ` (${inc.technician_name})` : '';
 
                 message += `${index + 1}. ${statusIcon} *${inc.customer_name}*\n`;
-                message += `   ID: ${inc.customer_id} | 📍 ${inc.area || 'N/A'}\n`;
+                message += `   ID: ${inc.customer_code || inc.customer_id} | 📍 ${inc.area || 'N/A'}\n`;
                 message += `   ⏱️ ${inc.duration_minutes} menit${techInfo}\n`;
                 message += `   📞 ${inc.phone || '-'}\n\n`;
             });
@@ -621,7 +732,7 @@ export class TelegramAdminService {
                     tia.incident_id,
                     tia.status,
                     tia.assigned_at,
-                    c.customer_id,
+                    c.customer_code,
                     c.name as customer_name,
                     c.area,
                     c.phone,
@@ -685,17 +796,17 @@ export class TelegramAdminService {
 
             const [customers] = await pool.query<RowDataPacket[]>(`
                 SELECT 
-                    customer_id,
+                    id,
+                    customer_code,
                     name,
                     area,
                     phone,
                     address,
                     status,
-                    package_name,
-                    monthly_fee
+                    connection_type,
+                    balance
                 FROM customers
-                WHERE (name LIKE ? OR customer_id LIKE ?)
-                    AND is_deleted = 0
+                WHERE (name LIKE ? OR customer_code LIKE ?)
                 LIMIT 10
             `, [`%${query}%`, `%${query}%`]);
 
@@ -710,10 +821,10 @@ export class TelegramAdminService {
                 const statusIcon = cust.status === 'active' ? '✅' : '⚠️';
 
                 message += `${index + 1}. ${statusIcon} *${cust.name}*\n`;
-                message += `   ID: ${cust.customer_id}\n`;
+                message += `   ID: ${cust.customer_code || cust.id}\n`;
                 message += `   📍 ${cust.area || 'N/A'} | 📞 ${cust.phone || '-'}\n`;
-                message += `   📦 ${cust.package_name || 'N/A'}\n`;
-                message += `   💰 Rp ${(cust.monthly_fee || 0).toLocaleString('id-ID')}\n\n`;
+                message += `   🔗 ${cust.connection_type || 'N/A'}\n`;
+                message += `   💰 Saldo: Rp ${(cust.balance || 0).toLocaleString('id-ID')}\n\n`;
             });
 
             await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
@@ -740,7 +851,7 @@ export class TelegramAdminService {
 
             let query = `
                 SELECT 
-                    c.customer_id,
+                    c.customer_code,
                     c.name,
                     c.area,
                     c.phone,
@@ -776,7 +887,7 @@ export class TelegramAdminService {
                 const urgentIcon = cust.duration_minutes > 60 ? '🚨' : '⚠️';
 
                 message += `${index + 1}. ${urgentIcon} *${cust.name}*\n`;
-                message += `   ID: ${cust.customer_id} | 📍 ${cust.area || 'N/A'}\n`;
+                message += `   ID: ${cust.customer_code || '-'} | 📍 ${cust.area || 'N/A'}\n`;
                 message += `   ⏱️ ${cust.duration_minutes} menit\n`;
                 message += `   📞 ${cust.phone || '-'}\n\n`;
             });
@@ -813,7 +924,7 @@ export class TelegramAdminService {
                     (SELECT COUNT(*) FROM invoices WHERE status = 'unpaid' 
                         AND due_date < CURDATE()) as total_overdue_invoices,
                     (SELECT COUNT(*) FROM payments WHERE DATE(payment_date) = CURDATE()) as payments_today,
-                    (SELECT COALESCE(SUM(total_amount), 0) FROM payments 
+                    (SELECT COALESCE(SUM(amount), 0) FROM payments 
                         WHERE DATE(payment_date) = CURDATE()) as revenue_today
             `);
 
@@ -867,7 +978,7 @@ export class TelegramAdminService {
                     c.name as customer_name
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
-                WHERE c.customer_id = ?
+                WHERE c.customer_code = ?
                 ORDER BY i.created_at DESC
                 LIMIT 5
             `, [customerId]);
@@ -929,7 +1040,7 @@ export class TelegramAdminService {
                 FROM payments p
                 JOIN invoices i ON p.invoice_id = i.id
                 JOIN customers c ON i.customer_id = c.id
-                WHERE c.customer_id = ?
+                WHERE c.customer_code = ?
                 ORDER BY p.payment_date DESC
                 LIMIT 5
             `, [customerId]);
@@ -1519,7 +1630,7 @@ export class TelegramAdminService {
             if (isNumeric) {
                 targetId = parseInt(term);
                 // Verify existence
-                const [rows] = await pool.query<RowDataPacket[]>('SELECT id FROM customers WHERE customer_id = ? OR id = ?', [targetId, targetId]);
+                const [rows] = await pool.query<RowDataPacket[]>('SELECT id FROM customers WHERE customer_code = ? OR id = ?', [targetId, targetId]);
                 if (rows.length === 0) {
                     await this.sendMessage(chatId, `❌ Pelanggan dengan ID ${targetId} tidak ditemukan.`);
                     return;
@@ -1528,9 +1639,9 @@ export class TelegramAdminService {
             } else {
                 // Search by name
                 const [customers] = await pool.query<RowDataPacket[]>(`
-                    SELECT id, name, customer_id, area 
+                    SELECT id, name, customer_code, area 
                     FROM customers 
-                    WHERE (name LIKE ? OR customer_id LIKE ?) AND is_deleted = 0
+                    WHERE (name LIKE ? OR customer_code LIKE ?)
                     LIMIT 10
                 `, [`%${term}%`, `%${term}%`]);
 
@@ -1549,7 +1660,7 @@ export class TelegramAdminService {
                     
                     customers.forEach((c: any) => {
                         keyboard.push([{
-                            text: `${icon} ${c.name} (${c.customer_id})`,
+                            text: `${icon} ${c.name} (${c.customer_code || c.id})`,
                             callback_data: `${prefix}${c.id}`
                         }]);
                     });
@@ -1602,9 +1713,8 @@ export class TelegramAdminService {
     /**
      * Handle /ping command
      */
-    private async handlePing(msg: TelegramBot.Message, customerIdStr: string): Promise<void> {
+    private async handlePing(msg: TelegramBot.Message, searchTerm: string): Promise<void> {
         const chatId = msg.chat.id;
-        const customerId = parseInt(customerIdStr);
 
         try {
             const user = await this.getUser(chatId);
@@ -1613,21 +1723,42 @@ export class TelegramAdminService {
                 return;
             }
 
-            if (isNaN(customerId)) {
-                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /ping [ID_Pelanggan]');
+            if (!searchTerm || searchTerm.trim() === '') {
+                await this.sendMessage(chatId, '❌ Format salah. Gunakan: /ping [Nama Pelanggan atau ID]');
                 return;
             }
 
-            await this.sendMessage(chatId, '⏳ Mengecek koneksi pelanggan...');
+            await this.sendMessage(chatId, `⏳ Mencari dan mengecek koneksi untuk: ${searchTerm}...`);
 
-            // Get customer info
-            const [custRows] = await pool.query<RowDataPacket[]>(`
+            // Search by ID if it's a number, otherwise search by name
+            let query = `
                 SELECT id, name, connection_type, mikrotik_id, pppoe_username, static_ip 
-                FROM customers WHERE id = ?
-            `, [customerId]);
+                FROM customers 
+            `;
+            let params: any[] = [];
+            
+            if (/^\d+$/.test(searchTerm.trim())) {
+                query += `WHERE id = ?`;
+                params.push(parseInt(searchTerm.trim()));
+            } else {
+                query += `WHERE name LIKE ?`;
+                params.push(`%${searchTerm.trim()}%`);
+            }
+
+            const [custRows] = await pool.query<RowDataPacket[]>(query, params);
 
             if (custRows.length === 0) {
                 await this.sendMessage(chatId, '❌ Pelanggan tidak ditemukan.');
+                return;
+            }
+
+            if (custRows.length > 1) {
+                let multipleMsg = `⚠️ Ditemukan lebih dari 1 pelanggan dengan nama '${searchTerm}':\n\n`;
+                custRows.slice(0, 10).forEach((c: any, i: number) => {
+                    multipleMsg += `${i+1}. *${c.name}* (ID: ${c.id})\n`;
+                });
+                multipleMsg += `\nSilakan ketik ulang dengan ID yang spesifik, contoh: /ping ${custRows[0].id}`;
+                await this.sendMessage(chatId, multipleMsg, { parse_mode: 'Markdown' });
                 return;
             }
 
@@ -1755,9 +1886,9 @@ export class TelegramAdminService {
 
                 // Insert payment record
                 await connection.query(
-                    `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_at)
-                     VALUES (?, 'cash', ?, NOW(), ?, NOW())`,
-                    [invoiceId, paymentAmount, 'Auto-Lunas via Telegram Admin Bot']
+                    `INSERT INTO payments (invoice_id, payment_method, amount, payment_date, notes, created_at, created_by, gateway_status)
+                     VALUES (?, 'cash', ?, NOW(), ?, NOW(), ?, 'completed')`,
+                    [invoiceId, paymentAmount, 'Auto-Lunas via Telegram Admin Bot', user.id]
                 );
 
                 // Update invoice

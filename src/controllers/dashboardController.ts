@@ -250,34 +250,8 @@ export async function getDashboard(req: Request, res: Response): Promise<void> {
 
 		// Client-side loading for Mikrotik Info (Faster dashboard load)
 		let mikrotikInfo: any = null;
-		let interfaces: any[] = [];
-		let connectionStatus = { connected: false, error: null }; // Default status
-
-		// Attempt to fetch interfaces for Live Traffic widget (Timeout 2s to prevent dashboard lag)
-		if (mtSettings) {
-			try {
-				const config: MikroTikConfig = {
-					host: mtSettings.host,
-					port: mtSettings.port,
-					username: mtSettings.username,
-					password: mtSettings.password,
-					use_tls: mtSettings.use_tls
-				};
-
-				// Fast timeout 2s
-				const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard interface fetch timeout')), 2000));
-				const fetchPromise = getInterfaces(config);
-				const infoPromise = getMikrotikInfo(config);
-
-				interfaces = await Promise.race([fetchPromise, timeoutPromise]) as any[];
-				mikrotikInfo = await Promise.race([infoPromise, timeoutPromise]) as any;
-				
-				connectionStatus = { connected: true, error: null };
-			} catch (err: any) {
-				console.warn('[Dashboard] Skipping interface fetch (slow network/offline):', err.message);
-				connectionStatus = { connected: false, error: err.message };
-			}
-		}
+		let interfaces: any[] = [{ name: 'Memuat...' }]; // Dummy untuk merender widget
+		let connectionStatus = { connected: true, error: null }; // Default status
 
 		// Get server monitoring status
 		let serverMonitoring = null;
